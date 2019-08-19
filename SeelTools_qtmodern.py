@@ -1,6 +1,8 @@
 import sys
 from PySide2.QtCore import Qt  # , QDateTime, QTimer
 from PySide2.QtGui import QPalette, QColor
+import lib.qtmodern.styles
+import lib.qtmodern.windows
 from PySide2.QtWidgets import (QApplication, QCheckBox, QComboBox, QHBoxLayout,
                                QDial, QDialog, QGridLayout, QGroupBox, QLabel,
                                QDateTimeEdit, QLineEdit, QProgressBar, QSlider,
@@ -14,9 +16,13 @@ app_version = 0.01
 
 def main():
     app = QApplication(sys.argv)
+    lib.qtmodern.styles.dark(app)
     window = MainWindow(app)
+    mw = lib.qtmodern.windows.ModernWindow(window)
+    mw.show()
     window.show()
     app.exec_()
+    lib.qtmodern.styles
 
 
 class MainWindow(QMainWindow):
@@ -24,18 +30,20 @@ class MainWindow(QMainWindow):
         super(MainWindow, self).__init__()
 
         # setting up application skin and display properties
-        QApplication.setStyle(QStyleFactory.create('Fusion'))
-        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
-
+        #QApplication.setStyle(QStyleFactory.create('Fusion'))
+        #QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
         self.app = app
         self.setupTopMenu()
         self.setupToolbar()
         self.setupMainTabWidget()
         self.setCentralWidget(self.mainTabWidget)
-        self.toggleDarkMode()
-        self.setWindowFlags(Qt.CustomizeWindowHint)
+
+
+
+        #self.toggleDarkMode()
+        #self.setWindowFlags(Qt.CustomizeWindowHint)
         self.setWindowTitle('{} v{}'.format(app_name, app_version))
-        self.setWindowFlag(Qt.WindowTitleHint)
+        #self.setWindowFlags(Qt.WindowTitleHint)
 
     def setupTopMenu(self):
         fileMenu = QMenu("&File", self)
