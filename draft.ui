@@ -1,0 +1,770 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>733</width>
+    <height>770</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QGridLayout" name="gridLayout">
+    <item row="0" column="0">
+     <widget class="QTabWidget" name="tabWidget">
+      <property name="currentIndex">
+       <number>0</number>
+      </property>
+      <widget class="QWidget" name="tab">
+       <attribute name="title">
+        <string>Города и объекты</string>
+       </attribute>
+       <layout class="QHBoxLayout" name="horizontalLayout_4">
+        <item>
+         <widget class="QSplitter" name="splitter">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <widget class="QGroupBox" name="groupBox_3">
+           <property name="title">
+            <string>Структуры</string>
+           </property>
+           <layout class="QVBoxLayout" name="verticalLayout_2">
+            <item>
+             <layout class="QVBoxLayout" name="verticalLayout">
+              <item>
+               <layout class="QHBoxLayout" name="horizontalLayout_2">
+                <item>
+                 <widget class="QLabel" name="label">
+                  <property name="text">
+                   <string>Выбор карты:</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QComboBox" name="comboBox_2">
+                  <property name="minimumSize">
+                   <size>
+                    <width>100</width>
+                    <height>0</height>
+                   </size>
+                  </property>
+                  <item>
+                   <property name="text">
+                    <string>r1m1 (Край)</string>
+                   </property>
+                  </item>
+                  <item>
+                   <property name="text">
+                    <string>r1m2 (Фатерлянд)</string>
+                   </property>
+                  </item>
+                 </widget>
+                </item>
+                <item>
+                 <spacer name="horizontalSpacer">
+                  <property name="orientation">
+                   <enum>Qt::Horizontal</enum>
+                  </property>
+                  <property name="sizeType">
+                   <enum>QSizePolicy::MinimumExpanding</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>40</width>
+                    <height>20</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="pushButton">
+                  <property name="text">
+                   <string>Раскрыть всё</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </item>
+              <item>
+               <widget class="QTreeWidget" name="treeWidget">
+                <property name="frameShadow">
+                 <enum>QFrame::Sunken</enum>
+                </property>
+                <property name="lineWidth">
+                 <number>1</number>
+                </property>
+                <property name="uniformRowHeights">
+                 <bool>true</bool>
+                </property>
+                <attribute name="headerCascadingSectionResizes">
+                 <bool>true</bool>
+                </attribute>
+                <attribute name="headerDefaultSectionSize">
+                 <number>300</number>
+                </attribute>
+                <attribute name="headerStretchLastSection">
+                 <bool>true</bool>
+                </attribute>
+                <column>
+                 <property name="text">
+                  <string>Имя</string>
+                 </property>
+                 <property name="textAlignment">
+                  <set>AlignLeading|AlignVCenter</set>
+                 </property>
+                </column>
+                <column>
+                 <property name="text">
+                  <string>Прототип</string>
+                 </property>
+                 <property name="textAlignment">
+                  <set>AlignLeading|AlignVCenter</set>
+                 </property>
+                </column>
+                <item>
+                 <property name="text">
+                  <string>Города</string>
+                 </property>
+                 <property name="text">
+                  <string>listed in towns.xml</string>
+                 </property>
+                 <item>
+                  <property name="text">
+                   <string>ЮЖНЫЙ (TheTown)</string>
+                  </property>
+                  <property name="text">
+                   <string>TownSouth</string>
+                  </property>
+                  <item>
+                   <property name="text">
+                    <string>Бар ''Долгий путь'' (TheTown_Bar)</string>
+                   </property>
+                   <property name="text">
+                    <string>bar</string>
+                   </property>
+                   <item>
+                    <property name="text">
+                     <string>Жена Бармена (TheTown_Bar_Barman)</string>
+                    </property>
+                    <property name="text">
+                     <string>NPC</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>Торговец Серго (Buyer)</string>
+                    </property>
+                    <property name="text">
+                     <string>NPC</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>Фермер Дик (WorkGiver)</string>
+                    </property>
+                    <property name="text">
+                     <string>NPC</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>Бармен Дронн (HurdTrucker)</string>
+                    </property>
+                    <property name="text">
+                     <string>NPC</string>
+                    </property>
+                   </item>
+                  </item>
+                  <item>
+                   <property name="text">
+                    <string>Гараж (TheTown_Workshop)</string>
+                   </property>
+                   <property name="text">
+                    <string>workshop</string>
+                   </property>
+                   <item>
+                    <property name="text">
+                     <string>Кабины и кузова - &lt;CabinsAndBaskets&gt;</string>
+                    </property>
+                    <item>
+                     <property name="text">
+                      <string>&quot;Каскад&quot; - bugCargo02</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>&quot;Борг&quot; - bugCargo03</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>&quot;Тент&quot; - molokovozCargo01</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>&quot;Скорпион&quot; - bugCab03</string>
+                     </property>
+                    </item>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>Автомобили - &lt;Vehicles&gt;</string>
+                    </property>
+                    <item>
+                     <property name="text">
+                      <string>Вэн</string>
+                     </property>
+                     <property name="text">
+                      <string>BugForSale</string>
+                     </property>
+                     <item>
+                      <property name="text">
+                       <string>Части - &lt;Parts&gt;</string>
+                      </property>
+                      <item>
+                       <property name="text">
+                        <string>Кабина - &quot;Жук&quot;</string>
+                       </property>
+                       <property name="text">
+                        <string>bugCab01</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Кузов - &quot;Газ&quot;</string>
+                       </property>
+                       <property name="text">
+                        <string>bugCargo01</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Шасси</string>
+                       </property>
+                       <property name="text">
+                        <string>bugChassis</string>
+                       </property>
+                      </item>
+                     </item>
+                    </item>
+                   </item>
+                  </item>
+                  <item>
+                   <property name="text">
+                    <string>&quot;Магазин&quot; - TheTown_Shop</string>
+                   </property>
+                   <property name="text">
+                    <string>shop</string>
+                   </property>
+                   <item>
+                    <property name="text">
+                     <string>&quot;Обычная канистра.&quot;</string>
+                    </property>
+                    <property name="text">
+                     <string>additional_fuel_tank</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>&quot;Водяная система охлаждения  для огнестрельного оружия&quot;</string>
+                    </property>
+                    <property name="text">
+                     <string>cooling_system_guns</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>&quot;Оптимизированный механический спуск&quot;</string>
+                    </property>
+                    <property name="text">
+                     <string>firing_rate_guns</string>
+                    </property>
+                   </item>
+                  </item>
+                  <item>
+                   <property name="text">
+                    <string>Доты</string>
+                   </property>
+                   <item>
+                    <property name="text">
+                     <string>Дот (staticAutoGun0444)</string>
+                    </property>
+                    <property name="text">
+                     <string>staticAutoGun04</string>
+                    </property>
+                    <item>
+                     <property name="text">
+                      <string>Части - &lt;Parts&gt;</string>
+                     </property>
+                     <property name="text">
+                      <string/>
+                     </property>
+                     <item>
+                      <property name="text">
+                       <string>Оружие - Вулкан (staticAutoGun0444CANNON)</string>
+                      </property>
+                      <property name="text">
+                       <string>vulcan01</string>
+                      </property>
+                     </item>
+                    </item>
+                   </item>
+                  </item>
+                  <item>
+                   <property name="text">
+                    <string>Въезд (TheTown_enter)</string>
+                   </property>
+                  </item>
+                  <item>
+                   <property name="text">
+                    <string>Выезд (TheTown_deploy)</string>
+                   </property>
+                  </item>
+                  <item>
+                   <property name="text">
+                    <string>Защита (TheTown_defend)</string>
+                   </property>
+                  </item>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>&quot;ГЛУХОЕ&quot; - TheGloohoe</string>
+                  </property>
+                  <property name="text">
+                   <string>r1m1_GloohoeVillage</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>&quot;ЗАИМКА&quot; - TheOilVillage</string>
+                  </property>
+                  <property name="text">
+                   <string>r1m1_OilVillage</string>
+                  </property>
+                 </item>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>Разное</string>
+                 </property>
+                 <item>
+                  <property name="text">
+                   <string>Player1</string>
+                  </property>
+                  <property name="text">
+                   <string>player</string>
+                  </property>
+                  <item>
+                   <property name="text">
+                    <string>MyCar</string>
+                   </property>
+                   <property name="text">
+                    <string>Bug01</string>
+                   </property>
+                  </item>
+                 </item>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>Локации (genericLocation)</string>
+                 </property>
+                 <item>
+                  <property name="text">
+                   <string>loc_LisaRunOut</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>VeryBigFun1_Loc</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>FirstLisaLoc</string>
+                  </property>
+                  <item>
+                   <property name="text">
+                    <string>Lisa (NPC)</string>
+                   </property>
+                  </item>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>BotanicHouse</string>
+                  </property>
+                  <item>
+                   <property name="text">
+                    <string>Botanik (NPC)</string>
+                   </property>
+                  </item>
+                 </item>
+                </item>
+               </widget>
+              </item>
+             </layout>
+            </item>
+           </layout>
+          </widget>
+          <widget class="QGroupBox" name="groupBox">
+           <property name="minimumSize">
+            <size>
+             <width>200</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="title">
+            <string>Объект</string>
+           </property>
+           <layout class="QVBoxLayout" name="verticalLayout_5">
+            <item>
+             <widget class="QFrame" name="frame">
+              <property name="maximumSize">
+               <size>
+                <width>10000</width>
+                <height>120</height>
+               </size>
+              </property>
+              <property name="frameShape">
+               <enum>QFrame::StyledPanel</enum>
+              </property>
+              <property name="frameShadow">
+               <enum>QFrame::Raised</enum>
+              </property>
+              <layout class="QVBoxLayout" name="verticalLayout_6">
+               <item>
+                <layout class="QHBoxLayout" name="horizontalLayout_5">
+                 <property name="spacing">
+                  <number>6</number>
+                 </property>
+                 <property name="bottomMargin">
+                  <number>0</number>
+                 </property>
+                 <item>
+                  <layout class="QVBoxLayout" name="verticalLayout_4">
+                   <item>
+                    <widget class="QLabel" name="label_6">
+                     <property name="layoutDirection">
+                      <enum>Qt::RightToLeft</enum>
+                     </property>
+                     <property name="text">
+                      <string>Игровое имя</string>
+                     </property>
+                     <property name="alignment">
+                      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QLabel" name="label_7">
+                     <property name="text">
+                      <string>Имя объекта</string>
+                     </property>
+                     <property name="alignment">
+                      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QLabel" name="label_4">
+                     <property name="layoutDirection">
+                      <enum>Qt::RightToLeft</enum>
+                     </property>
+                     <property name="text">
+                      <string>Прототип</string>
+                     </property>
+                     <property name="alignment">
+                      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QLabel" name="label_5">
+                     <property name="text">
+                      <string>Родитель</string>
+                     </property>
+                     <property name="alignment">
+                      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                     </property>
+                    </widget>
+                   </item>
+                  </layout>
+                 </item>
+                 <item>
+                  <layout class="QVBoxLayout" name="verticalLayout_3">
+                   <property name="spacing">
+                    <number>6</number>
+                   </property>
+                   <item>
+                    <widget class="QLineEdit" name="lineEdit_3">
+                     <property name="layoutDirection">
+                      <enum>Qt::LeftToRight</enum>
+                     </property>
+                     <property name="text">
+                      <string>Торговец Серго</string>
+                     </property>
+                     <property name="alignment">
+                      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QLineEdit" name="lineEdit_4">
+                     <property name="text">
+                      <string>Buyer</string>
+                     </property>
+                     <property name="alignment">
+                      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QLineEdit" name="lineEdit">
+                     <property name="text">
+                      <string>NPC</string>
+                     </property>
+                     <property name="alignment">
+                      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QLineEdit" name="lineEdit_2">
+                     <property name="text">
+                      <string>Бар ''Долгий путь'' (TheTown_Bar)</string>
+                     </property>
+                     <property name="alignment">
+                      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                     </property>
+                    </widget>
+                   </item>
+                  </layout>
+                 </item>
+                </layout>
+               </item>
+              </layout>
+             </widget>
+            </item>
+            <item>
+             <widget class="QGroupBox" name="groupBox_4">
+              <property name="title">
+               <string>Параметры</string>
+              </property>
+              <layout class="QGridLayout" name="gridLayout_2">
+               <item row="0" column="0">
+                <layout class="QHBoxLayout" name="horizontalLayout_7">
+                 <item>
+                  <layout class="QVBoxLayout" name="verticalLayout_9">
+                   <item>
+                    <widget class="QLabel" name="label_8">
+                     <property name="text">
+                      <string>Группировка</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QLabel" name="label_9">
+                     <property name="text">
+                      <string>Модель</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QLabel" name="label_10">
+                     <property name="text">
+                      <string>Скин</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QLabel" name="label_11">
+                     <property name="text">
+                      <string>Конфиг</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QLabel" name="label_12">
+                     <property name="text">
+                      <string>Счётчик разговоров</string>
+                     </property>
+                    </widget>
+                   </item>
+                  </layout>
+                 </item>
+                 <item>
+                  <layout class="QVBoxLayout" name="verticalLayout_8">
+                   <item>
+                    <widget class="QComboBox" name="comboBox">
+                     <item>
+                      <property name="text">
+                       <string>Союз фермеров (1008)</string>
+                      </property>
+                     </item>
+                     <item>
+                      <property name="text">
+                       <string>Торговцы северного пути (1010)</string>
+                      </property>
+                     </item>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QLineEdit" name="lineEdit_5">
+                     <property name="text">
+                      <string>r4_man</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QComboBox" name="comboBox_5">
+                     <item>
+                      <property name="text">
+                       <string>1</string>
+                      </property>
+                     </item>
+                     <item>
+                      <property name="text">
+                       <string>2</string>
+                      </property>
+                     </item>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QSpinBox" name="spinBox_2">
+                     <property name="maximum">
+                      <number>10000</number>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QSpinBox" name="spinBox">
+                     <property name="maximum">
+                      <number>10000</number>
+                     </property>
+                    </widget>
+                   </item>
+                  </layout>
+                 </item>
+                </layout>
+               </item>
+               <item row="1" column="0">
+                <layout class="QVBoxLayout" name="verticalLayout_7">
+                 <item>
+                  <spacer name="verticalSpacer">
+                   <property name="orientation">
+                    <enum>Qt::Vertical</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>20</width>
+                     <height>40</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
+                 <item>
+                  <layout class="QHBoxLayout" name="horizontalLayout_6">
+                   <item>
+                    <widget class="QLabel" name="label_13">
+                     <property name="text">
+                      <string>Реплики</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <spacer name="horizontalSpacer_3">
+                     <property name="orientation">
+                      <enum>Qt::Horizontal</enum>
+                     </property>
+                     <property name="sizeHint" stdset="0">
+                      <size>
+                       <width>40</width>
+                       <height>20</height>
+                      </size>
+                     </property>
+                    </spacer>
+                   </item>
+                  </layout>
+                 </item>
+                 <item>
+                  <widget class="QTextEdit" name="textEdit">
+                   <property name="html">
+                    <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:8pt;&quot;&gt;Buyer_hellodlg0&lt;/span&gt;&lt;/p&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:8pt;&quot;&gt;Buyer_hellodlg1&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
+              </layout>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="tab_2">
+       <attribute name="title">
+        <string>Tab 2</string>
+       </attribute>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>733</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menu">
+    <property name="title">
+     <string>Файл</string>
+    </property>
+    <addaction name="action_Ex_Machina"/>
+   </widget>
+   <addaction name="menu"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <action name="action_Ex_Machina">
+   <property name="text">
+    <string>Открыть папку с Ex Machina</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>pushButton</sender>
+   <signal>pressed()</signal>
+   <receiver>treeWidget</receiver>
+   <slot>expandAll()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>441</x>
+     <y>101</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>359</x>
+     <y>176</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>
