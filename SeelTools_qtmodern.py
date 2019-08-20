@@ -3,6 +3,7 @@ from PySide2.QtCore import Qt  # , QDateTime, QTimer
 from PySide2.QtGui import QPalette, QColor
 import lib.qtmodern.styles
 import lib.qtmodern.windows
+
 from PySide2.QtWidgets import (QApplication, QCheckBox, QComboBox, QHBoxLayout,
                                QDial, QDialog, QGridLayout, QGroupBox, QLabel,
                                QDateTimeEdit, QLineEdit, QProgressBar, QSlider,
@@ -37,8 +38,6 @@ class MainWindow(QMainWindow):
         self.setupToolbar()
         self.setupMainTabWidget()
         self.setCentralWidget(self.mainTabWidget)
-
-
 
         #self.toggleDarkMode()
         #self.setWindowFlags(Qt.CustomizeWindowHint)

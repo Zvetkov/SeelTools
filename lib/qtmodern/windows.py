@@ -1,8 +1,8 @@
 from os.path import join, dirname, abspath
 
-from qtpy.QtCore import Qt, QMetaObject, Signal, Slot, QEvent
-from qtpy.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QToolButton,
-                            QLabel, QSizePolicy)
+from PySide2.QtCore import Qt, QMetaObject, Signal, Slot, QEvent
+from PySide2.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QToolButton,
+                               QLabel, QSizePolicy)
 
 from ._utils import QT_VERSION
 
@@ -34,8 +34,8 @@ class WindowDragger(QWidget):
 
     def mouseMoveEvent(self, event):
         if self._mousePressed:
-            self._window.move(self._windowPos +
-                              (event.globalPos() - self._mousePos))
+            self._window.move(self._windowPos
+                              + (event.globalPos() - self._mousePos))
 
     def mouseReleaseEvent(self, event):
         self._mousePressed = False
@@ -129,8 +129,8 @@ class ModernWindow(QWidget):
         self.vboxWindow.addWidget(self.windowFrame)
 
         # set window flags
-        self.setWindowFlags(
-                Qt.Window | Qt.FramelessWindowHint | Qt.WindowSystemMenuHint)
+        self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint
+                            | Qt.WindowSystemMenuHint)
 
         if QT_VERSION >= (5,):
             self.setAttribute(Qt.WA_TranslucentBackground)

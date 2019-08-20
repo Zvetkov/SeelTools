@@ -1,6 +1,6 @@
 from os.path import join, dirname, abspath
 
-from qtpy.QtGui import QPalette, QColor
+from PySide2.QtGui import QPalette, QColor
 
 from ._utils import QT_VERSION
 
@@ -65,7 +65,7 @@ def dark(app):
                          QColor(127, 127, 127))
 
     app.setPalette(darkPalette)
-    
+
     _apply_base_theme(app)
 
 
@@ -99,17 +99,16 @@ def light(app):
 
     # disabled
     lightPalette.setColor(QPalette.Disabled, QPalette.WindowText,
-                         QColor(115, 115, 115))
+                          QColor(115, 115, 115))
     lightPalette.setColor(QPalette.Disabled, QPalette.Text,
-                         QColor(115, 115, 115))
+                          QColor(115, 115, 115))
     lightPalette.setColor(QPalette.Disabled, QPalette.ButtonText,
-                         QColor(115, 115, 115))
+                          QColor(115, 115, 115))
     lightPalette.setColor(QPalette.Disabled, QPalette.Highlight,
-                         QColor(190, 190, 190))
+                          QColor(190, 190, 190))
     lightPalette.setColor(QPalette.Disabled, QPalette.HighlightedText,
-                         QColor(115, 115, 115))
+                          QColor(115, 115, 115))
 
     app.setPalette(lightPalette)
 
     _apply_base_theme(app)
-    
