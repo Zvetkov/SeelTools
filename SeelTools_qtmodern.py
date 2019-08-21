@@ -1,29 +1,27 @@
 import sys
-from PySide2.QtCore import Qt  # , QDateTime, QTimer
-from PySide2.QtGui import QPalette, QColor
-import lib.qtmodern.styles
-import lib.qtmodern.windows
-
+from PySide2.QtCore import Qt, QMetaObject, Signal, Slot
+from PySide2.QtGui import QPalette, QColor, QIcon, QKeySequence, QPixmap
 from PySide2.QtWidgets import (QApplication, QCheckBox, QComboBox, QHBoxLayout,
                                QDial, QDialog, QGridLayout, QGroupBox, QLabel,
                                QDateTimeEdit, QLineEdit, QProgressBar, QSlider,
                                QPushButton, QRadioButton, QScrollBar, QSpinBox,
                                QSizePolicy, QStyleFactory, QWidget, QTextEdit,
                                QTabWidget, QTableWidget, QVBoxLayout, QToolTip,
-                               QMenu, QMenuBar, QMainWindow, QToolBar, QMessageBox)
+                               QMenu, QMenuBar, QMainWindow, QToolBar, QMessageBox,
+                               QWidget, QToolButton, QAction)
+from qtmodern import styles
+from qtmodern import windows
+
 app_name = "SeelTools"
 app_version = 0.01
 
 
 def main():
     app = QApplication(sys.argv)
-    lib.qtmodern.styles.dark(app)
     window = MainWindow(app)
-    mw = lib.qtmodern.windows.ModernWindow(window)
+    mw = windows.ModernWindow(window)
     mw.show()
-    window.show()
     app.exec_()
-    lib.qtmodern.styles
 
 
 class MainWindow(QMainWindow):
@@ -31,36 +29,88 @@ class MainWindow(QMainWindow):
         super(MainWindow, self).__init__()
 
         # setting up application skin and display properties
-        #QApplication.setStyle(QStyleFactory.create('Fusion'))
-        #QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
         self.app = app
-        self.setupTopMenu()
-        self.setupToolbar()
+        styles.dark(self.app.instance())
         self.setupMainTabWidget()
         self.setCentralWidget(self.mainTabWidget)
-
-        #self.toggleDarkMode()
-        #self.setWindowFlags(Qt.CustomizeWindowHint)
+        self.createIcons()
+        self.createActions()
+        self.setupTopMenu()
+        self.setupToolBar()
+        self.setupStatusBar()
         self.setWindowTitle('{} v{}'.format(app_name, app_version))
-        #self.setWindowFlags(Qt.WindowTitleHint)
 
     def setupTopMenu(self):
         fileMenu = QMenu("&File", self)
-        settingsMenu = QMenu("&Edit", self)
+        fileMenu.addAction(self.openGameFolderAction)
+        fileMenu.addAction(self.saveAction)
+        fileMenu.addSeparator()
+        fileMenu.addAction(self.quitAction)
+
+        editMenu = QMenu("&Edit", self)
+        editMenu.addAction(self.undoAction)
+        editMenu.addAction(self.redoAction)
+
+        settingsMenu = QMenu("&Settings", self)
+        settingsMenu.addAction(self.propertiesAction)
+
         aboutMenu = QMenu("&About", self)
+        aboutMenu.addAction(self.aboutAction)
+        aboutMenu.addAction(self.aboutQtAction)
+
         self.menuBar().addMenu(fileMenu)
+        self.menuBar().addMenu(editMenu)
         self.menuBar().addMenu(settingsMenu)
         self.menuBar().addMenu(aboutMenu)
-        fileMenu.addAction("&Open Game Folder...", self.dummyAction, "Ctrl+O")
-        fileMenu.addAction("&Save...", self.dummyAction, "Ctrl+S")
-        fileMenu.addAction("Q&uit", self.dummyAction, "Ctrl+Q")
-        settingsMenu.addAction("&Undo", self.dummyAction, "Ctrl+Z")
-        settingsMenu.addAction("&Redo", self.dummyAction, "Shift+Ctrl+Z")
-        settingsMenu.addAction("&Properties", self.dummyAction, "Ctrl+P")
-        aboutMenu.addAction("&About SeelTools", self.about)
-        aboutMenu.addAction("About &Qt", QApplication.instance().aboutQt)
 
-    def dummyAction(self):
+    def createActions(self):
+        self.openGameFolderAction = QAction(QIcon.fromTheme('folder-open', self.fileDirIconLight),
+                                            "&Open Game Folder...", self, shortcut="Ctrl+O",
+                                            statusTip="Open folder where Ex Machina is installed",
+                                            triggered=self.openGameFolder)
+
+        self.saveAction = QAction(QIcon.fromTheme('document-save', self.saveIconLight), "&Save...", self,
+                                  shortcut=QKeySequence.Save,
+                                  statusTip="Save all changes", triggered=self.save)
+
+        self.quitAction = QAction("&Quit", self, shortcut="Ctrl+Q", statusTip="Quit the application",
+                                  triggered=self.closeApplication)
+
+        self.undoAction = QAction(QIcon.fromTheme('edit-undo', self.undoIconLight), "&Undo", self,
+                                  shortcut=QKeySequence.Undo, statusTip="Undo the last editing action",
+                                  triggered=self.undo)
+
+        self.redoAction = QAction(QIcon.fromTheme('edit-redo', self.redoIconLight), "&Redo", self,
+                                  shortcut=QKeySequence.Redo, statusTip="Redo the last editing action",
+                                  triggered=self.redo)
+
+        self.propertiesAction = QAction(QIcon.fromTheme('application-properties', self.gearIconLight),
+                                        "&Properties", self, shortcut="Ctrl+P",
+                                        statusTip="Application properties", triggered=self.properties)
+
+        self.aboutAction = QAction("&About SeelTools", self, statusTip="Show the SeelTools About box",
+                                   triggered=self.about)
+
+        self.aboutQtAction = QAction("About &Qt", self, statusTip="Show the Qt library's About box",
+                                     triggered=QApplication.instance().aboutQt)
+
+    def openGameFolder(self):
+        pass
+
+    def save(self):
+        pass
+
+    def closeApplication(self):
+        pass
+
+    def undo(self):
+        pass
+
+    def redo(self):
+        pass
+
+    def properties(self):
         pass
 
     def about(self):
@@ -68,14 +118,54 @@ class MainWindow(QMainWindow):
                           "Placeholder <b>SeelTools</b> description "
                           "something something")
 
-    def setupToolbar(self):
-        toolbar = QToolBar()
-        self.addToolBar(toolbar)
-        self.usedarkMode = QCheckBox("Use &dark mode")
-        self.usedarkMode.setChecked(True)
-        self.usedarkMode.toggled.connect(self.toggleDarkMode)
-        self.usedarkMode.setToolTip("Toggle light and dark interface theme")
-        toolbar.addWidget(self.usedarkMode)
+    def setupToolBar(self):
+        self.fileToolBar = self.addToolBar("File&Edit")
+        self.fileToolBar.addAction(self.openGameFolderAction)
+        self.fileToolBar.addAction(self.saveAction)
+        self.fileToolBar.addAction(self.undoAction)
+        self.fileToolBar.addAction(self.redoAction)
+
+        self.optionsToolBar = self.addToolBar("Options")
+        self.useDarkMode = QCheckBox("Use &dark mode")
+        self.useDarkMode.toggled.connect(self.toggleDarkMode)
+        self.useDarkMode.setToolTip("Toggle light and dark interface theme")
+        self.useDarkMode.setChecked(True)
+        self.optionsToolBar.addWidget(self.useDarkMode)
+
+    def setupStatusBar(self):
+        self.statusBar().showMessage("Ready")
+
+    def createIcons(self):
+        self.fileDirIconLight = QIcon('./icons/filedir_white.svg')
+        self.fileDirIconDark = QIcon('./icons/filedir.svg')
+        self.gearIconLight = QIcon('./icons/gear_white.svg')
+        self.gearIconDark = QIcon('./icons/gear.svg')
+        self.undoIconLight = QIcon('./icons/undo_white.svg')
+        self.undoIconDark = QIcon('./icons/undo.svg')
+        self.redoIconLight = QIcon('./icons/redo_white.svg')
+        self.redoIconDark = QIcon('./icons/redo.svg')
+        self.saveIconLight = QIcon('./icons/save_white.svg')
+        self.saveIconDark = QIcon('./icons/save.svg')
+
+    def toggleDarkMode(self):
+        if self.useDarkMode.isChecked():
+            styles.dark(self.app.instance())
+            QAction.setIcon(self.openGameFolderAction, self.fileDirIconLight)
+            QAction.setIcon(self.undoAction, self.undoIconLight)
+            QAction.setIcon(self.redoAction, self.redoIconLight)
+            QAction.setIcon(self.propertiesAction, self.gearIconLight)
+            QAction.setIcon(self.saveAction, self.saveIconLight)
+
+            print("dark")
+        else:
+            styles.light(self.app.instance())
+            QAction.setIcon(self.openGameFolderAction, self.fileDirIconDark)
+            QAction.setIcon(self.undoAction, self.undoIconDark)
+            QAction.setIcon(self.redoAction, self.redoIconDark)
+            QAction.setIcon(self.propertiesAction, self.gearIconDark)
+            QAction.setIcon(self.saveAction, self.saveIconDark)
+
+            print("light")
 
     def setupMainTabWidget(self):
         self.mainTabWidget = QTabWidget()
@@ -106,30 +196,6 @@ class MainWindow(QMainWindow):
 
         self.mainTabWidget.addTab(tab1, "&Table")
         self.mainTabWidget.addTab(tab2, "Text &Edit")
-        self.setCentralWidget(self.mainTabWidget)
-
-    def toggleDarkMode(self):
-        if (self.usedarkMode.isChecked()):
-            dark_palette = QApplication.palette()
-            dark_palette.setColor(QPalette.Window, QColor(53, 53, 53))
-            dark_palette.setColor(QPalette.WindowText, Qt.white)
-            dark_palette.setColor(QPalette.Base, QColor(25, 25, 25))
-            dark_palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
-            dark_palette.setColor(QPalette.ToolTipBase, Qt.white)
-            dark_palette.setColor(QPalette.ToolTipText, Qt.white)
-            dark_palette.setColor(QPalette.Text, Qt.white)
-            dark_palette.setColor(QPalette.Button, QColor(53, 53, 53))
-            dark_palette.setColor(QPalette.ButtonText, Qt.white)
-            dark_palette.setColor(QPalette.BrightText, Qt.red)
-            dark_palette.setColor(QPalette.Link, QColor(255, 165, 0))
-            dark_palette.setColor(QPalette.Highlight, QColor(255, 165, 0))
-            dark_palette.setColor(QPalette.HighlightedText, Qt.black)
-            self.app.setPalette(dark_palette)
-            styleSheet = ("QToolTip { color: #FFAC14; background-color: #191919; border: 1px solid black; }")
-            self.app.setStyleSheet(styleSheet)
-        else:
-            self.app.setPalette(QApplication.style().standardPalette())
-            self.app.setStyleSheet("")
 
 
 if __name__ == "__main__":

@@ -1,13 +1,11 @@
 from os.path import join, dirname, abspath
 
-from PySide2.QtCore import Qt, QMetaObject, Signal, Slot, QEvent
+from PySide2.QtCore import Qt, QMetaObject, Signal, Slot
 from PySide2.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QToolButton,
                                QLabel, QSizePolicy)
 
-from ._utils import QT_VERSION
 
-
-_FL_STYLESHEET = join(dirname(abspath(__file__)), 'resources/frameless.qss')
+_FL_STYLESHEET = join(dirname(abspath(__file__)), 'resources', 'frameless.qss')
 """ str: Frameless window stylesheet. """
 
 
@@ -34,8 +32,8 @@ class WindowDragger(QWidget):
 
     def mouseMoveEvent(self, event):
         if self._mousePressed:
-            self._window.move(self._windowPos
-                              + (event.globalPos() - self._mousePos))
+            self._window.move(self._windowPos + (event.globalPos()
+                                                 - self._mousePos))
 
     def mouseReleaseEvent(self, event):
         self._mousePressed = False
@@ -56,6 +54,7 @@ class ModernWindow(QWidget):
         QWidget.__init__(self, parent)
 
         self._w = w
+        self._w.ModernWindow = self
         self.setupUi()
 
         contentLayout = QHBoxLayout()
@@ -66,8 +65,6 @@ class ModernWindow(QWidget):
 
         self.setWindowTitle(w.windowTitle())
         self.setGeometry(w.geometry())
-
-        self.installEventFilter(self)
 
         # Adding attribute to clean up the parent window when the child is closed
         self._w.setAttribute(Qt.WA_DeleteOnClose, True)
@@ -132,8 +129,7 @@ class ModernWindow(QWidget):
         self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint
                             | Qt.WindowSystemMenuHint)
 
-        if QT_VERSION >= (5,):
-            self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setAttribute(Qt.WA_TranslucentBackground)
 
         # set stylesheet
         with open(_FL_STYLESHEET) as stylesheet:
@@ -146,13 +142,12 @@ class ModernWindow(QWidget):
         self._w = None  # The child was deleted, remove the reference to it and close the parent window
         self.close()
 
-    def eventFilter(self, source, event):
-        if event.type() == QEvent.Close:
-            if not self._w:
-                return True
-            return self._w.close()
-
-        return QWidget.eventFilter(self, source, event)
+    def closeEvent(self, event):
+        if not self._w:
+            event.accept()
+        else:
+            self._w.close()
+            event.setAccepted(self._w.isHidden())
 
     def setWindowTitle(self, title):
         """ Set window title.

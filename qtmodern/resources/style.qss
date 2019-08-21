@@ -20,6 +20,12 @@ QToolBar {
   border: none;
 }
 
+QToolTip {
+  color: #FFAC14; 
+  background-color: #191919; 
+  border: 1px solid black;
+}
+
 /*
  * QTabBar
  */
