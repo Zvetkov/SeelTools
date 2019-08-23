@@ -1,2 +1,2 @@
 # SeelTools
-SeelTools for Ex Machina
+SeelTools

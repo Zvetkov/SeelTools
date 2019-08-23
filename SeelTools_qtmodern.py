@@ -194,7 +194,7 @@ class MainWindow(QMainWindow):
             clanDizStrings = f.read()
         clanDizStringsTree = ET.parse(dummy_file)
         root = clanDizStringsTree.getroot()
-        
+
         self.mainTabWidget = QTabWidget()
         self.mainTabWidget.setSizePolicy(QSizePolicy.Preferred,
                                          QSizePolicy.Preferred)
