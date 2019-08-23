@@ -1,19 +1,19 @@
 import sys
-from PySide2.QtCore import Qt, QMetaObject, Signal, Slot
-from PySide2.QtGui import QPalette, QColor, QIcon, QKeySequence, QPixmap
-from PySide2.QtWidgets import (QApplication, QCheckBox, QComboBox, QHBoxLayout,
-                               QDial, QDialog, QGridLayout, QGroupBox, QLabel,
-                               QDateTimeEdit, QLineEdit, QProgressBar, QSlider,
-                               QPushButton, QRadioButton, QScrollBar, QSpinBox,
-                               QSizePolicy, QStyleFactory, QWidget, QTextEdit,
-                               QTabWidget, QTableWidget, QVBoxLayout, QToolTip,
-                               QMenu, QMenuBar, QMainWindow, QToolBar, QMessageBox,
-                               QWidget, QToolButton, QAction)
+import os
+import xml.etree.ElementTree as ET
+from PySide2.QtCore import Qt, QAbstractListModel, QModelIndex
+from PySide2.QtGui import QIcon, QKeySequence
+from PySide2.QtWidgets import (QApplication, QCheckBox, QHBoxLayout, QLabel,
+                               QPushButton, QSizePolicy, QWidget, QListWidget,
+                               QTextEdit, QTabWidget, QTableWidget, QMenu, qApp,
+                               QMainWindow, QMessageBox, QAction, QDockWidget,
+                               QListWidgetItem)
 from qtmodern import styles
 from qtmodern import windows
 
 app_name = "SeelTools"
 app_version = 0.01
+dummy_file = os.path.join(os.path.dirname(__file__), "dummy_files", "clansdiz.xml")
 
 
 def main():
@@ -32,37 +32,42 @@ class MainWindow(QMainWindow):
         QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
         self.app = app
         styles.dark(self.app.instance())
+        self.createIcons()
+
         self.setupMainTabWidget()
         self.setCentralWidget(self.mainTabWidget)
-        self.createIcons()
         self.createActions()
         self.setupTopMenu()
         self.setupToolBar()
+        self.setupDockWindows()
         self.setupStatusBar()
         self.setWindowTitle('{} v{}'.format(app_name, app_version))
 
     def setupTopMenu(self):
-        fileMenu = QMenu("&File", self)
-        fileMenu.addAction(self.openGameFolderAction)
-        fileMenu.addAction(self.saveAction)
-        fileMenu.addSeparator()
-        fileMenu.addAction(self.quitAction)
+        self.fileMenu = QMenu("&File", self)
+        self.fileMenu.addAction(self.openGameFolderAction)
+        self.fileMenu.addAction(self.saveAction)
+        self.fileMenu.addSeparator()
+        self.fileMenu.addAction(self.quitAction)
 
-        editMenu = QMenu("&Edit", self)
-        editMenu.addAction(self.undoAction)
-        editMenu.addAction(self.redoAction)
+        self.editMenu = QMenu("&Edit", self)
+        self.editMenu.addAction(self.undoAction)
+        self.editMenu.addAction(self.redoAction)
 
-        settingsMenu = QMenu("&Settings", self)
-        settingsMenu.addAction(self.propertiesAction)
+        self.viewMenu = QMenu("&View", self)
 
-        aboutMenu = QMenu("&About", self)
-        aboutMenu.addAction(self.aboutAction)
-        aboutMenu.addAction(self.aboutQtAction)
+        self.settingsMenu = QMenu("&Settings", self)
+        self.settingsMenu.addAction(self.propertiesAction)
 
-        self.menuBar().addMenu(fileMenu)
-        self.menuBar().addMenu(editMenu)
-        self.menuBar().addMenu(settingsMenu)
-        self.menuBar().addMenu(aboutMenu)
+        self.aboutMenu = QMenu("&About", self)
+        self.aboutMenu.addAction(self.aboutAction)
+        self.aboutMenu.addAction(self.aboutQtAction)
+
+        self.menuBar().addMenu(self.fileMenu)
+        self.menuBar().addMenu(self.editMenu)
+        self.menuBar().addMenu(self.viewMenu)
+        self.menuBar().addMenu(self.settingsMenu)
+        self.menuBar().addMenu(self.aboutMenu)
 
     def createActions(self):
         self.openGameFolderAction = QAction(QIcon.fromTheme('folder-open', self.fileDirIconLight),
@@ -135,6 +140,27 @@ class MainWindow(QMainWindow):
     def setupStatusBar(self):
         self.statusBar().showMessage("Ready")
 
+    def setupDockWindows(self):
+        self.objectViewDock = QDockWidget("Object Viewer")
+        self.objectViewDock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
+        self.objectExploreDock = QDockWidget("Object Explorer")
+        self.objectExploreDock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
+
+        self.objectProps = QListWidget(self.objectViewDock)
+        self.objectProps.addItems((
+            "Name:          Торговец Серго (Buyer)",
+            "Prototype:     NPC",
+            "Parent:        Бар ''Долгий путь'' (TheTown_Bar)",
+            "Properties: ",
+            "Belong/Faction: Союз фермеров (1008)",
+            "Model:         r4_man",
+            "Skin:          1",
+            "Model Config:  44",
+            "Spoken Count:  0"))
+        self.objectViewDock.setWidget(self.objectProps)
+        self.addDockWidget(Qt.RightDockWidgetArea, self.objectViewDock)
+        self.viewMenu.addAction(self.objectViewDock.toggleViewAction())
+
     def createIcons(self):
         self.fileDirIconLight = QIcon('./icons/filedir_white.svg')
         self.fileDirIconDark = QIcon('./icons/filedir.svg')
@@ -155,8 +181,6 @@ class MainWindow(QMainWindow):
             QAction.setIcon(self.redoAction, self.redoIconLight)
             QAction.setIcon(self.propertiesAction, self.gearIconLight)
             QAction.setIcon(self.saveAction, self.saveIconLight)
-
-            print("dark")
         else:
             styles.light(self.app.instance())
             QAction.setIcon(self.openGameFolderAction, self.fileDirIconDark)
@@ -165,37 +189,121 @@ class MainWindow(QMainWindow):
             QAction.setIcon(self.propertiesAction, self.gearIconDark)
             QAction.setIcon(self.saveAction, self.saveIconDark)
 
-            print("light")
-
     def setupMainTabWidget(self):
+        with open(dummy_file, "r") as f:
+            clanDizStrings = f.read()
+        clanDizStringsTree = ET.parse(dummy_file)
+        root = clanDizStringsTree.getroot()
+        
         self.mainTabWidget = QTabWidget()
         self.mainTabWidget.setSizePolicy(QSizePolicy.Preferred,
                                          QSizePolicy.Preferred)
 
         tab1 = QWidget()
-        tableWidget = QTableWidget(10, 10)
+        # tableWidget = QTableWidget(10, 10)
+        listWidget = QListWidget()
+        for item in clanDizStrings:
+            newItem = QListWidgetItem(self.redoIconLight, item)
+            newItem.setToolTip("Some tool tip")
+            newItem.setStatusTip("Woohoo, this is status tip!")
+            newItem.setWhatsThis("This is dummy string")
+            listWidget.addItem(newItem)
+
         tab1hbox = QHBoxLayout()
         tab1hbox.setContentsMargins(5, 5, 5, 5)
-        tab1hbox.addWidget(tableWidget)
+        # tab1hbox.addWidget(tableWidget)
+        tab1hbox.addWidget(listWidget)
         tab1.setLayout(tab1hbox)
 
         tab2 = QWidget()
         textEdit = QTextEdit()
 
-        textEdit.setPlainText("Twinkle, twinkle, little star,\n"
-                              "How I wonder what you are.\n"
-                              "Up above the world so high,\n"
-                              "Like a diamond in the sky.\n"
-                              "Twinkle, twinkle, little star,\n"
-                              "How I wonder what you are!\n")
+        textEdit.setPlainText(("Name:          Торговец Серго (Buyer)\n"
+                               "Prototype:     NPC\n"
+                               "Parent:        Бар ''Долгий путь'' (TheTown_Bar)\n"
+                               "Properties: \n"
+                               "Belong/Faction: Союз фермеров (1008)\n"
+                               "Model:         r4_man\n"
+                               "Skin:          1\n"
+                               "Model Config:  44\n"
+                               "Spoken Count:  0\n"))
 
         tab2hbox = QHBoxLayout()
         tab2hbox.setContentsMargins(5, 5, 5, 5)
         tab2hbox.addWidget(textEdit)
         tab2.setLayout(tab2hbox)
 
-        self.mainTabWidget.addTab(tab1, "&Table")
-        self.mainTabWidget.addTab(tab2, "Text &Edit")
+        self.mainTabWidget.addTab(tab1, "&Tree Explorer")
+        self.mainTabWidget.addTab(tab2, "Code &Editor")
+
+
+class StringListModel(QAbstractListModel):
+    def __init__(self, parent=None):
+        super(StringListModel, self).__init__(parent)
+
+        self.stringList = []
+        self.stringCount = 0
+
+    def rowCount(self, parent=QModelIndex()):
+        return len(self.stringList)
+
+    def data(self, index, role=Qt.DisplayRole):
+        if not index.isValid():
+            return None
+
+        if index.row() >= self.stringCount or index.row() < 0:
+            return None
+
+        if role == Qt.DisplayRole or role == Qt.EditRole:
+            return self.stringList[index.row()]
+
+        if role == Qt.BackgroundRole:
+            batch = (index.row() // 100) % 2
+            if batch == 0:
+                return qApp.palette().base()
+
+            return qApp.palette().alternativeBase()
+        return None
+
+    def headerData(self, section: int, orientation,
+                   role=Qt.DisplayRole):
+        if role != Qt.DisplayRole:
+            return None
+
+        if orientation == Qt.Horizontal:
+            return f"Column {section}"
+        else:
+            return f"Row {section}"
+
+    def flags(self, index: QModelIndex):
+        if index.isValid():
+            return QAbstractListModel.flags(index) | Qt.ItemIsEditable
+        else:
+            return Qt.ItemIsEditable
+
+    def setData(self, index: QModelIndex, value, role: Qt.EditRole):
+        if index.isValid and role == Qt.EditRole:
+            self.stringList[index.row()] = str(value)
+            self.dataChanged.emit(index, index)
+
+    def insertRows(self, position, rows, index=QModelIndex()):
+        """ Insert a row into the model. """
+        self.beginInsertRows(QModelIndex(), position, position + rows - 1)
+
+        for row in range(rows):
+            self.stringList.insert(position, "")
+
+        self.endInsertRows()
+        return True
+
+    def removeRows(self, position, rows, index=QModelIndex()):
+        self.beginRemoveRows(QModelIndex(), position, position + rows - 1)
+
+        for row in range(rows):
+            self.stringList.removeAt(position)
+
+        self.endRemoveRows()
+        return True
 
 
 if __name__ == "__main__":
