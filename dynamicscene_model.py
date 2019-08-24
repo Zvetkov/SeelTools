@@ -57,7 +57,7 @@ def machina_xml_beautify(xml_string: str):
         # lxml use spaces for indents but EM files use tabs, so indents maps 2:1
         line_indent = (len(line) - len(line_stripped)) // 2
 
-        line = _split_tag_on_attributes(line_stripped, line_indent, previous_line_indent)
+        line = _split_tag_on_attributes(line_stripped, line_indent)
         # manually tabulating lines according to saved indent level
         line = line_indent * b"\t" + line + b"\n"
 
@@ -74,8 +74,7 @@ def machina_xml_beautify(xml_string: str):
     return xml_string_first_line + b"\n" + beautified_string
 
 
-def _split_tag_on_attributes(xml_line: str, line_indent: int,
-                             previous_line_indent: int):
+def _split_tag_on_attributes(xml_line: str, line_indent: int):
     white_space_index = xml_line.find(b" ")
     quotmark_index = xml_line.find(b'"')
 
@@ -88,13 +87,13 @@ def _split_tag_on_attributes(xml_line: str, line_indent: int,
         # indent found attribute and recursively start work on next line part
         return (xml_line[:white_space_index] + b"\n" + b"\t" * (line_indent + 1)
                 + _split_tag_on_attributes(xml_line[white_space_index + 1:],
-                                           line_indent, previous_line_indent))
+                                           line_indent))
     # searching where attribute values ends and new attribute starts
     else:
         second_quotmark_index = xml_line.find(b'"', quotmark_index + 1) + 1
         return (xml_line[:second_quotmark_index]
                 + _split_tag_on_attributes(xml_line[second_quotmark_index:],
-                                           line_indent, previous_line_indent))
+                                           line_indent))
 
 
 if __name__ == "__main__":
