@@ -1,20 +1,26 @@
 import os
 import sys
-from lxml import etree
-from lxml import objectify
+from lxml import etree, objectify
 
-DYNAMIC_SCENE_XML = os.path.join(os.path.dirname(__file__), "dummy_files", "dynamicscene.xml")
-DYNAMIC_SCENE_CHANGED = os.path.join(os.path.dirname(__file__), "dummy_files", "dynamicscenemod.xml")
-DYNAMIC_SCENE_RAW = os.path.join(os.path.dirname(__file__), "dummy_files", "dynamicsceneraw.xml")
+DYNAMIC_SCENE_XML = os.path.join(os.path.dirname(__file__), "dummy_files",
+                                 "dynamicscene.xml")
+DYNAMIC_SCENE_SHORT = os.path.join(os.path.dirname(__file__), "dummy_files",
+                                   "dynamicsceneshort.xml")
+DYNAMIC_SCENE_CHANGED = os.path.join(os.path.dirname(__file__), "dummy_files",
+                                     "dynamicscenemod.xml")
+DYNAMIC_SCENE_RAW = os.path.join(os.path.dirname(__file__), "dummy_files",
+                                 "dynamicsceneraw.xml")
 
 
 def main():
-    dynamic_scene_tree = parse_file_to_tree(DYNAMIC_SCENE_XML)
-    save_to_file(dynamic_scene_tree, DYNAMIC_SCENE_CHANGED)
-    save_to_file(dynamic_scene_tree, DYNAMIC_SCENE_RAW, False)
+    # dynamic_scene_tree = parse_file_to_tree(DYNAMIC_SCENE_XML)
+    dynamic_scene_tree_short = parse_file_to_tree(DYNAMIC_SCENE_SHORT)
+    # save_to_file(dynamic_scene_tree, DYNAMIC_SCENE_CHANGED)
+    # save_to_file(dynamic_scene_tree, DYNAMIC_SCENE_RAW, False)
+    print(dynamic_scene_tree_short)
 
 
-def parse_file_to_tree(path):
+def parse_file_to_tree(path=DYNAMIC_SCENE_XML):
     with open(path, "r") as f:
         objectify.enable_recursive_str()
         objfy = objectify.parse(f)
@@ -23,11 +29,12 @@ def parse_file_to_tree(path):
     return objectify_tree
 
 
-def save_to_file(objectify_tree: objectify.ObjectifiedElement, path, machina_beautify: bool = True):
-    '''
-    Saves ObjectifiedElement tree to file at path, will format and beautify file
-    in the style very similar to original Ex Machina dynamicscene.xml files by
-    default. Can skip beautifier and save raw lxml formated file.
+def save_to_file(objectify_tree: objectify.ObjectifiedElement, path,
+                 machina_beautify: bool = True):
+    ''' Saves ObjectifiedElement tree to file at path, will format and
+    beautify file in the style very similar to original Ex Machina
+    dynamicscene.xml files by default. Can skip beautifier and save raw
+    lxml formated file.
     '''
     xml_string = etree.tostring(objectify_tree,
                                 pretty_print=True,
@@ -42,19 +49,20 @@ def save_to_file(objectify_tree: objectify.ObjectifiedElement, path, machina_bea
 
 
 def machina_xml_beautify(xml_string: str):
-    ''' Format and beautify xml string in the style very similar to original
-    Ex Machina dynamicscene.xml files.'''
+    ''' Format and beautify xml string in the style very similar to
+    original Ex Machina dynamicscene.xml files.'''
     beautified_string = b""
     previous_line_indent = -1
 
-    # As first line of xml file is XML Declaration, we want to exclude it from
-    # Beautifier to get rid of checks for every line that it's not a Declaration
+    # As first line of xml file is XML Declaration, we want to exclude it
+    # from Beautifier to get rid of checks for every line down the line
     xml_string_first_line = xml_string[:xml_string.find(b"\n<")]
 
-    for i, line in enumerate(xml_string[xml_string.find(b"\n<") + 1:].splitlines()):
+    for i, line in enumerate(xml_string[xml_string.find(b"\n<")
+                             + 1:].splitlines()):
         line_stripped = line.lstrip()
-        # calculating indentation level of parent line to indent its attributes.
-        # lxml use spaces for indents but EM files use tabs, so indents maps 2:1
+        # calculating indent level of parent line to indent attributes
+        # lxml use spaces for indents, game use tabs, so indents maps 2:1
         line_indent = (len(line) - len(line_stripped)) // 2
 
         line = _split_tag_on_attributes(line_stripped, line_indent)
@@ -66,8 +74,8 @@ def machina_xml_beautify(xml_string: str):
         if line_indent == previous_line_indent:
             line = b"\n" + line
 
-        # we need to know indentation of previous tag to decide if tag is first
-        # for its tree level, as described above
+        # we need to know indentation of previous tag to decide if tag is
+        # first for its tree level, as described above
         previous_line_indent = line_indent
 
         beautified_string += line
@@ -82,18 +90,90 @@ def _split_tag_on_attributes(xml_line: str, line_indent: int):
     if white_space_index == -1 or quotmark_index == -1:
         return xml_line
 
-    # next tag attribute found
     elif white_space_index < quotmark_index:
-        # indent found attribute and recursively start work on next line part
+        # next tag attribute found, now indent found attribute and
+        # recursively start work on a next line part
         return (xml_line[:white_space_index] + b"\n" + b"\t" * (line_indent + 1)
                 + _split_tag_on_attributes(xml_line[white_space_index + 1:],
                                            line_indent))
-    # searching where attribute values ends and new attribute starts
     else:
+        # searching where attribute values ends and new attribute starts
         second_quotmark_index = xml_line.find(b'"', quotmark_index + 1) + 1
         return (xml_line[:second_quotmark_index]
                 + _split_tag_on_attributes(xml_line[second_quotmark_index:],
                                            line_indent))
+
+
+class GameObject(object):
+    def __init__(self, element: objectify.ObjectifiedElement):
+        self.name = element.attrib["Name"]
+        self.belong = element.attrib["Belong"]
+        self.prototype = element.attrib["Prototype"]
+
+
+class ClanClass(object):
+    def __init__(self, element: objectify.ObjectifiedElement):
+        self.belong = "1008"
+        self.name = "Belong_1008"  # if/strings/clandiz.xml, map with belong
+        self.full_name = "Союз Фермеров"  # same as name
+        self.member_name = "СФ"  # same as name
+        self.relationship = {"ally": [1100],  # data/gamedata/relationship.xml
+                             "neutral": [1003, 1009, 1010, 1011, 1051, 1052],
+                             "enemy": []}
+
+        # if/ico/modelicons.xml map with name
+        self.icons = {"small": "data/if/ico/clans/farmers_union02.dds",
+                      "big": "data/if/ico/clans/farmers_union03.dds"}
+        self.description = ("Фермеры работают с землей, как их предки когда-то."
+                            " Так как еда нужна всем и всегда, а больше брать с"
+                            " них нечего – спокойно существуют в полном"
+                            " опасностей мире.")  # same as name
+        self.logo_id = 10  # farmers_union, models/belongstologos.xml
+        self.logo = "farmers_union.dds"  # models/logos/logos.gam, id from 0 to 25 in order of listing
+        self.radio_group_name = "farmers"  # sounds/radio/radiosounds.xml
+
+
+class TownClass(GameObject):
+    def __init__(self, element: objectify.ObjectifiedElement):
+        GameObject.__init__(self, element)
+        self.full_name = "Южный"  # r1m1/object_names.xml map with name
+        self.on_map = "r1m1"  # dir of dynamicscene
+        self.clan = "1008 / Союз Фермеров"  # map with clans on belong
+        self.position = "1263.873 308.000 2962.220"
+        self.rotation = "0.000 -0.721 0.000 -0.693"
+        self.pov_in_interface = "-35.000 60.000 35.000"
+        self.caravans_dest = ""
+        self.bar = "TheTown_bar"
+
+        self.town_icon = "icn_town.dds"  # if/ico/modelicons.xml
+        self.description = ("Крохотный город, существующий лишь торговлей"
+                            " с заезжими северными купцами.")
+        self.role_in_quest = ["Buyer_Quest1",  # maybe too ambitious and unnecessary, if\diz\questinfoglobal.xml
+                              "d_FindBenInSouth_Quest",  # map on tag <Map targetObjName="self.name"/>
+                              "d_FindFelix_Quest"]  # or from gamedata/quests.xml
+
+
+class BarClass(GameObject):
+    def __init__(self, element: objectify.ObjectifiedElement):
+        GameObject.__init__(self, element)
+        self.parent_town = "TheTown"
+
+
+class WorkshopClass(GameObject):
+    def __init__(self, element: objectify.ObjectifiedElement):
+        GameObject.__init__(self, element)
+        self.parent_town = "TheTown"
+
+
+class NpcCLass(GameObject):
+    def __init__(self, element: objectify.ObjectifiedElement):
+        GameObject.__init__(self, element)
+        self.parent_building = "TheTown_Bar"
+        self.model_name = "r1_woman"
+        self.model_cfg = 44
+        self.type = "BARMAN"
+        self.spoken_count = 0
+        self.dialogue_lines = []
 
 
 if __name__ == "__main__":

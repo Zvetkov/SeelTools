@@ -1,19 +1,18 @@
 import sys
 import os
-import xml.etree.ElementTree as ET
 from PySide2.QtCore import Qt, QAbstractListModel, QModelIndex
 from PySide2.QtGui import QIcon, QKeySequence
 from PySide2.QtWidgets import (QApplication, QCheckBox, QHBoxLayout, QLabel,
                                QPushButton, QSizePolicy, QWidget, QListWidget,
-                               QTextEdit, QTabWidget, QTableWidget, QMenu, qApp,
-                               QMainWindow, QMessageBox, QAction, QDockWidget,
-                               QListWidgetItem)
-from qtmodern import styles
-from qtmodern import windows
+                               QTextEdit, QTabWidget, QMenu, qApp, QAction,
+                               QMainWindow, QMessageBox, QDockWidget,
+                               QListWidgetItem, QTreeWidget, QTreeWidgetItem)
+from qtmodern import styles, windows
+import dynamicscene_model
 
-app_name = "SeelTools"
-app_version = 0.01
-dummy_file = os.path.join(os.path.dirname(__file__), "dummy_files", "clansdiz.xml")
+APP_NAME = "SeelTools"
+APP_VERSION = 0.01
+DUMMY_FILE = os.path.join(os.path.dirname(__file__), "dummy_files", "clansdiz.xml")
 
 
 def main():
@@ -41,7 +40,7 @@ class MainWindow(QMainWindow):
         self.setupToolBar()
         self.setupDockWindows()
         self.setupStatusBar()
-        self.setWindowTitle('{} v{}'.format(app_name, app_version))
+        self.setWindowTitle('{} v{}'.format(APP_NAME, APP_VERSION))
 
     def setupTopMenu(self):
         self.fileMenu = QMenu("&File", self)
@@ -190,34 +189,34 @@ class MainWindow(QMainWindow):
             QAction.setIcon(self.saveAction, self.saveIconDark)
 
     def setupMainTabWidget(self):
-        with open(dummy_file, "r") as f:
-            clanDizStrings = f.read()
-        clanDizStringsTree = ET.parse(dummy_file)
-        root = clanDizStringsTree.getroot()
-
         self.mainTabWidget = QTabWidget()
         self.mainTabWidget.setSizePolicy(QSizePolicy.Preferred,
                                          QSizePolicy.Preferred)
 
         tab1 = QWidget()
-        # tableWidget = QTableWidget(10, 10)
-        listWidget = QListWidget()
-        for item in clanDizStrings:
-            newItem = QListWidgetItem(self.redoIconLight, item)
-            newItem.setToolTip("Some tool tip")
-            newItem.setStatusTip("Woohoo, this is status tip!")
-            newItem.setWhatsThis("This is dummy string")
-            listWidget.addItem(newItem)
+        # listWidget = QListWidget()
+        treeWidget = QTreeWidget()
+        treeWidget.setColumnCount(2)
+        treeWidget.setHeaderLabels(["Name", "Prototype"])
+
+        xml_tree = dynamicscene_model.parse_file_to_tree()
+        for item in xml_tree.Object:
+            tree_object = QTreeWidgetItem(treeWidget)
+            tree_object.setText(0, str(item))
+            # newItem = QListWidgetItem(self.redoIconLight, str(item))
+            tree_object.setToolTip(0, "Some tool tip")
+            tree_object.setStatusTip(0, "Woohoo, this is status tip!")
+            tree_object.setWhatsThis(0, "This is dummy string")
+            # listWidget.addItem(newItem)
+            treeWidget.addTopLevelItem(tree_object)
 
         tab1hbox = QHBoxLayout()
         tab1hbox.setContentsMargins(5, 5, 5, 5)
-        # tab1hbox.addWidget(tableWidget)
-        tab1hbox.addWidget(listWidget)
+        # tab1hbox.addWidget(listWidget)
         tab1.setLayout(tab1hbox)
 
         tab2 = QWidget()
         textEdit = QTextEdit()
-
         textEdit.setPlainText(("Name:          Торговец Серго (Buyer)\n"
                                "Prototype:     NPC\n"
                                "Parent:        Бар ''Долгий путь'' (TheTown_Bar)\n"
