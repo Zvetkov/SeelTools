@@ -109,6 +109,7 @@ class GameObject(object):
         self.name = element.attrib["Name"]
         self.belong = element.attrib["Belong"]
         self.prototype = element.attrib["Prototype"]
+        self.tag_name = element.tag
 
 
 class ClanClass(object):
@@ -143,7 +144,22 @@ class TownClass(GameObject):
         self.rotation = "0.000 -0.721 0.000 -0.693"
         self.pov_in_interface = "-35.000 60.000 35.000"
         self.caravans_dest = ""
-        self.bar = "TheTown_bar"
+        self.bar = "TheTown_Bar"
+        self.shop = "TheTown_Shop"
+        self.workshop = "TheTown_Workshop"
+        self.town_enter = "TheTown_enter"
+        self.town_defend = "TheTown_defend"
+        self.town_deploy = "TheTown_deploy"
+        self.parts = None  # wtf is this and what it is doing here?
+        self.auto_guns = ["staticAutoGun045"]
+        self.entry_path = {"Points": ["1220.000 2970.000",
+                                      "1260.000 2966.500"],
+                           "CameraPoints": ["-95.811 24.235 8.577",
+                                            "-35.000 60.000 35.000"]}
+        self.exit_path = {"Points": ["1260.000 2966.500",
+                                     "1220.000 2970.000"],
+                          "CameraPoints": ["-35.000 60.000 35.000",
+                                           "-95.811 24.235 8.577"]}
 
         self.town_icon = "icn_town.dds"  # if/ico/modelicons.xml
         self.description = ("Крохотный город, существующий лишь торговлей"
@@ -157,23 +173,81 @@ class BarClass(GameObject):
     def __init__(self, element: objectify.ObjectifiedElement):
         GameObject.__init__(self, element)
         self.parent_town = "TheTown"
+        self.withoutbarment = False
+        self.npcs = []
 
 
 class WorkshopClass(GameObject):
     def __init__(self, element: objectify.ObjectifiedElement):
         GameObject.__init__(self, element)
         self.parent_town = "TheTown"
+        self.cabins_and_baskets = []
+        self.vehicles = []
+
+
+class ShopClass(GameObject):
+    def __init__(self, element: objectify.ObjectifiedElement):
+        GameObject.__init__(self, element)
+        self.parent_town = "TheTown"
+        self.guns_and_gadgets = []
 
 
 class NpcCLass(GameObject):
     def __init__(self, element: objectify.ObjectifiedElement):
         GameObject.__init__(self, element)
-        self.parent_building = "TheTown_Bar"
+        self.parent_building = "TheTown_Bar"  # or parent location/object?
         self.model_name = "r1_woman"
+        self.model_skin = 2
         self.model_cfg = 44
         self.type = "BARMAN"
         self.spoken_count = 0
         self.dialogue_lines = []
+
+
+class VehicleClass(object):
+    def __init__(self, element: objectify.ObjectifiedElement):
+        self.pos_xy = ["x", "y"]
+        self.flags = 16
+        self.pos = "0.000 369.722 0.000"
+        self.basket = {"present": 1,
+                       "flags": 16,
+                       "prototype": "bugCargo01"}
+        self.cabin = {"present": 1,
+                      "flags": 16,
+                      "prototype": "bugCab01"}
+        self.chassis = {"present": 1,
+                        "flags": 16,
+                        "prototype": "bugChassis"}
+        self.repository = ""
+
+
+class SoldPartClass(object):
+    def __init__(self, element: objectify.ObjectifiedElement):
+        self.pos_xy = [0, 0]
+        self.flags = 16
+        self.prototype = "bugCargo02"
+
+
+class AutoGunClass(GameObject):
+    def __init__(self, element: objectify.ObjectifiedElement):
+        GameObject.__init__(self, element)
+        self.pos = "1219.141 304.220 2990.261"
+        self.parts_cannon = "staticAutoGun0444CANNON"
+
+
+class AutoGunCannonClass(GameObject):
+    def __init__(self, element: objectify.ObjectifiedElement):
+        GameObject.__init__(self, element)
+        self.present = 1
+
+
+class GenericLocationClass(GameObject):
+    def __init__(self, element: objectify.ObjectifiedElement):
+        GameObject.__init__(self, element)
+        self.flags = 21
+        self.pos = "3351.445 369.913 3338.112"
+        self.radius = "6.584"
+        self.looking_timeout = "20.000"
 
 
 if __name__ == "__main__":
