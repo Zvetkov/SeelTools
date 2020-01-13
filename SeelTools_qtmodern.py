@@ -199,8 +199,8 @@ class MainWindow(QMainWindow):
         treeWidget.setColumnCount(2)
         treeWidget.setHeaderLabels(["Name", "Prototype"])
 
-        xml_tree = dynamicscene_model.parse_file_to_tree()
-        for item in xml_tree.Object:
+        xml_tree = dynamicscene_model.parse_file_to_objectify()
+        for item in xml_tree.iterchildren():
             tree_object = QTreeWidgetItem(treeWidget)
             tree_object.setText(0, str(item))
             # newItem = QListWidgetItem(self.redoIconLight, str(item))
