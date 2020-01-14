@@ -40,10 +40,6 @@ RADIO_SOUNDS_XML = os.path.join(GAME_FOLDER, "data", "sounds", "radio",
 #                        "clansdiz.xml")  # if/strings/clansdiz.xml
 # OBJECT_NAMES = os.path.join(os.path.dirname(__file__), "dummy_files",
 #                             "object_names.xml")  # maps/r1m1/object_names.xml
-# OBJECT_NAMES_ORIGINAL = os.path.join(os.path.dirname(__file__), "dummy_files",
-#                             "object_names_original.xml")  # maps/r1m1/object_names.xml
-# OBJECT_NAMES_SHORT = os.path.join(os.path.dirname(__file__), "dummy_files",
-#                                   "object_names_short.xml")  # maps/r1m1/object_names.xml
 # OBJECT_DESCRIPTION = os.path.join(os.path.dirname(__file__), "dummy_files",
 #                             "objectdiz.xml")  # "data\if\strings\objectdiz.xml"
 
@@ -57,7 +53,9 @@ def main():
     relationship_dict = parse_file_to_dict(RELATIONSHIP_XML)
     belong_logo_dict = parse_file_to_dict(BELONG_LOGO_XML)
     belong_faction_dict = parse_belong_faction_to_dict(RADIO_SOUNDS_XML)
-    radio_sound_dict = parse_file_to_dict(RADIO_SOUNDS_XML)  # radio_sound_dict["farmers"]["Neutral"]["first_see_other"]["samples"]
+
+    # radio_sound_dict["farmers"]["Neutral"]["first_see_other"]["samples"]
+    radio_sound_dict = parse_file_to_dict(RADIO_SOUNDS_XML)
 
     # gam manipulation
     logos_list = parse_logos_gam(LOGOS_GAM)
