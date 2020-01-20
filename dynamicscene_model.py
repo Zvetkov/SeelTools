@@ -1,5 +1,6 @@
 import os
 import sys
+
 from chardet import detect
 from lxml import etree, objectify
 
@@ -18,13 +19,17 @@ GLOBAL_PROP_XML = os.path.join(GAME_FOLDER, "data", "gamedata",
 RELATIONSHIP_XML = os.path.join(GAME_FOLDER, "data", "gamedata",
                                 "relationship.xml")  # data/gamedata/relationship.xml
 MODEL_ICONS_XML = os.path.join(GAME_FOLDER, "data", "if", "ico",
-                               "modelicons.xml")  # if/ico/modelicons.xml map with name
+                               "modelicons.xml")  # data/if/ico/modelicons.xml map with name
+MODEL_NAMES_XML = os.path.join(GAME_FOLDER, "data", "if", "diz",
+                               "model_names.xml")  # data\if\diz\model_names.xml
 BELONG_LOGO_XML = os.path.join(GAME_FOLDER, "data", "models",
                                "belongstologos.xml")  # "data\models\belongstologos.xml"
 LOGOS_GAM = os.path.join(GAME_FOLDER, "data", "models", "logos",
                          "logos.gam")  # "data\models\logos\logos.gam"
 RADIO_SOUNDS_XML = os.path.join(GAME_FOLDER, "data", "sounds", "radio",
                                 "radiosounds.xml")  # "data\sounds\radio\radiosounds.xml"
+DIALOGS_GLOBAL_XML = os.path.join(GAME_FOLDER, "data", "if", "diz",
+                                  "dialogsglobal.xml")  # data\if\diz\dialogsglobal.xml
 
 # DYNAMIC_SCENE_XML = os.path.join(os.path.dirname(__file__), "dummy_files",
 #                                  "dynamicscene.xml")
@@ -49,9 +54,11 @@ def main():
     object_names_dict = parse_file_to_dict(OBJECT_NAMES_XML)
     object_desc_dict = parse_file_to_dict(OBJECT_DESCR_XML)
     model_icons_dict = parse_file_to_dict(MODEL_ICONS_XML)
+    model_names_dict = parse_file_to_dict(MODEL_NAMES_XML)
     clan_desc_dict = parse_file_to_dict(CLANDIZ_XML)
     relationship_dict = parse_file_to_dict(RELATIONSHIP_XML)
     belong_logo_dict = parse_file_to_dict(BELONG_LOGO_XML)
+    dialogs_global_dict = parse_file_to_dict(DIALOGS_GLOBAL_XML)
     belong_faction_dict = parse_belong_faction_to_dict(RADIO_SOUNDS_XML)
 
     # radio_sound_dict["farmers"]["Neutral"]["first_see_other"]["samples"]
@@ -75,7 +82,13 @@ def main():
     # save_to_file(dynamic_scene_tree, DYNAMIC_SCENE_CHANGED)
     # save_to_file(dynamic_scene_tree, DYNAMIC_SCENE_RAW, False)
 
-    object_tree = parse_objectify_to_native(dynamic_scene_tree, object_names_dict, object_desc_dict, clan_tree)
+    object_tree = parse_objectify_to_native(dynamic_scene_tree,
+                                            object_names_dict,
+                                            object_desc_dict,
+                                            model_icons_dict,
+                                            model_names_dict,
+                                            clan_tree,
+                                            dialogs_global_dict)
     print(object_tree)
 
 
@@ -99,30 +112,28 @@ def parse_logos_gam(path: str):
 def objectify_to_dict(element):
     if element.tag == "Object":
         return element.attrib["Name"], \
-               dict(map(objectify_to_dict, element)) or element.attrib
+            dict(map(objectify_to_dict, element)) or element.attrib
     elif element.tag == "string":
         return element.attrib["id"], \
-               dict(map(objectify_to_dict, element)) or element.attrib["value"]
+            dict(map(objectify_to_dict, element)) or element.attrib["value"]
     elif element.tag == "Belong":
         return element.attrib["id"], \
-               dict(map(objectify_to_dict, element)) or element.attrib["logo"]
+            dict(map(objectify_to_dict, element)) or element.attrib["logo"]
     elif element.tag == "set":
         return f"{element.attrib['forwhom']}_{element.attrib['tolerance']}", \
-               dict(map(objectify_to_dict, element)) or element.attrib
-    elif element.tag == "Group":
+            dict(map(objectify_to_dict, element)) or element.attrib
+    elif element.tag == "Group" or element.tag == "Reply":
         return element.attrib['name'], \
-               dict(map(objectify_to_dict, element)) or element.attrib
-    elif element.tag == "Sound":
+            dict(map(objectify_to_dict, element)) or element.attrib
+    elif (element.tag == "Sound" or element.tag == "Item"):
         return element.attrib['id'], \
-               dict(map(objectify_to_dict, element)) or {"samples": element.attrib["samples"],
-                                                         "probability": element.attrib["probability"]}
-    elif element.tag == "Item":
-        return element.attrib['id'], \
-               dict(map(objectify_to_dict, element)) or {"file": element.attrib["file"],
-                                                         "file1": element.attrib["file1"]}
+            dict(map(objectify_to_dict, element)) or element.attrib
+    # elif element.tag == "Item":
+    #     return element.attrib['id'], \
+    #         dict(map(objectify_to_dict, element)) or element.attrib
     else:  # if element.tag == "ObjectNames" or element.tag == "resource"
         return element.tag, \
-               dict(map(objectify_to_dict, element)) or element.attrib
+            dict(map(objectify_to_dict, element)) or element.attrib
 
 
 def parse_file_to_dict(path=OBJECT_NAMES_XML):
@@ -189,7 +200,10 @@ def tag_object_dynamicscene(obj: objectify.ObjectifiedElement):
 def parse_objectify_to_native(objfy_tree: objectify.ObjectifiedElement,
                               object_names_dict: dict,
                               object_desc_dict: dict,
-                              clan_tree: dict):
+                              model_icons_dict: dict,
+                              model_names_dict: dict,
+                              clan_tree: dict,
+                              dialogs_global_dict: dict):
     ''' Returns dictionary of objects grouped by class
     '''
     tree = {}
@@ -197,11 +211,17 @@ def parse_objectify_to_native(objfy_tree: objectify.ObjectifiedElement,
         tree["towns"] = [TownClass(objfy_tree["Obj_TownSouth"],
                                    object_names_dict,
                                    object_desc_dict,
-                                   clan_tree)]
+                                   model_icons_dict,
+                                   model_names_dict,
+                                   clan_tree,
+                                   dialogs_global_dict)]
         tree["towns"].append(TownClass(objfy_tree["Obj_r1m1_GloohoeVillage"],
                                        object_names_dict,
                                        object_desc_dict,
-                                       clan_tree))
+                                       model_icons_dict,
+                                       model_names_dict,
+                                       clan_tree,
+                                       dialogs_global_dict))
 
     return tree
 
@@ -310,12 +330,17 @@ class ClanClass(object):
         # if/ico/modelicons.xml map with name
         self.icons = {"small": model_icons_dict[self.name]["file"],  # "data/if/ico/clans/farmers_union02.dds",
                       "big": model_icons_dict[self.name]["file1"]}  # "data/if/ico/clans/farmers_union03.dds"}
-        self.description = clan_desc[f"{self.name}_diz"]  # ("Фермеры работают с землей, как их предки когда-то."
-                                                          #  " Так как еда нужна всем и всегда, а больше брать с"
-                                                          #  " них нечего – спокойно существуют в полном"
-                                                          #  " опасностей мире.")  # same as name
+
+        # ("Фермеры работают с землей, как их предки когда-то."
+        # " Так как еда нужна всем и всегда, а больше брать с"
+        # " них нечего – спокойно существуют в полном"
+        # " опасностей мире.")  # same as name
+        self.description = clan_desc[f"{self.name}_diz"]
+
         self.logo_id = belong_logo_dict[belong]  # 10 - farmers_union, models/belongstologos.xml
-        self.logo = f"data\\if\\models\\logos\\{logos_list[int(self.logo_id)]}.dds"  # models/logos/farmers_union.dds" - models/logos/logos.gam, id from 0 to 25 in order of listing
+
+        # models/logos/farmers_union.dds" - models/logos/logos.gam, id from 0 to 25 in order of listing
+        self.logo = f"data\\if\\models\\logos\\{logos_list[int(self.logo_id)]}.dds"
         self.radio_group_name = belong_faction_dict.get(belong)  # "farmers" - sounds/radio/radiosounds.xml
 
 
@@ -323,7 +348,10 @@ class TownClass(GameObject):
     def __init__(self, element: objectify.ObjectifiedElement,
                  object_names_dict: dict,
                  object_desc_dict: dict,
-                 clan_tree: dict):
+                 model_icons_dict: dict,
+                 model_names_dict: dict,
+                 clan_tree: dict,
+                 dialogs_global_dict: dict):
         GameObject.__init__(self, element)
         self.full_name = object_names_dict[self.name]["FullName"]  # "Южный"  # r1m1/object_names.xml map with name
         self.on_map = os.path.dirname(element.base).split("/")[-1]  # "r1m1"  # dir of dynamicscene
@@ -333,90 +361,170 @@ class TownClass(GameObject):
         self.pov_in_interface = element.attrib["PointOfViewInInterface"]  # "-35.000 60.000 35.000"
         self.caravans_dest = element.attrib["CaravansDest"]  # "" wtf ???
         # ??? need to check what buildings are always required and which can be ommited
-        self.bar = BarClass(element["Obj_bar"]) if hasattr(element, "Obj_bar") else BarClass(element["Obj_barWithoutBarman"])  # "TheTown_Bar"
-        self.shop = ShopClass(element["Obj_shop"])  # "TheTown_Shop"
-        self.workshop = WorkshopClass(element["Obj_workshop"])  # "TheTown_Workshop"
-        self.town_enter = GenericLocationClass(element["Obj_genericLocation"])  # "TheTown_enter"
-        self.town_defend = GenericLocationClass(element["Obj_genericLocation"])  # "TheTown_defend"
-        self.town_deploy = GenericLocationClass(element["Obj_genericLocation"])  # "TheTown_deploy"
-        self.parts = None  # wtf is this and what it is doing here?
+        if hasattr(element, "Obj_bar"):
+            bar = element["Obj_bar"]
+        else:
+            bar = element["Obj_barWithoutBarman"]
+        self.bar = BarClass(bar, self.name, dialogs_global_dict)  # "TheTown_Bar"
+        self.shop = ShopClass(element["Obj_shop"], model_names_dict)  # "TheTown_Shop"
+        self.workshop = WorkshopClass(element["Obj_workshop"], model_names_dict)  # "TheTown_Workshop"
+
+        self.town_enter = None
+        self.town_defend = None
+        self.town_deploy = None
+        self.parts = None  # ??? wtf is this and what it is doing here?
         self.auto_guns = None
+
+        for generic_loc in element["Obj_genericLocation"]:
+            name = generic_loc.attrib.get("Name")
+            if name == f"{self.name}_enter":
+                self.town_enter = GenericLocationClass(generic_loc)  # "TheTown_enter"
+            elif name == f"{self.name}_defend":
+                self.town_defend = GenericLocationClass(generic_loc)  # "TheTown_defend"
+            elif name == f"{self.name}_deploy":
+                self.town_deploy = GenericLocationClass(generic_loc)  # "TheTown_deploy"
+            else:
+                self.generic_locs.append(GenericLocationClass(generic_loc))
+
         if hasattr(element, "Obj_staticAutoGun04"):
             self.auto_guns = [AutoGunClass(element["Obj_staticAutoGun04"])]  # ["staticAutoGun045"]
-        self.entry_path = {"Points": ["1220.000 2970.000",  # {"Points": ["1220.000 2970.000",
-                                      "1260.000 2966.500"],  #            "1260.000 2966.500"],
-                           "CameraPoints": ["-95.811 24.235 8.577",  #   "CameraPoints": ["-95.811 24.235 8.577",
-                                            "-35.000 60.000 35.000"]}  #                  "-35.000 60.000 35.000"]}
-        self.exit_path = {"Points": ["1260.000 2966.500",
-                                     "1220.000 2970.000"],
-                          "CameraPoints": ["-35.000 60.000 35.000",
-                                           "-95.811 24.235 8.577"]}
 
-        self.town_icon = "icn_town.dds"  # if/ico/modelicons.xml
-        self.description = object_desc_dict[f"{self.on_map}_{self.name}_diz"]  # ("Крохотный город, существующий лишь торговлей"
-                                                                          # " с заезжими северными купцами.")  # "data\if\strings\objectdiz.xml"
-        self.role_in_quest = ["Buyer_Quest1",  # maybe too ambitious and unnecessary, if\diz\questinfoglobal.xml
-                              "d_FindBenInSouth_Quest",  # map on tag <Map targetObjName="self.name"/>
-                              "d_FindFelix_Quest"]  # or from gamedata/quests.xml
+        # {"Points": ["1220.000 2970.000", "1260.000 2966.500"],
+        #  "CameraPoints": ["-95.811 24.235 8.577", "-35.000 60.000 35.000"]}
+        # attrib id dictionary containing points, dict will evaluate to false if there is no points
+        if element["EntryPath"].attrib:
+            self.entry_path = {"Points":
+                               [el.attrib.get("Pos") for el in element["EntryPath"]["Point"]],
+                               "CameraPoints":
+                               [el.attrib.get("Pos") for el in element["EntryPath"]["CameraPoint"]]}
+        else:
+            self.entry_path = None
+
+        # {"Points": ["1260.000 2966.500", "1220.000 2970.000"],
+        #  "CameraPoints": ["-35.000 60.000 35.000", "-95.811 24.235 8.577"]}
+        if element["ExitPath"].attrib:
+            self.exit_path = {"Points":
+                              [el.attrib.get("Pos") for el in element["ExitPath"]["Point"]],
+                              "CameraPoints":
+                              [el.attrib.get("Pos") for el in element["ExitPath"]["CameraPoint"]]}
+        else:
+            self.exit_path = None
+
+        self.town_icon = model_icons_dict[self.prototype]  # "icn_town.dds"  # if/ico/modelicons.xml
+
+        # ("Крохотный город, существующий лишь торговлей"
+        #  " с заезжими северными купцами.")  # "data\if\strings\objectdiz.xml")
+        self.description = object_desc_dict[f"{self.on_map}_{self.name}_diz"]
+
+        # maybe too ambitious and unnecessary, if\diz\questinfoglobal.xml
+        # map on tag <Map name="r1m1" targetObjName="self.name"/>
+        # or from gamedata/quests.xml
+        self.placeholder_role_in_quest = ["Buyer_Quest1",
+                                          "d_FindBenInSouth_Quest",
+                                          "d_FindFelix_Quest"]
 
 
 class BarClass(GameObject):
-    def __init__(self, element: objectify.ObjectifiedElement):
+    def __init__(self,
+                 element: objectify.ObjectifiedElement,
+                 parent_name: str,
+                 dialogs_global_dict: dict):
         GameObject.__init__(self, element)
-        self.parent_town_name = "TheTown"
-        self.withoutbarment = False
-        self.npcs = []
+        self.parent_town_name = parent_name
+        self.npcs = [NpcCLass(npc_element, self.name, dialogs_global_dict) for npc_element in element["Obj_NPC"]]
+        if element.tag == "Obj_bar":
+            self.withoutbarmen = False
+            self.barman = [npc.name for npc in self.npcs if npc.type == "BARMAN"][0]
+        else:
+            self.withoutbarment = True
+            self.barman = None
 
 
 class WorkshopClass(GameObject):
-    def __init__(self, element: objectify.ObjectifiedElement):
+    def __init__(self, element: objectify.ObjectifiedElement,
+                 model_names_dict: dict):
         GameObject.__init__(self, element)
-        self.parent_town_name = "TheTown"
-        self.cabins_and_baskets = []
-        self.vehicles = []
+        self.parent_town_name = element.attrib["Name"].replace("_Workshop", "")
+        self.cabins_and_baskets = [SoldPartClass(part_element, model_names_dict)
+                                   for part_element in element["CabinsAndBaskets"]["Item"]]
+        if hasattr(element["Vehicles"], "Item"):
+            self.vehicles = [VehicleClass(vehicle_element, model_names_dict)
+                             for vehicle_element in element["Vehicles"]["Item"]]
+        else:
+            self.vehicles = None
 
 
 class ShopClass(GameObject):
-    def __init__(self, element: objectify.ObjectifiedElement):
+    def __init__(self, element: objectify.ObjectifiedElement,
+                 model_names_dict: dict):
         GameObject.__init__(self, element)
-        self.parent_town_name = "TheTown"
-        self.guns_and_gadgets = []
+        self.parent_town_name = element.attrib["Name"].replace("_Shop", "")
+        self.guns_and_gadgets = [SoldPartClass(part_element, model_names_dict)
+                                 for part_element in element["GunsAndGadgets"]["Item"]]
 
 
 class NpcCLass(GameObject):
-    def __init__(self, element: objectify.ObjectifiedElement):
+    def __init__(self,
+                 element: objectify.ObjectifiedElement,
+                 parent_name: str,
+                 dialogs_global_dict: dict):
         GameObject.__init__(self, element)
-        self.parent_building_name = "TheTown_Bar"  # or parent location/object?
-        self.model_name = "r1_woman"
-        self.model_skin = 2
-        self.model_cfg = 44
-        self.type = "BARMAN"
-        self.spoken_count = 0
-        self.dialogue_lines = []
-
-
-class VehicleClass(object):
-    def __init__(self, element: objectify.ObjectifiedElement):
-        self.pos_xy = ["x", "y"]
-        self.flags = 16
-        self.pos = "0.000 369.722 0.000"
-        self.basket = {"present": 1,
-                       "flags": 16,
-                       "prototype": "bugCargo01"}
-        self.cabin = {"present": 1,
-                      "flags": 16,
-                      "prototype": "bugCab01"}
-        self.chassis = {"present": 1,
-                        "flags": 16,
-                        "prototype": "bugChassis"}
-        self.repository = ""
+        self.parent_building_name = parent_name  # or parent location/object?
+        self.model_name = element.attrib["ModelName"]  # "r1_woman"
+        self.model_cfg = element.attrib.get("cfg")  # 44
+        self.model_skin = element.attrib.get("skin")  # 2 ???
+        self.type = element.attrib.get("NpcType")  # "BARMAN"
+        self.spoken_count = element.attrib["SpokenCount"]  # 0
+        hello_reply_names = element.attrib.get("helloReplyNames")  # 'Buyer_hellodlg0 Buyer_hellodlg1'
+        self.hello_reply_names = []
+        if hello_reply_names is not None:
+            for line in hello_reply_names.split():
+                if dialogs_global_dict.get(line) is not None:
+                    self.hello_reply_names.append([line, dialogs_global_dict[line]["text"]])
+                else:
+                    self.hello_reply_names.append([line, "MISSING_LINE"])
 
 
 class SoldPartClass(object):
-    def __init__(self, element: objectify.ObjectifiedElement):
-        self.pos_xy = [0, 0]
-        self.flags = 16
-        self.prototype = "bugCargo02"
+    def __init__(self, element: objectify.ObjectifiedElement,
+                 model_names_dict: dict):
+        self.pos_xy = [element.attrib["PosX"], element.attrib["PosY"]]  # [0, 0]
+        self.flags = element.attrib["Flags"]  # 16
+        self.prototype = element.attrib["Prototype"]  # "bugCargo02"
+        self.prototype_name = model_names_dict[self.prototype]['value']
+        if element.attrib.get("Name") is not None:
+            self.name = element.attrib["Name"]
+        else:
+            self.name = None
+
+
+class VehiclePartClass(object):
+    def __init__(self, element: objectify.ObjectifiedElement,
+                 model_names_dict: dict):
+        self.present = element.attrib["present"]  # 1
+        self.flags = element.attrib["Flags"]  # 16
+        self.prototype = element.attrib["Prototype"]  # "bugCargo01"
+        prototype_name = model_names_dict.get(self.prototype)
+        self.prototype_name = prototype_name.get("value") if (prototype_name is not None) else None
+
+
+class VehicleClass(SoldPartClass):
+    def __init__(self, element: objectify.ObjectifiedElement,
+                 model_names_dict: dict):
+        SoldPartClass.__init__(self, element, model_names_dict)
+        self.pos = element.attrib["Pos"]  # "0.000 369.722 0.000"
+
+        # {"present": 1,
+        # "flags": 16,
+        # "prototype": "bugCargo01"}
+        self.basket = VehiclePartClass(element["Parts"]["BASKET"], model_names_dict)
+        self.cabin = VehiclePartClass(element["Parts"]["CABIN"], model_names_dict)
+        self.chassis = VehiclePartClass(element["Parts"]["CHASSIS"], model_names_dict)
+        if element["Repository"].attrib:
+            self.repository = [SoldPartClass(part_element, model_names_dict)
+                               for part_element in element["Repository"]["Item"]]
+        else:
+            self.repository = None
 
 
 class AutoGunClass(GameObject):
@@ -435,10 +543,11 @@ class AutoGunCannonClass(GameObject):
 class GenericLocationClass(GameObject):
     def __init__(self, element: objectify.ObjectifiedElement):
         GameObject.__init__(self, element)
-        self.flags = 21
-        self.pos = "3351.445 369.913 3338.112"
-        self.radius = "6.584"
-        self.looking_timeout = "20.000"
+        self.flags = element.attrib["Flags"]  # 21
+        self.position = element.attrib["Pos"]  # "3351.445 369.913 3338.112"
+        self.rotation = element.attrib.get("Rot")  # "0.000 -0.721 0.000 -0.693"
+        self.radius = element.attrib["Radius"]  # "6.584"
+        self.looking_timeout = element.attrib["LookingTimeOut"]  # "20.000"
 
 
 if __name__ == "__main__":
