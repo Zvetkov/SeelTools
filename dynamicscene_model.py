@@ -36,6 +36,8 @@ TOWNS_XML = os.path.join(GAME_FOLDER, "data", "gamedata", "gameobjects",
                          "towns.xml")  # \data\gamedata\gameobjects\gameobjects.xml
 VEHICLE_PARTS_XML = os.path.join(GAME_FOLDER, "data", "gamedata", "gameobjects",
                                  "vehicleparts.xml")  # data\gamedata\gameobjects\vehicleparts.xml
+VEHICLES_XML = os.path.join(GAME_FOLDER, "data", "gamedata", "gameobjects",
+                            "vehicles.xml")  # data\gamedata\gameobjects\vehicles.xml
 
 # DYNAMIC_SCENE_XML = os.path.join(os.path.dirname(__file__), "dummy_files",
 #                                  "dynamicscene.xml")
@@ -79,7 +81,8 @@ def main():
     game_objects_tree = parse_file_to_objectify(GAME_OBJECTS_XML)
 
     towns_tree = parse_file_to_objectify(TOWNS_XML)
-    vehicle_parts_tree = parse_file_to_objectify(VEHICLE_PARTS_XML, recover=True)
+    vehicle_parts_tree = parse_file_to_objectify(VEHICLE_PARTS_XML)
+    vehicles_tree = parse_file_to_objectify(VEHICLES_XML)
 
     # creating native class object tree for dynamicscene
     clan_tree = parse_clans_to_native(global_prop_tree, clan_desc_dict,
@@ -95,6 +98,7 @@ def main():
 
     object_tree = parse_objectify_to_native(dynamic_scene_tree,
                                             game_objects_tree,
+                                            vehicles_tree,
                                             vehicle_parts_tree,
                                             towns_tree,
                                             object_names_dict,
@@ -177,7 +181,7 @@ def parse_belong_faction_to_dict(path=RADIO_SOUNDS_XML):
     return dictionary
 
 
-def parse_file_to_objectify(path=DYNAMIC_SCENE_XML, recover: bool = False):
+def parse_file_to_objectify(path=DYNAMIC_SCENE_XML):
     from_codec = get_encoding_type(path)
     with open(path, "r", encoding=from_codec) as f:
         parser_recovery = objectify.makeparser(recover=True)
@@ -186,7 +190,7 @@ def parse_file_to_objectify(path=DYNAMIC_SCENE_XML, recover: bool = False):
     objectify_tree = objfy.getroot()
 
     for obj in objectify_tree.iterchildren():
-        tag_object_dynamicscene(obj)
+        tag_object_tree(obj, objectify_tree.tag)
     return objectify_tree
 
 
@@ -200,14 +204,13 @@ def parse_clans_to_native(global_props: objectify.ObjectifiedElement,
         tree[belong] = ClanClass(belong, clan_desc_dict, relationship_dict,
                                  model_icons_dict, belong_logo_dict,
                                  logos_list, belong_faction_dict)
-    pass
     return tree
 
 
-def tag_object_dynamicscene(obj: objectify.ObjectifiedElement, parent: str = ""):
+def tag_object_tree(obj: objectify.ObjectifiedElement, parent: str = ""):
     if obj.countchildren() > 0:
         for obj_ch in obj.iterchildren():
-            tag_object_dynamicscene(obj_ch, obj.tag)
+            tag_object_tree(obj_ch, obj.tag)
     # towns.xml uses scheme similar but not exactly matching dynamicscene.xml
     # This solution is a bit shit and it's shit because I don't yet know what the hell in
     # this spagetti of xmls will be needed and what info is relevant for tool's functions.
@@ -216,10 +219,13 @@ def tag_object_dynamicscene(obj: objectify.ObjectifiedElement, parent: str = "")
         obj.tag = f'Obj_{obj.attrib["Prototype"]}'
     elif obj.tag == 'Folder':
         obj.tag = f'Dir_{obj.attrib["Name"]}'
+    elif obj.tag == 'Prototype' and parent == "Prototypes":
+        obj.tag = f'Prot_{obj.attrib["Class"]}'
 
 
 def parse_objectify_to_native(objfy_tree: objectify.ObjectifiedElement,
                               game_objects_tree: objectify.ObjectifiedElement,
+                              vehicles_tree: objectify.ObjectifiedElement,
                               vehicle_parts_tree: objectify.ObjectifiedElement,
                               towns_tree: objectify.ObjectifiedElement,
                               object_names_dict: dict,
@@ -228,9 +234,13 @@ def parse_objectify_to_native(objfy_tree: objectify.ObjectifiedElement,
                               model_names_dict: dict,
                               clan_tree: dict,
                               dialogs_global_dict: dict):
-    ''' Returns dictionary of objects grouped by class
+    ''' Returns dictionary of objects grouped by type
     '''
     tree = {}
+    vehicles_proto_dict = {proto.attrib["Name"]: proto for proto in vehicles_tree["Prot_Vehicle"]}
+    # player
+    if hasattr(objfy_tree, "Obj_player"):
+        tree["player"] = PlayerClass(objfy_tree["Obj_player"], vehicles_proto_dict, model_names_dict)
 
     # towns and villages
     big_towns = [el.attrib["Name"] for el in towns_tree["Dir_BigTowns"]["Prototype"]]
@@ -263,11 +273,8 @@ def parse_objectify_to_native(objfy_tree: objectify.ObjectifiedElement,
 
     # generic locations
     if hasattr(objfy_tree, "Obj_genericLocation"):
-        tree["generic_locations"] = [GenericLocationClass(generic_loc)
+        tree["generic_locations"] = [GenericLocationClass(generic_loc, dialogs_global_dict)
                                      for generic_loc in objfy_tree["Obj_genericLocation"]]
-
-    if hasattr(objfy_tree, "Obj_player"):
-        tree["player"] = PlayerClass(objfy_tree["Obj_player"])
 
 
     return tree
@@ -433,7 +440,7 @@ class TownClass(GameObject):
             elif name == f"{self.name}_deploy":
                 self.town_deploy = GenericLocationClass(generic_loc)  # "TheTown_deploy"
             else:
-                self.generic_locs.append(GenericLocationClass(generic_loc))
+                self.generic_locs.append(GenericLocationClass(generic_loc, dialogs_global_dict))
 
         self.auto_guns = []
         auto_guns_list = [prototype.attrib["Name"] for prototype in game_objects_tree["Dir_StaticAutoGuns"]["Prototype"]]
@@ -498,7 +505,7 @@ class WorkshopClass(GameObject):
                  model_names_dict: dict):
         GameObject.__init__(self, element)
         self.parent_town_name = element.attrib["Name"].replace("_Workshop", "")
-        
+
         if hasattr(element, "CabinsAndBaskets"):
             self.cabins_and_baskets = [SoldPartClass(part_element, model_names_dict)
                                        for part_element in element["CabinsAndBaskets"]["Item"]]
@@ -507,7 +514,7 @@ class WorkshopClass(GameObject):
 
         if hasattr(element, "Vehicles"):
             if hasattr(element["Vehicles"], "Item"):
-                self.vehicles = [VehicleClass(vehicle_element, model_names_dict)
+                self.vehicles = [VehicleSoldClass(vehicle_element, model_names_dict)
                                  for vehicle_element in element["Vehicles"]["Item"]]
         else:
             self.vehicles = None
@@ -551,10 +558,6 @@ class SoldPartClass(object):
         self.flags = element.attrib["Flags"]  # 16
         self.prototype = element.attrib["Prototype"]  # "bugCargo02"
         self.prototype_name = model_names_dict[self.prototype]['value']
-        if element.attrib.get("Name") is not None:
-            self.name = element.attrib["Name"]
-        else:
-            self.name = None
 
 
 class VehiclePartClass(object):
@@ -567,12 +570,11 @@ class VehiclePartClass(object):
         self.prototype_name = prototype_name.get("value") if (prototype_name is not None) else None
 
 
-class VehicleClass(SoldPartClass):
+class VehicleClass(object):
     def __init__(self, element: objectify.ObjectifiedElement,
                  model_names_dict: dict):
-        SoldPartClass.__init__(self, element, model_names_dict)
+
         self.position = element.attrib["Pos"]  # "0.000 369.722 0.000"
-        self.rotation = element.attrib.get("Rot")  # "-0.007 1.000 -0.010 0.021" or missing
 
         # {"present": 1,
         # "flags": 16,
@@ -593,11 +595,31 @@ class VehicleClass(SoldPartClass):
             self.repository = None
 
 
+class VehicleSoldClass(VehicleClass, SoldPartClass):
+    def __init__(self, element: objectify.ObjectifiedElement,
+                 model_names_dict: dict):
+        SoldPartClass.__init__(self, element, model_names_dict)
+        VehicleClass.__init__(self, element, model_names_dict)
+
+
+class VehicleSpawnableClass(VehicleClass, GameObject):
+    def __init__(self, element: objectify.ObjectifiedElement,
+                 model_names_dict: dict):
+        GameObject.__init__(self, element)
+        self.rotation = element.attrib.get("Rot")  # "-0.007 1.000 -0.010 0.021" or missing
+        VehicleClass.__init__(self, element, model_names_dict)
+
+
 class PlayerClass(GameObject):
-    def __init__(self, element: objectify.ObjectifiedElement):
+    def __init__(self, element: objectify.ObjectifiedElement,
+                 vehicles_proto: dict,
+                 model_names_dict: dict):
         GameObject.__init__(self, element)
         self.money = element.attrib["Money"]
-        self.vehicle = [element.iterchildren()][0]
+        if len(element.getchildren()) == 1:
+            self.vehicle = VehicleSpawnableClass(element.getchildren()[0], model_names_dict)
+        else:
+            raise ValueError
 
 
 class AutoGunClass(GameObject):
@@ -617,16 +639,22 @@ class AutoGunCannonClass(GameObject):
 
 
 class GenericLocationClass(GameObject):
-    def __init__(self, element: objectify.ObjectifiedElement):
+    def __init__(self, element: objectify.ObjectifiedElement,
+                 dialogs_global_dict: dict = {}):
         GameObject.__init__(self, element)
         self.flags = element.attrib["Flags"]  # 21
         self.position = element.attrib["Pos"]  # "3351.445 369.913 3338.112"
         self.rotation = element.attrib.get("Rot")  # "0.000 -0.721 0.000 -0.693"
         self.radius = element.attrib["Radius"]  # "6.584"
-        if hasattr(element, "LookingTimeOut"):
-            self.looking_timeout = element.attrib["LookingTimeOut"]  # "20.000"
+        self.looking_timeout = element.attrib.get("LookingTimeOut")  # "20.000"
+        if hasattr(element, "Obj_NPC"):
+            self.npcs = [NpcCLass(npc, self.name, dialogs_global_dict) for npc in element["Obj_NPC"]]
         else:
-            self.looking_timeout = None
+            self.npcs = None
+        self.exit_location = element.attrib.get("ExitLocation")
+        self.passage_active = element.attrib.get("PassageActive")
+        self.passage_address = element.attrib.get("PassageAddress")
+
 
 
 if __name__ == "__main__":
