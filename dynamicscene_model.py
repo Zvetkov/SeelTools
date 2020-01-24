@@ -5,7 +5,7 @@ from timeit import default_timer as timer
 
 from em_parse import (xml_to_dict, xml_to_objfy,
                       parse_clans_to_native, parse_belong_faction_to_dict,
-                      parse_logos_gam)
+                      parse_logos_gam, obj_to_simple_dict)
 
 from em_file_ops import save_to_file
 
@@ -14,12 +14,12 @@ from em_classes import (GenericLocationClass,
                         VehicleClass, VehicleSoldClass, VehicleSpawnableClass,
                         VehiclePartClass, AutoGunClass, AutoGunCannonClass)
 
-from constants import (OBJECT_NAMES_XML, OBJECT_DESCR_XML,
+from constants import (GLOBAL_PROP_XML, GAME_OBJECTS_XML,
+                       OBJECT_NAMES_XML, OBJECT_DESCR_XML,
                        MODEL_ICONS_XML, MODEL_NAMES_XML,
                        CLANDIZ_XML, RELATIONSHIP_XML, BELONG_LOGO_XML, LOGOS_GAM,
                        DIALOGS_GLOBAL_XML, RADIO_SOUNDS_XML,
-                       GLOBAL_PROP_XML, GAME_OBJECTS_XML,
-                       TOWNS_XML, VEHICLE_PARTS_XML, VEHICLES_XML,
+                       TOWNS_XML, VEHICLE_PARTS_XML, VEHICLES_XML, GUNS_XML_DICT,
                        DYNAMIC_SCENE_XML)
 
 
@@ -36,6 +36,13 @@ def main():
     belong_logo_dict = xml_to_dict(BELONG_LOGO_XML)
     dialogs_global_dict = xml_to_dict(DIALOGS_GLOBAL_XML)
     belong_faction_dict = parse_belong_faction_to_dict(RADIO_SOUNDS_XML)
+    # creating dict of gun_size:{gun_type:obj(gun_prototype)} # ex: big_guns->{Prot_BulletLauncher}->obj(vulcan01)
+    guns_dict = {gun_type: xml_to_objfy(GUNS_XML_DICT[gun_type]) for gun_type in GUNS_XML_DICT.keys()}
+    # creating dict of gun_prot_name:gun_type # ex: hornet01:BulletLaucher
+    guns_proto_dict = {}
+    for gun_type in guns_dict.keys():
+        print(f"\nstarting to work on {gun_type}")
+        guns_proto_dict.update(obj_to_simple_dict(guns_dict[gun_type], "Name", "Class"))
 
     # radio_sound_dict["farmers"]["Neutral"]["first_see_other"]["samples"]
     radio_sound_dict = xml_to_dict(RADIO_SOUNDS_XML)

@@ -27,6 +27,8 @@ GIANT_GUNS_XML = os.path.join(GAME_FOLDER, "data", "gamedata", "gameobjects",
                               "giantguns.xml")  # data\gamedata\gameobjects\giantguns.xml
 SIDE_GUNS_XML = os.path.join(GAME_FOLDER, "data", "gamedata", "gameobjects",
                              "sideguns.xml")  # data\gamedata\gameobjects\sideguns.xml
+GUNS_XML_DICT = {"small_guns": SMALL_GUNS_XML, "big_guns": BIG_GUNS_XML,
+                 "giant_guns": GIANT_GUNS_XML, "side_guns": SIDE_GUNS_XML}
 
 # maps folder
 DYNAMIC_SCENE_XML = os.path.join(GAME_FOLDER, "data", "maps", MAP_NAME,
