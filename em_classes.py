@@ -99,11 +99,10 @@ class TownClass(GameObject):
             else:
                 self.generic_locs.append(GenericLocationClass(generic_loc, dialogs_global_dict))
 
+        self.parts = None
         if hasattr(element, "Parts"):
             if hasattr(element["Parts"], "AttackTeam"):
                 self.parts = {"AttackTeam": {"present": element["Parts"]["AttackTeam"].attrib.get("present")}}
-        else:
-            self.parts = None
 
         self.auto_guns = []
         auto_guns_list = [prototype.attrib["Name"] for prototype in game_objects_tree["Dir_StaticAutoGuns"]["Prototype"]]
@@ -284,17 +283,33 @@ class VehicleClass(object):
         # {"present": 1,
         # "flags": 16,
         # "prototype": "bugCargo01"}
-        if hasattr(element["Parts"], "BASKET"):
-            self.basket = VehiclePartClass(element["Parts"]["BASKET"], model_names_dict)
-            self.cabin = VehiclePartClass(element["Parts"]["CABIN"], model_names_dict)
-        else:
-            self.basket = None
-            self.cabin = None
 
-        if hasattr(element["Parts"], "CHASSIS"):
-            self.chassis = VehiclePartClass(element["Parts"]["CHASSIS"], model_names_dict)
-        else:
-            self.chassis = None
+        # initialise
+        self.cabin = None
+        self.basket = None
+        self.chassis = None
+        self.parts = {}
+        for part in element["Parts"].iterchildren():
+            if part.tag == "CABIN":
+                self.cabin = VehiclePartClass(part, model_names_dict)
+            elif part.tag == "BASKET":
+                self.basket = VehiclePartClass(part, model_names_dict)
+            elif part.tag == "CHASSIS":
+                self.chassis = VehiclePartClass(part, model_names_dict)
+            else:
+                self.parts[part.tag] = VehiclePartClass(part, model_names_dict)
+
+        # if hasattr(element["Parts"], "BASKET"):
+        #     self.basket = VehiclePartClass(element["Parts"]["BASKET"], model_names_dict)
+        #     self.cabin = VehiclePartClass(element["Parts"]["CABIN"], model_names_dict)
+        # else:
+        #     self.basket = None
+        #     self.cabin = None
+
+        # if hasattr(element["Parts"], "CHASSIS"):
+        #     self.chassis = VehiclePartClass(element["Parts"]["CHASSIS"], model_names_dict)
+        # else:
+        #     self.chassis = None
 
         if element["Repository"].attrib:
             self.repository = [SoldPartClass(part_element, model_names_dict)
@@ -334,7 +349,7 @@ class AutoGunClass(GameObject):
     def __init__(self, element: objectify.ObjectifiedElement):
         GameObject.__init__(self, element)
         self.position = element.attrib["Pos"]  # "1219.141 304.220 2990.261"
-        if element["Parts"].attrib:
+        if hasattr(element["Parts"], "CANNON"):
             self.parts_cannon = AutoGunCannonClass(element["Parts"]["CANNON"])  # "staticAutoGun0444CANNON"
         else:
             self.parts_cannon = None

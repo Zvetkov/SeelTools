@@ -2,7 +2,7 @@ import os
 
 GAME_FOLDER = "D:/Steam/steamapps/common/Hard Truck Apocalypse"
 
-MAP_NAME = "zoo"
+MAP_NAME = "r1m1"
 
 # gamedata folder
 GLOBAL_PROP_XML = os.path.join(GAME_FOLDER, "data", "gamedata",

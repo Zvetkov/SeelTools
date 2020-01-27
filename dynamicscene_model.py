@@ -114,7 +114,7 @@ def parse_dynamicscene(objfy_tree: objectify.ObjectifiedElement,
             tree["big_towns"][town] = ""
     for village in villages:
         if hasattr(objfy_tree, f"Obj_{village}"):
-            tree["villages"][town] = ""
+            tree["villages"][village] = ""
 
     if tree["big_towns"] or tree["villages"]:
         object_names_dict = xml_to_dict(OBJECT_NAMES_XML)
@@ -141,9 +141,17 @@ def parse_dynamicscene(objfy_tree: objectify.ObjectifiedElement,
                                               dialogs_global_dict)
 
     # generic locations
+    tree["generic_locations"] = {}
+    tree["generic_locations"]["MISSING_NAME"] = []
     if hasattr(objfy_tree, "Obj_genericLocation"):
-        tree["generic_locations"] = [GenericLocationClass(generic_loc, dialogs_global_dict)
-                                     for generic_loc in objfy_tree["Obj_genericLocation"]]
+        for generic_loc in objfy_tree["Obj_genericLocation"]:
+            loc_name = generic_loc.attrib.get('Name')
+            if loc_name is None:
+                tree["generic_locations"]["MISSING_NAME"].append(
+                    GenericLocationClass(generic_loc, dialogs_global_dict))
+            else:
+                tree["generic_locations"][loc_name] = (
+                    GenericLocationClass(generic_loc, dialogs_global_dict))               
 
     return tree
 
