@@ -216,7 +216,7 @@ class ShopClass(GameObject):
                      for gun in element["Guns"]["Item"]]})
             else:
                 self.guns_and_gadgets.append({"Guns": []})
-            if hasattr(element, "Guns"):
+            if hasattr(element, "Gadgets"):
                 self.guns_and_gadgets.append(
                     {"Gadgets": [SoldPartClass(gun, model_names_dict)
                      for gun in element["Gadgets"]["Item"]]})
