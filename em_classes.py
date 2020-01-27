@@ -4,7 +4,9 @@ from lxml import objectify
 
 class GameObject(object):
     def __init__(self, element: objectify.ObjectifiedElement):
-        self.name = element.attrib["Name"]
+        self.name = element.attrib.get("Name")
+        if self.name is None:
+            self.name = "GAMEOBJ_MISSING_NAME"
         self.belong = element.attrib["Belong"]
         self.prototype = element.attrib["Prototype"]
         self.tag_name = element.tag
@@ -55,11 +57,15 @@ class TownClass(GameObject):
                  clan_tree: dict,
                  dialogs_global_dict: dict):
         GameObject.__init__(self, element)
-        self.full_name = object_names_dict[self.name]["FullName"]  # "Южный"  # r1m1/object_names.xml map with name
+        full_name_dict_value = object_names_dict.get(self.name)
+        if full_name_dict_value is not None:
+            self.full_name = full_name_dict_value["FullName"]  # "Южный"  # r1m1/object_names.xml map with name
+        else:
+            self.full_name = f"{self.name}_MISSING_FULL_NAME"
         self.on_map = os.path.dirname(element.base).split("/")[-1]  # "r1m1"  # dir of dynamicscene
         self.clan = clan_tree.get(self.belong)  # map with clans on belong ??? wtf is 1080 belong
         self.position = element.attrib["Pos"]  # "1263.873 308.000 2962.220"
-        self.rotation = element.attrib["Rot"]  # "0.000 -0.721 0.000 -0.693"
+        self.rotation = element.attrib.get("Rot")  # "0.000 -0.721 0.000 -0.693"
         self.pov_in_interface = element.attrib["PointOfViewInInterface"]  # "-35.000 60.000 35.000"
         self.caravans_dest = element.attrib["CaravansDest"]  # "" wtf ???
         # ??? need to check what buildings are always required and which can be ommited
@@ -70,14 +76,18 @@ class TownClass(GameObject):
         else:
             bar = None
         self.bar = BarClass(bar, self.name, dialogs_global_dict) if bar is not None else None  # "TheTown_Bar"
-        self.shop = ShopClass(element["Obj_shop"], model_names_dict) if hasattr(element, "Obj_shop") else None  # "TheTown_Shop"
-        self.workshop = WorkshopClass(element["Obj_workshop"], model_names_dict)  # "TheTown_Workshop"
+        # "TheTown_Shop"
+        self.shop = ShopClass(element["Obj_shop"], model_names_dict) if hasattr(element, "Obj_shop") else None
+        # "TheTown_Workshop"
+        self.workshop = WorkshopClass(element["Obj_workshop"], model_names_dict) if hasattr(element, "Obj_workshop") else None
+
+        # initialising
         self.town_enter = None
         self.town_defend = None
         self.town_deploy = None
-        self.parts = None  # ??? wtf is this and what it is doing here?
         self.auto_guns = None
         self.generic_locs = []
+
         for generic_loc in element["Obj_genericLocation"]:
             name = generic_loc.attrib.get("Name")
             if name == f"{self.name}_enter":
@@ -88,6 +98,12 @@ class TownClass(GameObject):
                 self.town_deploy = GenericLocationClass(generic_loc)  # "TheTown_deploy"
             else:
                 self.generic_locs.append(GenericLocationClass(generic_loc, dialogs_global_dict))
+
+        if hasattr(element, "Parts"):
+            if hasattr(element["Parts"], "AttackTeam"):
+                self.parts = {"AttackTeam": {"present": element["Parts"]["AttackTeam"].attrib.get("present")}}
+        else:
+            self.parts = None
 
         self.auto_guns = []
         auto_guns_list = [prototype.attrib["Name"] for prototype in game_objects_tree["Dir_StaticAutoGuns"]["Prototype"]]
@@ -121,7 +137,12 @@ class TownClass(GameObject):
 
         # ("Крохотный город, существующий лишь торговлей"
         #  " с заезжими северными купцами.")  # "data\if\strings\objectdiz.xml")
-        self.description = object_desc_dict[f"{self.on_map}_{self.name}_diz"]
+
+        description = object_desc_dict.get(f"{self.on_map}_{self.name}_diz")
+        if description is not None:
+            self.description = description
+        else:
+            self.description = f"{self.name}_MISSING_DESCRIPTION"
 
         # maybe too ambitious and unnecessary, if\diz\questinfoglobal.xml
         # map on tag <Map name="r1m1" targetObjName="self.name"/>
@@ -138,10 +159,17 @@ class BarClass(GameObject):
                  dialogs_global_dict: dict):
         GameObject.__init__(self, element)
         self.parent_town_name = parent_name
-        self.npcs = [NpcCLass(npc_element, self.name, dialogs_global_dict) for npc_element in element["Obj_NPC"]]
+        if hasattr(element, "Obj_NPC"):
+            self.npcs = [NpcCLass(npc_element, self.name, dialogs_global_dict) for npc_element in element["Obj_NPC"]]
+        else:
+            self.npcs = None
+
         if element.tag == "Obj_bar":
             self.withoutbarmen = False
-            self.barman = [npc.name for npc in self.npcs if npc.type == "BARMAN"][0]
+            if self.npcs is not None:
+                self.barman = [npc.name for npc in self.npcs if npc.type == "BARMAN"][0]
+            else:
+                self.barman = "MISSING_BARMAN"
         else:
             self.withoutbarment = True
             self.barman = None
@@ -154,8 +182,9 @@ class WorkshopClass(GameObject):
         self.parent_town_name = element.attrib["Name"].replace("_Workshop", "")
 
         if hasattr(element, "CabinsAndBaskets"):
-            self.cabins_and_baskets = [SoldPartClass(part_element, model_names_dict)
-                                       for part_element in element["CabinsAndBaskets"]["Item"]]
+            if hasattr(element["CabinsAndBaskets"], "Item"):
+                self.cabins_and_baskets = [SoldPartClass(part_element, model_names_dict)
+                                           for part_element in element["CabinsAndBaskets"]["Item"]]
         else:
             self.cabins_and_baskets = None
 
@@ -172,8 +201,29 @@ class ShopClass(GameObject):
                  model_names_dict: dict):
         GameObject.__init__(self, element)
         self.parent_town_name = element.attrib["Name"].replace("_Shop", "")
-        self.guns_and_gadgets = [SoldPartClass(part_element, model_names_dict)
-                                 for part_element in element["GunsAndGadgets"]["Item"]]
+        self.guns_and_gadgets = []
+        if hasattr(element, "GunsAndGadgets"):
+            if hasattr(element["GunsAndGadgets"], "Item"):
+                self.guns_and_gadgets.append(
+                    {"Combined": [SoldPartClass(part, model_names_dict)
+                     for part in element["GunsAndGadgets"]["Item"]]})
+            else:
+                self.guns_and_gadgets = []
+        elif hasattr(element, "Guns") or hasattr(element, "Gadgets"):
+            if hasattr(element, "Guns"):
+                self.guns_and_gadgets.append(
+                    {"Guns": [SoldPartClass(gun, model_names_dict)
+                     for gun in element["Guns"]["Item"]]})
+            else:
+                self.guns_and_gadgets.append({"Guns": []})
+            if hasattr(element, "Guns"):
+                self.guns_and_gadgets.append(
+                    {"Gadgets": [SoldPartClass(gun, model_names_dict)
+                     for gun in element["Gadgets"]["Item"]]})
+            else:
+                self.guns_and_gadgets.append({"Gadgets": []})
+        else:
+            self.guns_and_gadgets = "MISSING_GUNS_AND_GADGETS"
 
 
 class NpcCLass(GameObject):
@@ -202,16 +252,24 @@ class SoldPartClass(object):
     def __init__(self, element: objectify.ObjectifiedElement,
                  model_names_dict: dict):
         self.pos_xy = [element.attrib["PosX"], element.attrib["PosY"]]  # [0, 0]
-        self.flags = element.attrib["Flags"]  # 16
+        self.flags = element.attrib.get("Flags")  # 16 # ??? is this class really working if missing? example: zoo.ssl
         self.prototype = element.attrib["Prototype"]  # "bugCargo02"
         self.prototype_name = model_names_dict[self.prototype]['value']
+
+        # zoo attribs unused in main game
+        self.durability = element.attrib.get("Durability")  # ??? check that it works as exoected, only available on zoo
+        self.max_durability = element.attrib.get("MaxDurability")  # ??? same as durability
+        self.price = element.attrib.get("Price")  # ??? same as durability
+        self.damage = element.attrib.get("Damage")  # ??? same as durability
+        self.firing_rate = element.attrib.get("FiringRate")  # ??? same as durability
+        self.firing_range = element.attrib.get("FiringRange")  # ??? same as durability
 
 
 class VehiclePartClass(object):
     def __init__(self, element: objectify.ObjectifiedElement,
                  model_names_dict: dict):
         self.present = element.attrib["present"]  # 1
-        self.flags = element.attrib["Flags"]  # 16
+        self.flags = element.attrib.get("Flags")  # 16
         self.prototype = element.attrib["Prototype"]  # "bugCargo01"
         prototype_name = model_names_dict.get(self.prototype)
         self.prototype_name = prototype_name.get("value") if (prototype_name is not None) else None
@@ -221,7 +279,7 @@ class VehicleClass(object):
     def __init__(self, element: objectify.ObjectifiedElement,
                  model_names_dict: dict):
 
-        self.position = element.attrib["Pos"]  # "0.000 369.722 0.000"
+        self.position = element.attrib.get("Pos")  # "0.000 369.722 0.000"
 
         # {"present": 1,
         # "flags": 16,
@@ -229,10 +287,13 @@ class VehicleClass(object):
         if hasattr(element["Parts"], "BASKET"):
             self.basket = VehiclePartClass(element["Parts"]["BASKET"], model_names_dict)
             self.cabin = VehiclePartClass(element["Parts"]["CABIN"], model_names_dict)
-            self.chassis = VehiclePartClass(element["Parts"]["CHASSIS"], model_names_dict)
         else:
             self.basket = None
             self.cabin = None
+
+        if hasattr(element["Parts"], "CHASSIS"):
+            self.chassis = VehiclePartClass(element["Parts"]["CHASSIS"], model_names_dict)
+        else:
             self.chassis = None
 
         if element["Repository"].attrib:
@@ -262,11 +323,11 @@ class PlayerClass(GameObject):
                  vehicles_proto: dict,
                  model_names_dict: dict):
         GameObject.__init__(self, element)
-        self.money = element.attrib["Money"]
+        self.money = element.attrib.get("Money")
         if len(element.getchildren()) == 1:
             self.vehicle = VehicleSpawnableClass(element.getchildren()[0], model_names_dict)
         else:
-            raise ValueError
+            self.vehicle = None  # r3m1 player prototype as example
 
 
 class AutoGunClass(GameObject):
@@ -289,7 +350,7 @@ class GenericLocationClass(GameObject):
     def __init__(self, element: objectify.ObjectifiedElement,
                  dialogs_global_dict: dict = {}):
         GameObject.__init__(self, element)
-        self.flags = element.attrib["Flags"]  # 21
+        self.flags = element.attrib.get("Flags")  # 21
         self.position = element.attrib["Pos"]  # "3351.445 369.913 3338.112"
         self.rotation = element.attrib.get("Rot")  # "0.000 -0.721 0.000 -0.693"
         self.radius = element.attrib["Radius"]  # "6.584"

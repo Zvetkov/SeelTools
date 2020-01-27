@@ -27,7 +27,6 @@ def main():
     start = timer()
 
     # creating dictionaries
-    object_names_dict = xml_to_dict(OBJECT_NAMES_XML)
     object_desc_dict = xml_to_dict(OBJECT_DESCR_XML)
     model_icons_dict = xml_to_dict(MODEL_ICONS_XML)
     model_names_dict = xml_to_dict(MODEL_NAMES_XML)
@@ -76,7 +75,6 @@ def main():
                                      vehicles_tree,
                                      vehicle_parts_tree,
                                      towns_tree,
-                                     object_names_dict,
                                      object_desc_dict,
                                      model_icons_dict,
                                      model_names_dict,
@@ -93,7 +91,6 @@ def parse_dynamicscene(objfy_tree: objectify.ObjectifiedElement,
                        vehicles_tree: objectify.ObjectifiedElement,
                        vehicle_parts_tree: objectify.ObjectifiedElement,
                        towns_tree: objectify.ObjectifiedElement,
-                       object_names_dict: dict,
                        object_desc_dict: dict,
                        model_icons_dict: dict,
                        model_names_dict: dict,
@@ -110,31 +107,38 @@ def parse_dynamicscene(objfy_tree: objectify.ObjectifiedElement,
     # towns and villages
     big_towns = [el.attrib["Name"] for el in towns_tree["Dir_BigTowns"]["Prototype"]]
     villages = [el.attrib["Name"] for el in towns_tree["Dir_Villages"]["Prototype"]]
-    tree["big_towns"] = []
-    tree["villages"] = []
+    tree["big_towns"] = {}
+    tree["villages"] = {}
     for town in big_towns:
         if hasattr(objfy_tree, f"Obj_{town}"):
-            # need to add info from towns.xml - gameobjects.xml
-            tree["big_towns"].append(TownClass(objfy_tree[f"Obj_{town}"],
-                                     game_objects_tree,
-                                     object_names_dict,
-                                     object_desc_dict,
-                                     model_icons_dict,
-                                     model_names_dict,
-                                     clan_tree,
-                                     dialogs_global_dict))
-
+            tree["big_towns"][town] = ""
     for village in villages:
         if hasattr(objfy_tree, f"Obj_{village}"):
-            # need to add info from towns.xml - gameobjects.xml
-            tree["villages"].append(TownClass(objfy_tree[f"Obj_{village}"],
-                                    game_objects_tree,
-                                    object_names_dict,
-                                    object_desc_dict,
-                                    model_icons_dict,
-                                    model_names_dict,
-                                    clan_tree,
-                                    dialogs_global_dict))
+            tree["villages"][town] = ""
+
+    if tree["big_towns"] or tree["villages"]:
+        object_names_dict = xml_to_dict(OBJECT_NAMES_XML)
+
+    for town in tree["big_towns"].keys():
+        # need to add info from towns.xml - gameobjects.xml
+        tree["big_towns"][town] = TownClass(objfy_tree[f"Obj_{town}"],
+                                            game_objects_tree,
+                                            object_names_dict,
+                                            object_desc_dict,
+                                            model_icons_dict,
+                                            model_names_dict,
+                                            clan_tree,
+                                            dialogs_global_dict)
+    for village in tree["villages"].keys():
+        # need to add info from towns.xml - gameobjects.xml
+        tree["villages"][village] = TownClass(objfy_tree[f"Obj_{village}"],
+                                              game_objects_tree,
+                                              object_names_dict,
+                                              object_desc_dict,
+                                              model_icons_dict,
+                                              model_names_dict,
+                                              clan_tree,
+                                              dialogs_global_dict)
 
     # generic locations
     if hasattr(objfy_tree, "Obj_genericLocation"):

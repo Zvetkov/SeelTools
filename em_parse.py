@@ -40,12 +40,16 @@ def objfy_to_dict(element: objectify.ObjectifiedElement):
 
 def xml_to_dict(path: str):
     dictionary = ()
-    with open(path, 'r', encoding=ENCODING) as f:
-        str_from_file = f.read().encode(ENCODING)
-        parser = etree.ETCompatXMLParser(encoding=ENCODING)
-        objectify.enable_recursive_str()
-    objfy = objectify.fromstring(str_from_file, parser)
-    dictionary = objfy_to_dict(objfy)
+    try:
+        with open(path, 'r', encoding=ENCODING) as f:
+            str_from_file = f.read().encode(ENCODING)
+            parser = etree.ETCompatXMLParser(encoding=ENCODING)
+            objectify.enable_recursive_str()
+        objfy = objectify.fromstring(str_from_file, parser)
+        dictionary = objfy_to_dict(objfy)
+    except FileNotFoundError:
+        print(f"xml {path} is missing!")
+        dictionary = ['', {}]
     return dictionary[1]
 
 
@@ -91,11 +95,11 @@ def parse_clans_to_native(global_props: objectify.ObjectifiedElement,
 def obj_to_simple_dict(obj: objectify.ObjectifiedElement, key: str, value: str):
     proto_dict = {}
     for prot in obj.iterchildren():
-        if prot.tag != 'comment':
-            proto_dict[prot.attrib[key]] = prot.attrib[value]
-            print(f"key[{key}]: {prot.attrib.get(key)}, value[{value}]: {prot.attrib.get(value)}")
-        else:
+        if prot.tag == 'comment':
             print('ignoring comment')
+        else:
+            proto_dict[prot.attrib[key]] = prot.attrib[value]
+            # log(f"key[{key}]: {prot.attrib.get(key)}, value[{value}]: {prot.attrib.get(value)}")
     return proto_dict
 
 
