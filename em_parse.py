@@ -79,16 +79,11 @@ def xml_to_objfy(path: str):
     return objectify_tree
 
 
-def parse_clans_to_native(global_props: objectify.ObjectifiedElement,
-                          clan_desc_dict: dict, relationship_dict: dict,
-                          model_icons_dict: dict, belong_logo_dict: dict,
-                          logos_list: list, belong_faction_dict: dict):
+def parse_clans_to_native(structs: dict):
     tree = {}
-    belongs = global_props['Belongs'].attrib['Values'].split()
+    belongs = structs['global_prop_tree']['Belongs'].attrib['Values'].split()
     for belong in belongs:
-        tree[belong] = ClanClass(belong, clan_desc_dict, relationship_dict,
-                                 model_icons_dict, belong_logo_dict,
-                                 logos_list, belong_faction_dict)
+        tree[belong] = ClanClass(belong, structs)
     return tree
 
 
@@ -112,7 +107,7 @@ def tag_object_tree(obj: objectify.ObjectifiedElement, parent: str = ''):
     # this spagetti of xmls will be needed and what info is relevant for tool's functions.
     # I defenitely will not forget to replace this with more elegant parser /s
     if obj.tag == 'Object' and parent != 'Prototype':
-        obj.tag = f'Obj_{obj.attrib["Prototype"]}'
+        obj.tag = f'{obj.attrib["Prototype"]}'
     elif obj.tag == 'Folder':
         obj.tag = f'Dir_{obj.attrib["Name"]}'
     elif obj.tag == 'Prototype' and parent == 'Prototypes':
