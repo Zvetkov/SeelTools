@@ -7,9 +7,17 @@ class GameObject(object):
         self.name = element.attrib.get("Name")
         if self.name is None:
             self.name = "GAMEOBJ_MISSING_NAME"
-        self.belong = element.attrib["Belong"]
+        self.belong = element.attrib.get("Belong")  # not required, example chests on r1m2
         self.prototype = element.attrib["Prototype"]
         self.tag_name = element.tag
+
+
+class WorldGameObject(GameObject):
+    def __init__(self, element: objectify.ObjectifiedElement,
+                 structs: dict = {}):
+        GameObject.__init__(self, element)
+        self.position = element.attrib["Pos"]  # "1263.873 308.000 2962.220"
+        self.rotation = element.attrib.get("Rot")  # "0.000 -0.721 0.000 -0.693"
 
 
 class ClanClass(object):
@@ -46,10 +54,10 @@ class ClanClass(object):
         self.radio_group_name = structs['belong_faction_dict'].get(belong)  # "farmers" - sounds/radio/radiosounds.xml
 
 
-class TownClass(GameObject):
+class TownClass(WorldGameObject):
     def __init__(self, element: objectify.ObjectifiedElement,
                  structs: dict):
-        GameObject.__init__(self, element)
+        WorldGameObject.__init__(self, element)
         full_name_dict_value = structs['object_names_dict'].get(self.name)
         if full_name_dict_value is not None:
             self.full_name = full_name_dict_value["FullName"]  # "Южный"  # r1m1/object_names.xml map with name
@@ -57,8 +65,6 @@ class TownClass(GameObject):
             self.full_name = f"{self.name}_MISSING_FULL_NAME"
         self.on_map = os.path.dirname(element.base).split("/")[-1]  # "r1m1"  # dir of dynamicscene
         self.clan = structs['clan_tree'].get(self.belong)  # map with clans on belong ??? wtf is 1080 belong
-        self.position = element.attrib["Pos"]  # "1263.873 308.000 2962.220"
-        self.rotation = element.attrib.get("Rot")  # "0.000 -0.721 0.000 -0.693"
         self.pov_in_interface = element.attrib["PointOfViewInInterface"]  # "-35.000 60.000 35.000"
         self.caravans_dest = element.attrib["CaravansDest"]  # "" wtf ???
         # ??? need to check what buildings are always required and which can be ommited
@@ -275,7 +281,6 @@ class VehicleClass(object):
     def __init__(self, element: objectify.ObjectifiedElement,
                  structs: dict):
         self.tag_name = element.tag
-        self.position = element.attrib.get("Pos")  # "0.000 369.722 0.000"
 
         # initialise
         self.cabin = None
@@ -306,11 +311,10 @@ class VehicleSoldClass(VehicleClass, SoldPartClass):
         VehicleClass.__init__(self, element, structs)
 
 
-class VehicleSpawnableClass(VehicleClass, GameObject):
+class VehicleSpawnableClass(VehicleClass, WorldGameObject):
     def __init__(self, element: objectify.ObjectifiedElement,
                  structs: dict):
-        GameObject.__init__(self, element)
-        self.rotation = element.attrib.get("Rot")  # "-0.007 1.000 -0.010 0.021" or missing
+        WorldGameObject.__init__(self, element)
         VehicleClass.__init__(self, element, structs)
 
 
@@ -325,10 +329,9 @@ class PlayerClass(GameObject):
             self.vehicle = None  # r3m1 player prototype as example
 
 
-class AutoGunClass(GameObject):
+class AutoGunClass(WorldGameObject):
     def __init__(self, element: objectify.ObjectifiedElement):
-        GameObject.__init__(self, element)
-        self.position = element.attrib["Pos"]  # "1219.141 304.220 2990.261"
+        WorldGameObject.__init__(self, element)
         if hasattr(element["Parts"], "CANNON"):
             self.parts_cannon = AutoGunCannonClass(element["Parts"]["CANNON"])  # "staticAutoGun0444CANNON"
         else:
@@ -341,13 +344,11 @@ class AutoGunCannonClass(GameObject):
         self.present = element.attrib["present"]  # 1
 
 
-class GenericLocationClass(GameObject):
+class GenericLocationClass(WorldGameObject):
     def __init__(self, element: objectify.ObjectifiedElement,
                  structs: dict = {}):
-        GameObject.__init__(self, element)
+        WorldGameObject.__init__(self, element)
         self.flags = element.attrib.get("Flags")  # 21
-        self.position = element.attrib["Pos"]  # "3351.445 369.913 3338.112"
-        self.rotation = element.attrib.get("Rot")  # "0.000 -0.721 0.000 -0.693"
         self.radius = element.attrib["Radius"]  # "6.584"
         self.looking_timeout = element.attrib.get("LookingTimeOut")  # "20.000"
         if hasattr(element, "NPC"):
@@ -383,11 +384,59 @@ class InfectionZoneClass(GameObject):
             self.dropout_points = None
 
 
-class HumanClass(GameObject):
+class HumanClass(WorldGameObject):
+    def __init__(self, element: objectify.ObjectifiedElement,
+                 structs: dict = {}):
+        WorldGameObject.__init__(self, element)
+        self.paths_names = element.attrib.get("PathsNames")  # h3_m1
+        self.skin = element.attrib.get("Skin")  # 1
+
+
+class ChestClass(WorldGameObject):
+    def __init__(self, element: objectify.ObjectifiedElement,
+                 structs: dict = {}):
+        WorldGameObject.__init__(self, element)
+        self.loot = [child.attrib for child in element.iterchildren()]
+
+
+class LiveCaravanManagerClass(GameObject):
     def __init__(self, element: objectify.ObjectifiedElement,
                  structs: dict = {}):
         GameObject.__init__(self, element)
-        self.position = element.attrib["Pos"]
-        self.rotation = element.attrib.get("Rot")
-        self.paths_names = element.attrib.get("PathsNames")  # h3_m1
-        self.skin = element.attrib.get("Skin")  # 1
+        self.team_count = element.attrib["TeamCount"]
+        self.reborn_timeout = element.attrib["RebornTimeout"]
+        if hasattr(element["Points"], "Point"):
+            self.points = []
+            for point in element["Points"]["Point"]:
+                self.points.append(point.attrib)
+        else:
+            self.points = None
+        if hasattr(element["Caravans"], "Caravan"):
+            self.caravans = []
+            for caravan in element["Caravans"]["Caravan"]:
+                self.caravans.append(caravan.attrib)
+        else:
+            self.caravans = None
+
+
+class BarricadeClass(WorldGameObject):
+    def __init__(self, element: objectify.ObjectifiedElement,
+                 structs: dict = {}):
+        WorldGameObject.__init__(self, element)
+        self.probability = element.attrib["Probability"]
+        for child in element.iterchildren():
+            self.auto_guns = []
+            if child.tag == "settlementTeam":
+                self.settlement_team = child
+            else:
+                self.auto_guns.append(child)
+            # ??? implement complex barricade class when needed
+
+
+class CableClass(object):
+    def __init__(self, element: objectify.ObjectifiedElement,
+                 structs: dict = {}):
+        self.tag_name = element.tag
+        self.belong = element.attrib["Belong"]
+        self.prototype = element.attrib["Prototype"]
+        self.posts = [post.attrib for post in element["Post"]]
