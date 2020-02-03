@@ -2,7 +2,7 @@ import os
 
 GAME_FOLDER = "D:/Steam/steamapps/common/Hard Truck Apocalypse"
 
-MAP_NAME = "r1m2"
+MAP_NAME = "r1m3"
 
 # gamedata folder
 GLOBAL_PROP_XML = os.path.join(GAME_FOLDER, "data", "gamedata",
@@ -22,6 +22,10 @@ PREFABS_XML = os.path.join(GAME_FOLDER, "data", "gamedata", "gameobjects",
                            "prefabs.xml")  # data\gamedata\gameobjects\prefabs.xml
 BREAKABLE_OBJ_XML = os.path.join(GAME_FOLDER, "data", "gamedata", "gameobjects",
                                  "breakableobjects.xml")  # data\gamedata\gameobjects\breakableobjects.xml
+MISC_XML = os.path.join(GAME_FOLDER, "data", "gamedata", "gameobjects",
+                        "miscellaneous.xml")  # data\gamedata\gameobjects\miscellaneous.xml
+BOSSES_XML = os.path.join(GAME_FOLDER, "data", "gamedata", "gameobjects",
+                          "bosses.xml")  # data\gamedata\gameobjects\bosses.xml
 # guns - listed as folder in gameobjects.xml
 SMALL_GUNS_XML = os.path.join(GAME_FOLDER, "data", "gamedata", "gameobjects",
                               "smallguns.xml")  # data\gamedata\gameobjects\smallguns.xml

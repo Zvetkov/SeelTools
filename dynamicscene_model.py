@@ -1,9 +1,10 @@
 import sys
 
+from warnings import warn
 from lxml import objectify
 from timeit import default_timer as timer
 
-from em_parse import (xml_to_dict, xml_to_objfy,
+from em_parse import (xml_to_dict, xml_to_objfy, objfy_to_dict,
                       parse_clans_to_native, parse_belong_faction_to_dict,
                       parse_logos_gam, obj_to_simple_dict)
 
@@ -16,17 +17,29 @@ from em_classes import (GenericLocationClass, WorldGameObject,
                         InfectionZoneClass, HumanClass, ChestClass,
                         LiveCaravanManagerClass, BarricadeClass, CableClass)
 
-from constants import (GLOBAL_PROP_XML, GAME_OBJECTS_XML,
+from constants import (GLOBAL_PROP_XML, GAME_OBJECTS_XML, DYNAMIC_SCENE_XML,
                        OBJECT_NAMES_XML, OBJECT_DESCR_XML,
                        MODEL_ICONS_XML, MODEL_NAMES_XML,
                        CLANDIZ_XML, RELATIONSHIP_XML, BELONG_LOGO_XML, LOGOS_GAM,
                        DIALOGS_GLOBAL_XML, RADIO_SOUNDS_XML,
                        TOWNS_XML, VEHICLE_PARTS_XML, VEHICLES_XML, GUNS_XML_DICT,
-                       DYNAMIC_SCENE_XML, PREFABS_XML, BREAKABLE_OBJ_XML)
+                       PREFABS_XML, BREAKABLE_OBJ_XML, MISC_XML, BOSSES_XML)
 
 
 def main():
     start = timer()
+
+    # global properties
+    global_prop_tree = xml_to_objfy(GLOBAL_PROP_XML)
+    game_objects_tree = xml_to_objfy(GAME_OBJECTS_XML)
+
+    towns_tree = xml_to_objfy(TOWNS_XML)
+    breakable_obj_tree = xml_to_objfy(BREAKABLE_OBJ_XML)
+    misc_tree = xml_to_objfy(MISC_XML)
+    prefabs_tree = xml_to_objfy(PREFABS_XML)
+    vehicle_parts_tree = xml_to_objfy(VEHICLE_PARTS_XML)
+    vehicles_tree = xml_to_objfy(VEHICLES_XML)
+    bosses_tree = xml_to_objfy(BOSSES_XML)
 
     # creating dictionaries
     object_desc_dict = xml_to_dict(OBJECT_DESCR_XML)
@@ -39,6 +52,9 @@ def main():
     dialogs_global_dict = xml_to_dict(DIALOGS_GLOBAL_XML)
     belong_faction_dict = parse_belong_faction_to_dict(RADIO_SOUNDS_XML)
 
+    # radio_sound_dict["farmers"]["Neutral"]["first_see_other"]["samples"]
+    radio_sound_dict = xml_to_dict(RADIO_SOUNDS_XML)
+
     # creating dict of gun_size:{gun_type:obj(gun_prototype)} # ex: big_guns->{Prot_BulletLauncher}->obj(vulcan01)
     guns_dict = {gun_type: xml_to_objfy(GUNS_XML_DICT[gun_type]) for gun_type in GUNS_XML_DICT.keys()}
     # creating dict of gun_prot_name:gun_type # ex: hornet01:BulletLaucher
@@ -47,49 +63,59 @@ def main():
         # print(f"\nstarting to work on {gun_type}")
         guns_proto_dict.update(obj_to_simple_dict(guns_dict[gun_type], "Name", "Class"))
 
-    # radio_sound_dict["farmers"]["Neutral"]["first_see_other"]["samples"]
-    radio_sound_dict = xml_to_dict(RADIO_SOUNDS_XML)
-
     # gam manipulation
     logos_list = parse_logos_gam(LOGOS_GAM)
 
-    # global properties
-    global_prop_tree = xml_to_objfy(GLOBAL_PROP_XML)
-    game_objects_tree = xml_to_objfy(GAME_OBJECTS_XML)
-
-    towns_tree = xml_to_objfy(TOWNS_XML)
-    breakable_obj_tree = xml_to_objfy(BREAKABLE_OBJ_XML)
-    prefabs_tree = xml_to_objfy(PREFABS_XML)
-    vehicle_parts_tree = xml_to_objfy(VEHICLE_PARTS_XML)
-    vehicles_tree = xml_to_objfy(VEHICLES_XML)
+    # prot dicts - need to (maybe) simplify and use objfy_to_dict instead
+    # we can add "list" key to all dicts containing keys of dict, to not call .keys() more than once ???
+    auto_guns_dict = {el.attrib["Name"]: el for el in game_objects_tree["Dir_StaticAutoGuns"]["Prototype"]}
+    big_towns_dict = {el.attrib["Name"]: el for el in towns_tree["Dir_BigTowns"]["Prototype"]}
+    villages_dict = {el.attrib["Name"]: el for el in towns_tree["Dir_Villages"]["Prototype"]}
+    barricades_dict = {el.attrib["Name"]: el for el in prefabs_tree["Prot_Barricade"]}
+    humans_dict = {el.attrib["Name"]: el for el in breakable_obj_tree['Prot_PhysicUnit']}
+    breakables_dict = {el.attrib["Name"]: el for el in breakable_obj_tree['Prot_BreakableObject']}
+    cables_dict = {el.attrib["Name"]: el for el in breakable_obj_tree['Prot_RopeObj']}
+    vehicles_dict = {el.attrib["Name"]: el for el in vehicles_tree["Prot_Vehicle"]}
+    lights_dict = {el.attrib["Name"]: el for el in misc_tree["Prot_LightObj"]}
+    bosses_dict = {el.attrib["Name"]: el for el in misc_tree["Prot_LightObj"]}
 
     # grouping structs to simplify arguments for native object creation
-    structs = {'global_prop_tree': global_prop_tree,
-               'game_objects_tree': game_objects_tree,
-               'clan_desc_dict': clan_desc_dict,
-               'belong_logo_dict': belong_logo_dict,
-               'belong_faction_dict': belong_faction_dict,
-               'relationship_dict': relationship_dict,
-               'logos_list': logos_list,
-               'vehicles_tree': vehicles_tree,
-               'vehicle_parts_tree': vehicle_parts_tree,
-               'towns_tree': towns_tree,
-               'object_desc_dict': object_desc_dict,
-               'object_names_dict': object_names_dict,
-               'model_icons_dict': model_icons_dict,
-               'model_names_dict': model_names_dict,
-               'dialogs_global_dict': dialogs_global_dict,
-               'dialogs_global_dict': dialogs_global_dict,
-               'prefabs_tree': prefabs_tree,
-               'breakable_obj_tree': breakable_obj_tree}
+    structs = {'global_prop': global_prop_tree,
+               'game_objects': game_objects_tree,
+               'vehicles': vehicles_tree,
+               'vehicle_parts': vehicle_parts_tree,
+               'towns': towns_tree,
+               'prefabs': prefabs_tree,
+               'breakable_obj': breakable_obj_tree}
+
+    dicts = {'clan_desc': clan_desc_dict,
+             'belong_logo': belong_logo_dict,
+             'belong_faction': belong_faction_dict,
+             'relationship': relationship_dict,
+             'object_desc': object_desc_dict,
+             'object_names': object_names_dict,
+             'model_icons': model_icons_dict,
+             'model_names': model_names_dict,
+             'dialogs_global': dialogs_global_dict,
+             'dialogs_global': dialogs_global_dict,
+             'logos_list': logos_list,  # logos_list is not a dict by has the same purpose
+             'auto_guns': auto_guns_dict,
+             'big_towns': big_towns_dict,
+             'villages': villages_dict,
+             'barricades': barricades_dict,
+             'humans': humans_dict,
+             'breakables': breakables_dict,
+             'cables': cables_dict,
+             'vehicles': vehicles_dict,
+             'lights': lights_dict}
 
     # creating native class object tree for dynamicscene
-    structs['clan_tree'] = parse_clans_to_native(structs)
+    structs['clan'] = parse_clans_to_native(structs, dicts)
 
     # creating dynamicscene objectify trees
     dynamic_scene_tree = xml_to_objfy(DYNAMIC_SCENE_XML)
 
-    object_tree = parse_dynamicscene(dynamic_scene_tree, structs)
+    object_tree = parse_dynamicscene(dynamic_scene_tree, structs, dicts)
     end = timer()
     print('total time: ', end - start)
 
@@ -105,24 +131,16 @@ def main():
 
 
 def parse_dynamicscene(objfy_tree: objectify.ObjectifiedElement,
-                       structs: dict):
+                       structs: dict, dicts: dict):
     ''' Returns dictionary of objects grouped by type
     '''
     tree = {}
     tree["big_towns"] = {}
     tree["villages"] = {}
-
     tree["unsorted"] = []
-
-    big_towns = [el.attrib["Name"] for el in structs['towns_tree']["Dir_BigTowns"]["Prototype"]]
-    villages = [el.attrib["Name"] for el in structs['towns_tree']["Dir_Villages"]["Prototype"]]
-
-    barricades = [barricade.attrib["Name"] for barricade in structs['prefabs_tree']["Prot_Barricade"]]
-    humans = [human.attrib["Name"] for human in structs['breakable_obj_tree']['Prot_PhysicUnit']]
-    breakables = [breakable.attrib["Name"] for breakable in structs['breakable_obj_tree']['Prot_BreakableObject']]
-    cables = [cable.attrib["Name"] for cable in structs['breakable_obj_tree']['Prot_RopeObj']]
-
-    vehicles_proto_dict = {proto.attrib["Name"]: proto for proto in structs['vehicles_tree']["Prot_Vehicle"]}
+    tree["suspect_error"] = []
+    big_towns = dicts["big_towns"].keys()
+    villages = dicts["villages"].keys()
 
     simple_class_dict = {"player": PlayerClass,
                          "genericLocation": GenericLocationClass,
@@ -135,14 +153,16 @@ def parse_dynamicscene(objfy_tree: objectify.ObjectifiedElement,
         tree[name] = {}
 
     simple_multi_prot_dict = {}
-    for barricade in barricades:
+    for barricade in dicts["barricades"].keys():
         simple_multi_prot_dict[barricade] = BarricadeClass
-    for human in humans:
+    for human in dicts["humans"].keys():
         simple_multi_prot_dict[human] = HumanClass
-    for breakable in breakables:
+    for breakable in dicts["breakables"].keys():
         simple_multi_prot_dict[breakable] = WorldGameObject
-    for cables in cables:
-        simple_multi_prot_dict[cables] = CableClass
+    for cable in dicts["cables"].keys():
+        simple_multi_prot_dict[cable] = CableClass
+    for light in dicts["lights"].keys():
+        simple_multi_prot_dict[light] = WorldGameObject
     simple_multi_prot_names = simple_multi_prot_dict.keys()
     tree["HumanClass"] = []
     tree["BarricadeClass"] = []
@@ -159,19 +179,22 @@ def parse_dynamicscene(objfy_tree: objectify.ObjectifiedElement,
             if obj_name is None:
                 if tree[obj.tag].get("MISSING_NAME") is None:
                     tree[obj.tag]["MISSING_NAME"] = []
-                tree[obj.tag]["MISSING_NAME"].append(simple_class_dict[obj.tag](obj, structs))
+                tree[obj.tag]["MISSING_NAME"].append(simple_class_dict[obj.tag](obj, dicts))
             else:
-                tree[obj.tag][obj_name] = simple_class_dict[obj.tag](obj, structs)
+                tree[obj.tag][obj_name] = simple_class_dict[obj.tag](obj, dicts)
         # humans, breakables
         elif obj.tag in simple_multi_prot_names:
             obj_class = simple_multi_prot_dict[obj.tag]
             obj_name = obj.attrib.get('Name')
-            tree[obj_class.__name__].append(obj_class(obj, structs))
+            tree[obj_class.__name__].append(obj_class(obj, dicts))
         # towns and villages
         elif obj.tag in big_towns:
-            tree["big_towns"][obj.tag] = TownClass(obj, structs)
+            tree["big_towns"][obj.tag] = TownClass(obj, dicts)
         elif obj.tag in villages:
-            tree["villages"][obj.tag] = TownClass(obj, structs)
+            tree["villages"][obj.tag] = TownClass(obj, dicts)
+        elif obj.tag == "settlementTeam":
+            warn("settlementTeam element found in root")
+            tree["suspect_error"].append(obj)
         else:
             tree["unsorted"].append(obj)
 

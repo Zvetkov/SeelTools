@@ -79,11 +79,11 @@ def xml_to_objfy(path: str):
     return objectify_tree
 
 
-def parse_clans_to_native(structs: dict):
+def parse_clans_to_native(structs: dict, dicts: dict):
     tree = {}
-    belongs = structs['global_prop_tree']['Belongs'].attrib['Values'].split()
+    belongs = structs['global_prop']['Belongs'].attrib['Values'].split()
     for belong in belongs:
-        tree[belong] = ClanClass(belong, structs)
+        tree[belong] = ClanClass(belong, dicts)
     return tree
 
 
