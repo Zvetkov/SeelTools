@@ -112,3 +112,5 @@ def tag_object_tree(obj: objectify.ObjectifiedElement, parent: str = ''):
         obj.tag = f'Dir_{obj.attrib["Name"]}'
     elif obj.tag == 'Prototype' and parent == 'Prototypes':
         obj.tag = f'Prot_{obj.attrib["Class"]}'
+    elif obj.tag == 'Type' and parent == 'ResourceTypes':
+        obj.tag = f'Type_{obj.attrib["Name"]}'

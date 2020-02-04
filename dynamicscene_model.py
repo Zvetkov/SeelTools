@@ -15,10 +15,11 @@ from em_classes import (GenericLocationClass, WorldGameObject,
                         VehicleClass, VehicleSoldClass, VehicleSpawnableClass,
                         VehiclePartClass, AutoGunClass, AutoGunCannonClass,
                         InfectionZoneClass, HumanClass, ChestClass,
-                        LiveCaravanManagerClass, BarricadeClass, CableClass)
+                        LiveCaravanManagerClass, BarricadeClass, CableClass,
+                        BossClass)
 
 from constants import (GLOBAL_PROP_XML, GAME_OBJECTS_XML, DYNAMIC_SCENE_XML,
-                       OBJECT_NAMES_XML, OBJECT_DESCR_XML,
+                       RESOURCE_TYPES_XML, OBJECT_NAMES_XML, OBJECT_DESCR_XML,
                        MODEL_ICONS_XML, MODEL_NAMES_XML,
                        CLANDIZ_XML, RELATIONSHIP_XML, BELONG_LOGO_XML, LOGOS_GAM,
                        DIALOGS_GLOBAL_XML, RADIO_SOUNDS_XML,
@@ -32,6 +33,7 @@ def main():
     # global properties
     global_prop_tree = xml_to_objfy(GLOBAL_PROP_XML)
     game_objects_tree = xml_to_objfy(GAME_OBJECTS_XML)
+    resource_types_tree = xml_to_objfy(RESOURCE_TYPES_XML)
 
     towns_tree = xml_to_objfy(TOWNS_XML)
     breakable_obj_tree = xml_to_objfy(BREAKABLE_OBJ_XML)
@@ -77,7 +79,9 @@ def main():
     cables_dict = {el.attrib["Name"]: el for el in breakable_obj_tree['Prot_RopeObj']}
     vehicles_dict = {el.attrib["Name"]: el for el in vehicles_tree["Prot_Vehicle"]}
     lights_dict = {el.attrib["Name"]: el for el in misc_tree["Prot_LightObj"]}
-    bosses_dict = {el.attrib["Name"]: el for el in misc_tree["Prot_LightObj"]}
+    bosses_list = [boss.attrib["Name"].lower() for boss in resource_types_tree["Type_BOSS"].iterchildren()]
+
+    lists = {"bosses": bosses_list}
 
     # grouping structs to simplify arguments for native object creation
     structs = {'global_prop': global_prop_tree,
@@ -97,7 +101,6 @@ def main():
              'model_icons': model_icons_dict,
              'model_names': model_names_dict,
              'dialogs_global': dialogs_global_dict,
-             'dialogs_global': dialogs_global_dict,
              'logos_list': logos_list,  # logos_list is not a dict by has the same purpose
              'auto_guns': auto_guns_dict,
              'big_towns': big_towns_dict,
@@ -107,7 +110,8 @@ def main():
              'breakables': breakables_dict,
              'cables': cables_dict,
              'vehicles': vehicles_dict,
-             'lights': lights_dict}
+             'lights': lights_dict,
+             'lists': lists}
 
     # creating native class object tree for dynamicscene
     structs['clan'] = parse_clans_to_native(structs, dicts)
@@ -163,11 +167,14 @@ def parse_dynamicscene(objfy_tree: objectify.ObjectifiedElement,
         simple_multi_prot_dict[cable] = CableClass
     for light in dicts["lights"].keys():
         simple_multi_prot_dict[light] = WorldGameObject
+    for boss in dicts["lists"]["bosses"]:
+        simple_multi_prot_dict[boss] = BossClass
     simple_multi_prot_names = simple_multi_prot_dict.keys()
     tree["HumanClass"] = []
     tree["BarricadeClass"] = []
     tree["WorldGameObject"] = []
     tree["CableClass"] = []
+    tree["BossClass"] = []
 
     for obj in objfy_tree.iterchildren():
         # named targets for dynamic quest-hunts

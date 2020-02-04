@@ -463,3 +463,10 @@ class BarricadeClass(WorldGameObject):
                 warn(f"Scheme error: unexpected child in BarricadeClass: {self.name}")
             # ??? implement complex barricade class when needed
 
+
+class BossClass(WorldGameObject):
+    def __init__(self, element: objectify.ObjectifiedElement,
+                 dicts: dict):
+        WorldGameObject.__init__(self, element)
+        self.path_name_flying = element.attrib.get("PathNameForFlyingWithWings")
+        warn("Partially Implemented Boss Class")
