@@ -1,6 +1,61 @@
-import os
+# import os
 from warnings import warn
-from lxml import objectify
+# from lxml import objectify
+
+BUILDING_TYPE = {"ADMINISTRATION": 0x0,
+                 "BAR": 0x1,
+                 "SHOP": 0x2,
+                 "WORKSHOP": 0x3,
+                 "GARAGE": 0x4,
+                 "NUM_BUILDINGTYPES": 0x5,
+                 "INVALID_BUILDINGTYPE": 0x5}
+
+ITEM_TYPE = {"GADGET": 0x0,
+             "VEHICLE_PART_CABIN": 0x1,
+             "VEHICLE_PART_BASKET": 0x2,
+             "REPOSITORY_ITEM": 0x3,
+             "MAIN_ITEM": 0x4,
+             "INVALID": 0x5}
+
+GEOM_TYPE = {"NONE": 0x0,
+             "BOX": 0x1,
+             "SPHERE": 0x2,
+             "CYLINDER": 0x3,
+             "RAY": 0x4,
+             "TRIMESH": 0x5,
+             "FROM_MODEL": 0x6}
+
+GEOM_REPOSITORY_ITEM_TYPE = {"RESOURCE": 0x0,
+                             "OBJECT": 0x1}
+
+WORKSHOP_REPOSITORY_TYPE = {"GOODS": 0x0,
+                            "CABINS_AND_BASKETS": 0x1,
+                            "VEHICLES": 0x2,
+                            "GUNS_AND_GADGETS": 0x3,
+                            "NUM_TYPES": 0x4}
+
+FIRING_TYPES = {"MACHINE_GUN": 0x0,
+                "CANNON": 0x1,
+                "SHOT_GUN": 0x2,
+                "LASER": 0x3,
+                "PLASMA": 0x4,
+                "ROCKET": 0x5,
+                "ARTILLERY": 0x6,
+                "THUNDERBOLT": 0x7,
+                "MINE": 0x8,
+                "NAIL": 0x9,
+                "TURBO": 0xA,
+                "OIL": 0xB,
+                "SMOKE": 0xC,
+                "NUM_FIRING_TYPES": 0xD}
+
+LOCATION_TYPE = {"GENERIC": 0x0,
+                 "ENTER": 0x1,
+                 "DEFEND": 0x2,
+                 "DEPLOY": 0x3,
+                 "CARAVAN_ARRIVE": 0x4,
+                 "ATTACK": 0x5,
+                 "PASSAGE": 0x6}
 
 
 class Object(object):
@@ -47,20 +102,27 @@ class GeomRepositoryItem(object):
 class Player(Obj):
     '''Player class'''
     def __init__(self, name: str, prototype: str, belong: int,
-                 money: int, vehicle: Vehicle = None):
+                 money: int,
+                 model_name: str,  # xmlNode, "ModelFile"
+                 skin_number: int = 0, cfg_number: int = 0,
+                 vehicle: Vehicle = None):
         Obj.__init__(self, name, prototype)
         self.money = money
         self.vehicle = vehicle
-        # self.model_name
-        # self.skin_number
-        # self.cfg_number
+        self.model_name = model_name
+        self.skin_number = skin_number
+        self.cfg_number = cfg_number
 
 
 class PhysicObj(Obj):
     '''Base class for Obj that can be spawned in game worls'''
     def __init__(self, name: str, prototype: str, belong: int,
-                 position: str, rotation: str, skin: int):
+                 position: str, rotation: str, skin: int,
+                 intersection_radius: float = 0.0,
+                 look_radius: float = 0.0):
         Obj.__init__(self, name, prototype, belong)
+        self.intersection_radius = intersection_radius
+        self.look_radius = look_radius
         self.position = position
         self.rotation = rotation
         self.skin = skin  # ??? might be optional
@@ -69,66 +131,100 @@ class PhysicObj(Obj):
 class PhysicBody(Obj):
     '''Base class for VehiclePart and SimplePhysicBody'''
     def __init__(self, name: str, prototype: str, belong: int,
-                 position: str, rotation: str, skin: int, logo: int):
+                 position: str, rotation: str, skin: int, logo: int,
+                 engine_model_name,  # "ModelFile" xml tag
+                 mass_value: float = 1.0, collision_infos: list = []):
         Obj.__init__(self, name, prototype, belong)
+        self.engine_model_name = engine_model_name
+        self.mass_value = mass_value
+        self.collision_infos = collision_infos
         self.position = position
         self.rotation = rotation
         self.skin = skin
         self.logo = logo
 
 
-class VehiclePart(PhysicBody):
-    def __init__(self, name: str, prototype: str, belong: int,
-                 position: str, rotation: str, skin: int, logo: int):
-        PhysicBody.__init__(self, name, prototype, belong,
-                            position, rotation, skin, logo)
-        warn(f"Not implemented class {self.__name__}")
-        pass
-
-
 class Npc(Obj):
     '''Npc class used in buildings and in dialogs'''
     def __init__(self, name: str, prototype: str, belong: int,
-                 position: str, rotation: str, skin: int, logo: int):
+                 position: str, rotation: str, skin: int, logo: int,
+                 model_name: str, npc_type: int = 1, skin_number: int = 0,
+                 cfg_number: int = 0, hello_reply_names: list = [],
+                 spoken_count: int = 0):
         Obj.__init__(self, name, prototype, belong)
-        warn(f"Not implemented class {self.__name__}")
-        pass
+        self.npc_type = npc_type
+        self.model_name = model_name
+        self.skin_number = skin_number
+        self.cfg_number = cfg_number
+        self.hello_reply_names = hello_reply_names
+        self.spoken_count = spoken_count
 
 
 class Team(Obj):
     '''AI team base class'''
     def __init__(self, name: str, prototype: str, belong: int,
-                 position: str, rotation: str, skin: int, logo: int):
+                 position: str, rotation: str, skin: int, logo: int,
+                 vehicles: list = [], formation: int = 0,
+                 decision_matrix_num: int = -1,
+                 formation_prototype_name: str = "TEAM_DEFAULT_FORMATION_PROTOTYPE",
+                 overrides_dist_between_vehicles: bool = False,
+                 formation_dist_between_vehicles: float = 30.0,
+                 ):
         Obj.__init__(self, name, prototype, belong)
-        warn(f"Not implemented class {self.__name__}")
-        pass
+        self.decision_matrix_num = decision_matrix_num
+        self.formation_prototype_name = formation_prototype_name
+        self.overrides_dist_between_vehicles = overrides_dist_between_vehicles
+        self.formation_dist_between_vehicles = formation_dist_between_vehicles
+        self.vehicles = vehicles
+        self.formation = formation  # ??? enum would be more usefull
 
 
 class CaravanTeam(Team):
     '''AI team used for caravans'''
     def __init__(self, name: str, prototype: str, belong: int,
-                 position: str, rotation: str, skin: int, logo: int):
+                 position: str, rotation: str, skin: int, logo: int,
+                 traders_generator_prot_name: str,  # xmlNode, "TradersVehiclesGeneratorName
+                 guards_generator_prot_name: str,  # xmlNode, "GuardVehiclesGeneratorName"
+                 guard_vehicles: list = [],
+                 wares_prototypes: list = []):
         Team.__init__(self, name, prototype, belong)
-        warn(f"Not implemented class {self.__name__}")
-        pass
+        self.traders_generator_prot_name = traders_generator_prot_name
+        self.guards_generator_prot_name = guards_generator_prot_name
+        self.wares_prototypes = wares_prototypes
+        self.guard_vehicles = guard_vehicles
 
 
 class InfectionTeam(Team):
     '''AI team used for spawned cars'''
     def __init__(self, name: str, prototype: str, belong: int,
-                 position: str, rotation: str, skin: int, logo: int):
+                 position: str, rotation: str, skin: int, logo: int,
+                 vehicles_generator_proto_name: str,  # xmlNode, "VehiclesGenerator"
+                 items: list = [], critical_team_dist: float = 1000000.0,
+                 critical_team_time: float = 0.0,
+                 time_beyond_critical_dist: float = 0.0,
+                 blind_team_dist: float = 1000000.0,
+                 blind_team_time: float = 0.0,
+                 time_beyond_blind_dist: float = 0.0):
         Team.__init__(self, name, prototype, belong)
-        warn(f"Not implemented class {self.__name__}")
-        pass
+        self.items = items
+        self.vehicles_generator_proto_name = vehicles_generator_proto_name
+        self.critical_team_dist = critical_team_dist
+        self.critical_team_time = critical_team_time
+        self.time_beyond_critical_dist = time_beyond_critical_dist
+        self.blind_team_dist = blind_team_dist
+        self.blind_team_time = blind_team_time
+        self.time_beyond_blind_dist = time_beyond_blind_dist
 
 
 class VagabondTeam(Team):
     '''AI team used for ???'''
     def __init__(self, name: str, prototype: str, belong: int,
-                 position: str, rotation: str, skin: int, logo: int):
+                 position: str, rotation: str, skin: int, logo: int,
+                 vehicles_generator_prototype: str,  # xmlNode, "VehicleGeneratorPrototype"
+                 wares_prototypes: list = []):
         Team.__init__(self, name, prototype, belong)
-        warn(f"Not implemented class {self.__name__}")
-        pass
+        self.vehicles_generator_prototype = vehicles_generator_prototype
+        self.wares_prototypes = wares_prototypes
 
 
 class Trigger(Obj):
@@ -143,46 +239,74 @@ class Trigger(Obj):
 class Building(Obj):
     '''Buildings base class'''
     def __init__(self, name: str, prototype: str, belong: int,
-                 position: str, rotation: str, skin: int, logo: int):
+                 position: str, rotation: str, skin: int, logo: int,
+                 building_type: int = 5, npcs: list = []):
         Obj.__init__(self, name, prototype, belong)
-        warn(f"Not implemented class {self.__name__}")
-        pass
+        self.building_type = building_type
+        self.npcs = npcs
 
 
 class Workshop(Building):
     '''Workshop class used for shops and workshops'''
     def __init__(self, name: str, prototype: str, belong: int,
-                 position: str, rotation: str, skin: int, logo: int):
+                 position: str, rotation: str, skin: int, logo: int,
+                 repositories: list = [], articles: list = [],
+                 original_objects_in_repository: list = [],
+                 price_coeff_provider: int = 0):  # ??? or 1.0?
         Building.__init__(self, name, prototype, belong)
-        warn(f"Not implemented class {self.__name__}")
-        pass
+        self.repositories = repositories
+        self.articles = articles
+        self.original_objects_in_repository = original_objects_in_repository
+        self.price_coeff_provider = price_coeff_provider
 
 
 class Bar(Building):
     '''Bar class used for bars with and without barman'''
     def __init__(self, name: str, prototype: str, belong: int,
-                 position: str, rotation: str, skin: int, logo: int):
+                 position: str, rotation: str, skin: int, logo: int,
+                 with_barman: float = False,
+                 barman: Npc = None):
         Building.__init__(self, name, prototype, belong)
-        warn(f"Not implemented class {self.__name__}")
-        pass
+        self.with_barman = with_barman
+        self.barman = barman
 
 
 class Formation(Obj):
     '''Formation of vehicles or baricades'''
     def __init__(self, name: str, prototype: str, belong: int,
-                 position: str, rotation: str, skin: int, logo: int):
+                 position: str, rotation: str, skin: int, logo: int,
+                 dist_between_vehicles: float = 30.0,
+                 max_vehicles: int = 5, vehicles: list = [],
+                 polyline_points: list = [],
+                 polyline_length: float = 0.0,
+                 head_offset: float = 0.0,
+                 linear_velocity: float = 100.0,
+                 head_position: int = 0,
+                 angular_velocity: float = 0.5
+                 ):
         Obj.__init__(self, name, prototype, belong)
-        warn(f"Not implemented class {self.__name__}")
-        pass
+        self.dist_between_vehicles = dist_between_vehicles
+        self.max_vehicles = max_vehicles
+        self.vehicles = vehicles
+        self.polyline_points = polyline_points
+        self.polyline_length = polyline_length
+        self.head_offset = head_offset
+        self.linear_velocity = linear_velocity
+        self.head_position = head_position
+        self.angular_velocity = angular_velocity
 
 
 class Gadget(Obj):
     '''Gadget used to equip a vehicle'''
     def __init__(self, name: str, prototype: str, belong: int,
-                 position: str, rotation: str, skin: int, logo: int):
+                 position: str, rotation: str, skin: int, logo: int,
+                 modifications: list = [],
+                 model_name: list = [],
+                 skin_num: int = 0):
         Obj.__init__(self, name, prototype, belong)
-        warn(f"Not implemented class {self.__name__}")
-        pass
+        self.modifications = modifications
+        self.model_name = model_name
+        self.skin_num = skin_num
 
 
 class Ware(Obj):
