@@ -154,3 +154,12 @@ def is_xml_node_contains(xmlNode, protName):
     attribs = xmlNode.attrib
     if attribs:
         return attribs.get(protName) is not None
+
+
+def parse_str_to_bool(string: str):
+    if string.lower() == "true":
+        return True
+    elif string.lower() == "false":
+        return False
+    else:
+        raise ValueError(f"Invalid str to parse: {string}")
