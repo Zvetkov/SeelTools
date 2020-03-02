@@ -2,61 +2,6 @@
 from warnings import warn
 # from lxml import objectify
 
-BUILDING_TYPE = {"ADMINISTRATION": 0x0,
-                 "BAR": 0x1,
-                 "SHOP": 0x2,
-                 "WORKSHOP": 0x3,
-                 "GARAGE": 0x4,
-                 "NUM_BUILDINGTYPES": 0x5,
-                 "INVALID_BUILDINGTYPE": 0x5}
-
-ITEM_TYPE = {"GADGET": 0x0,
-             "VEHICLE_PART_CABIN": 0x1,
-             "VEHICLE_PART_BASKET": 0x2,
-             "REPOSITORY_ITEM": 0x3,
-             "MAIN_ITEM": 0x4,
-             "INVALID": 0x5}
-
-GEOM_TYPE = {"NONE": 0x0,
-             "BOX": 0x1,
-             "SPHERE": 0x2,
-             "CYLINDER": 0x3,
-             "RAY": 0x4,
-             "TRIMESH": 0x5,
-             "FROM_MODEL": 0x6}
-
-GEOM_REPOSITORY_ITEM_TYPE = {"RESOURCE": 0x0,
-                             "OBJECT": 0x1}
-
-WORKSHOP_REPOSITORY_TYPE = {"GOODS": 0x0,
-                            "CABINS_AND_BASKETS": 0x1,
-                            "VEHICLES": 0x2,
-                            "GUNS_AND_GADGETS": 0x3,
-                            "NUM_TYPES": 0x4}
-
-FIRING_TYPES = {"MACHINE_GUN": 0x0,
-                "CANNON": 0x1,
-                "SHOT_GUN": 0x2,
-                "LASER": 0x3,
-                "PLASMA": 0x4,
-                "ROCKET": 0x5,
-                "ARTILLERY": 0x6,
-                "THUNDERBOLT": 0x7,
-                "MINE": 0x8,
-                "NAIL": 0x9,
-                "TURBO": 0xA,
-                "OIL": 0xB,
-                "SMOKE": 0xC,
-                "NUM_FIRING_TYPES": 0xD}
-
-LOCATION_TYPE = {"GENERIC": 0x0,
-                 "ENTER": 0x1,
-                 "DEFEND": 0x2,
-                 "DEPLOY": 0x3,
-                 "CARAVAN_ARRIVE": 0x4,
-                 "ATTACK": 0x5,
-                 "PASSAGE": 0x6}
-
 
 class Object(object):
     '''Base class'''

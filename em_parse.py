@@ -1,3 +1,4 @@
+from warnings import warn
 from lxml import etree, objectify
 from em_classes import ClanClass
 
@@ -112,5 +113,44 @@ def tag_object_tree(obj: objectify.ObjectifiedElement, parent: str = ''):
         obj.tag = f'Dir_{obj.attrib["Name"]}'
     elif obj.tag == 'Prototype' and parent == 'Prototypes':
         obj.tag = f'Prot_{obj.attrib["Class"]}'
-    elif obj.tag == 'Type' and parent == 'ResourceTypes':
-        obj.tag = f'Type_{obj.attrib["Name"]}'
+    # elif obj.tag == 'Type' and parent == 'ResourceTypes':
+    #     obj.tag = f'Type_{obj.attrib["Name"]}'
+
+
+def parse_config(xml_file):
+    config = {}
+    tree = xml_to_objfy(xml_file)
+    if tree.tag == 'config':
+        config_entries = tree.attrib
+        for entry_name in config_entries:
+            if config.get(entry_name) is None:
+                config[entry_name] = config_entries[entry_name]
+            else:
+                warn(f"There is a duplicate config value with name: {entry_name}, "
+                     f"will be using last available value for the name.")
+            config[entry_name] = config_entries[entry_name]
+        return config
+    else:
+        raise NameError("Config should contain config tag with config entries as attributes!")
+
+
+def read_from_xml_node(xmlNode: objectify.ObjectifiedElement, protName: str):
+    attribs = xmlNode.attrib
+    if attribs:
+        prot = attribs.get(protName)
+        if prot is not None:
+            return prot
+        else:
+            warn(f"There is no prot with the name protName: {protName} "
+                 f"in a tag {xmlNode.tag}")
+            return None
+
+    else:
+        warn(f"Node {xmlNode.tag} is empty!")
+        return None
+
+
+def is_xml_node_contains(xmlNode, protName):
+    attribs = xmlNode.attrib
+    if attribs:
+        return attribs.get(protName) is not None

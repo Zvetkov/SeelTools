@@ -26,9 +26,14 @@ from constants import (GLOBAL_PROP_XML, GAME_OBJECTS_XML, DYNAMIC_SCENE_XML,
                        TOWNS_XML, VEHICLE_PARTS_XML, VEHICLES_XML, GUNS_XML_DICT,
                        PREFABS_XML, BREAKABLE_OBJ_XML, MISC_XML, BOSSES_XML)
 
+from resource_manager import ResourceManager
+
 
 def main():
     start = timer()
+
+    # resource manager
+    theResourceManager = ResourceManager()
 
     # global properties
     global_prop_tree = xml_to_objfy(GLOBAL_PROP_XML)

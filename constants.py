@@ -1,10 +1,27 @@
 import os
+from em_parse import parse_config
 
 GAME_FOLDER = "D:/Steam/steamapps/common/Hard Truck Apocalypse"
 
 MAP_NAME = "r1m3"
 
 # gamedata folder
+
+CONFIG_PATH = os.path.join(GAME_FOLDER, "data", "config.cfg")
+
+CONFIG = parse_config(CONFIG_PATH)
+# CONFIG = {"pathToAffixes": "data/gamedata/Affixes.xml",
+#           "pathToDialogs": "data/if/diz/DialogsGlobal.xml",
+#           "pathToDynamicDialogs": "data/if/diz/DynamicDialogsGlobal.xml",
+#           "pathToLevelInfo": "data/if/diz/LevelInfo.xml",
+#           "pathToQuestInfo": "data/if/diz/QuestInfoGlobal.xml",
+#           "pathToResourceTypes": "data/gamedata/ResourceTypes.xml",
+#           "pathToSoilProps": "data/tiles/TilesProps.xml",
+#           "pathToUiIcons": "data/if/ico/UiIcons.xml",
+#           "pathToUiStrings": "data/if/strings/UiStrings.xml",
+#           "pathToUiWindows": "data/if/dialogs/UiWindows.xml",
+#           "pathToVehiclePartTypes": "data/gamedata/VehiclePartTypes.xml"}
+
 GLOBAL_PROP_XML = os.path.join(GAME_FOLDER, "data", "gamedata",
                                "globalproperties.xml")  # data\gamedata\globalproperties.xml
 RESOURCE_TYPES_XML = os.path.join(GAME_FOLDER, "data", "gamedata",
