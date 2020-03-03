@@ -1,15 +1,14 @@
 import os
-from em_parse import parse_config
 
-GAME_FOLDER = "D:/Steam/steamapps/common/Hard Truck Apocalypse"
+WORKING_DIRECTORY = "D:/Steam/steamapps/common/Hard Truck Apocalypse"
 
 MAP_NAME = "r1m3"
 
 # gamedata folder
 
-CONFIG_PATH = os.path.join(GAME_FOLDER, "data", "config.cfg")
+# CONFIG_PATH = os.path.join("data", "config.cfg")
 
-CONFIG = parse_config(CONFIG_PATH)
+# CONFIG = parse_config(CONFIG_PATH)
 # CONFIG = {"pathToAffixes": "data/gamedata/Affixes.xml",
 #           "pathToDialogs": "data/if/diz/DialogsGlobal.xml",
 #           "pathToDynamicDialogs": "data/if/diz/DynamicDialogsGlobal.xml",
@@ -22,99 +21,99 @@ CONFIG = parse_config(CONFIG_PATH)
 #           "pathToUiWindows": "data/if/dialogs/UiWindows.xml",
 #           "pathToVehiclePartTypes": "data/gamedata/VehiclePartTypes.xml"}
 
-GLOBAL_PROP_XML = os.path.join(GAME_FOLDER, "data", "gamedata",
+GLOBAL_PROP_XML = os.path.join("data", "gamedata",
                                "globalproperties.xml")  # data\gamedata\globalproperties.xml
-RESOURCE_TYPES_XML = os.path.join(GAME_FOLDER, "data", "gamedata",
+RESOURCE_TYPES_XML = os.path.join("data", "gamedata",
                                   "resourcetypes.xml")  # data\gamedata\resourcetypes.xml
-VEHICLE_PART_TYPES_XML = os.path.join(GAME_FOLDER, "data", "gamedata",
+VEHICLE_PART_TYPES_XML = os.path.join("data", "gamedata",
                                       "vehicleparttypes.xml")  # data\gamedata\vehicleparttypes.xml
-RELATIONSHIP_XML = os.path.join(GAME_FOLDER, "data", "gamedata",
+RELATIONSHIP_XML = os.path.join("data", "gamedata",
                                 "relationship.xml")  # data/gamedata/relationship.xml
-AFFIXES_XML = os.path.join(GAME_FOLDER, "data", "gamedata",
+AFFIXES_XML = os.path.join("data", "gamedata",
                            "affixes.xml")  # data/gamedata/affixes.xml
-QUESTS_XML = os.path.join(GAME_FOLDER, "data", "gamedata",
+QUESTS_XML = os.path.join("data", "gamedata",
                           "quests.xml")  # data/gamedata/quests.xml
 
 # gamedata/gameobjects
-GAME_OBJECTS_PATH = os.path.join(GAME_FOLDER, "data", "gamedata", "gameobjects")
-GAME_OBJECTS_XML = os.path.join(GAME_FOLDER, "data", "gamedata", "gameobjects",
+GAME_OBJECTS_PATH = os.path.join("data", "gamedata", "gameobjects")
+GAME_OBJECTS_XML = os.path.join("data", "gamedata", "gameobjects",
                                 "gameobjects.xml")  # \data\gamedata\gameobjects\gameobjects.xml
-TACTICS_XML = os.path.join(GAME_FOLDER, "data", "gamedata", "gameobjects",
+TACTICS_XML = os.path.join("data", "gamedata", "gameobjects",
                            "tactics.xml")  # \data\gamedata\gameobjects\tactics.xml
-INFECTION_XML = os.path.join(GAME_FOLDER, "data", "gamedata", "gameobjects",
+INFECTION_XML = os.path.join("data", "gamedata", "gameobjects",
                              "infection.xml")  # \data\gamedata\gameobjects\infection.xml
-CARAVAN_XML = os.path.join(GAME_FOLDER, "data", "gamedata", "gameobjects",
+CARAVAN_XML = os.path.join("data", "gamedata", "gameobjects",
                            "caravan.xml")  # \data\gamedata\gameobjects\caravan.xml
-MISC_XML = os.path.join(GAME_FOLDER, "data", "gamedata", "gameobjects",
+MISC_XML = os.path.join("data", "gamedata", "gameobjects",
                         "miscellaneous.xml")  # data\gamedata\gameobjects\miscellaneous.xml
-BOSSES_XML = os.path.join(GAME_FOLDER, "data", "gamedata", "gameobjects",
+BOSSES_XML = os.path.join("data", "gamedata", "gameobjects",
                           "bosses.xml")  # data\gamedata\gameobjects\bosses.xml
-GADGETS_XML = os.path.join(GAME_FOLDER, "data", "gamedata", "gameobjects",
+GADGETS_XML = os.path.join("data", "gamedata", "gameobjects",
                            "gadgets.xml")  # data\gamedata\gameobjects\gadgets.xml
-WARES_XML = os.path.join(GAME_FOLDER, "data", "gamedata", "gameobjects",
+WARES_XML = os.path.join("data", "gamedata", "gameobjects",
                          "wares.xml")  # data\gamedata\gameobjects\wares.xml
-QUEST_ITEMS_XML = os.path.join(GAME_FOLDER, "data", "gamedata", "gameobjects",
+QUEST_ITEMS_XML = os.path.join("data", "gamedata", "gameobjects",
                                "questitems.xml")  # data\gamedata\gameobjects\questitems.xml
-BREAKABLE_OBJ_XML = os.path.join(GAME_FOLDER, "data", "gamedata", "gameobjects",
+BREAKABLE_OBJ_XML = os.path.join("data", "gamedata", "gameobjects",
                                  "breakableobjects.xml")  # data\gamedata\gameobjects\breakableobjects.xml
-TOWNS_XML = os.path.join(GAME_FOLDER, "data", "gamedata", "gameobjects",
+TOWNS_XML = os.path.join("data", "gamedata", "gameobjects",
                          "towns.xml")  # \data\gamedata\gameobjects\gameobjects.xml
-VEHICLES_XML = os.path.join(GAME_FOLDER, "data", "gamedata", "gameobjects",
+VEHICLES_XML = os.path.join("data", "gamedata", "gameobjects",
                             "vehicles.xml")  # data\gamedata\gameobjects\vehicles.xml
-VEHICLE_PARTS_XML = os.path.join(GAME_FOLDER, "data", "gamedata", "gameobjects",
+VEHICLE_PARTS_XML = os.path.join("data", "gamedata", "gameobjects",
                                  "vehicleparts.xml")  # data\gamedata\gameobjects\vehicleparts.xml
-PREFABS_XML = os.path.join(GAME_FOLDER, "data", "gamedata", "gameobjects",
+PREFABS_XML = os.path.join("data", "gamedata", "gameobjects",
                            "prefabs.xml")  # data\gamedata\gameobjects\prefabs.xml
 # guns - listed as folder in gameobjects.xml
-SMALL_GUNS_XML = os.path.join(GAME_FOLDER, "data", "gamedata", "gameobjects",
+SMALL_GUNS_XML = os.path.join("data", "gamedata", "gameobjects",
                               "smallguns.xml")  # data\gamedata\gameobjects\smallguns.xml
-BIG_GUNS_XML = os.path.join(GAME_FOLDER, "data", "gamedata", "gameobjects",
+BIG_GUNS_XML = os.path.join("data", "gamedata", "gameobjects",
                             "bigguns.xml")  # data\gamedata\gameobjects\bigguns.xml
-GIANT_GUNS_XML = os.path.join(GAME_FOLDER, "data", "gamedata", "gameobjects",
+GIANT_GUNS_XML = os.path.join("data", "gamedata", "gameobjects",
                               "giantguns.xml")  # data\gamedata\gameobjects\giantguns.xml
-SIDE_GUNS_XML = os.path.join(GAME_FOLDER, "data", "gamedata", "gameobjects",
+SIDE_GUNS_XML = os.path.join("data", "gamedata", "gameobjects",
                              "sideguns.xml")  # data\gamedata\gameobjects\sideguns.xml
 GUNS_XML_DICT = {"small_guns": SMALL_GUNS_XML, "big_guns": BIG_GUNS_XML,
                  "giant_guns": GIANT_GUNS_XML, "side_guns": SIDE_GUNS_XML}
 
 # maps folder
-DYNAMIC_SCENE_XML = os.path.join(GAME_FOLDER, "data", "maps", MAP_NAME,
+DYNAMIC_SCENE_XML = os.path.join("data", "maps", MAP_NAME,
                                  "dynamicscene.xml")  # data/maps/r1m1/dynamicscene.xml
-OBJECT_NAMES_XML = os.path.join(GAME_FOLDER, "data", "maps", MAP_NAME,
+OBJECT_NAMES_XML = os.path.join("data", "maps", MAP_NAME,
                                 "object_names.xml")  # data/maps/r1m1/object_names.xml
-TOWN_BACKGROUND_XML = os.path.join(GAME_FOLDER, "data", "maps", MAP_NAME,
+TOWN_BACKGROUND_XML = os.path.join("data", "maps", MAP_NAME,
                                    "icons.xml")  # data/maps/r1m1/icons.xml
-TRIGGERS_XML = os.path.join(GAME_FOLDER, "data", "maps", MAP_NAME,
+TRIGGERS_XML = os.path.join("data", "maps", MAP_NAME,
                             "triggers.xml")  # data/maps/r1m1/triggers.xml
-CINEMA_TRIGGERS_XML = os.path.join(GAME_FOLDER, "data", "maps", MAP_NAME,
+CINEMA_TRIGGERS_XML = os.path.join("data", "maps", MAP_NAME,
                                    "cinematriggers.xml")  # data/maps/r1m1/cinematriggers.xml
 
 # models folder
-BELONG_LOGO_XML = os.path.join(GAME_FOLDER, "data", "models",
+BELONG_LOGO_XML = os.path.join("data", "models",
                                "belongstologos.xml")  # "data\models\belongstologos.xml
-LOGOS_GAM = os.path.join(GAME_FOLDER, "data", "models", "logos",
+LOGOS_GAM = os.path.join("data", "models", "logos",
                          "logos.gam")  # "data\models\logos\logos.gam"
 
 # sounds folder
-RADIO_SOUNDS_XML = os.path.join(GAME_FOLDER, "data", "sounds", "radio",
+RADIO_SOUNDS_XML = os.path.join("data", "sounds", "radio",
                                 "radiosounds.xml")  # "data\sounds\radio\radiosounds.xml
-DIALOGS_GLOBAL_XML = os.path.join(GAME_FOLDER, "data", "if", "diz",
+DIALOGS_GLOBAL_XML = os.path.join("data", "if", "diz",
                                   "dialogsglobal.xml")  # data\if\diz\dialogsglobal.xml
 
 # if/strings folder
-OBJECT_DESCR_XML = os.path.join(GAME_FOLDER, "data", "if", "strings",
+OBJECT_DESCR_XML = os.path.join("data", "if", "strings",
                                 "objectdiz.xml")  # "data\if\strings\objectdiz.xml
-CLANDIZ_XML = os.path.join(GAME_FOLDER, "data", "if", "strings",
+CLANDIZ_XML = os.path.join("data", "if", "strings",
                            "clansdiz.xml")  # data/if/strings/clansdiz.xml
 
 # if/ico folder
-MODEL_ICONS_XML = os.path.join(GAME_FOLDER, "data", "if", "ico",
+MODEL_ICONS_XML = os.path.join("data", "if", "ico",
                                "modelicons.xml")  # data/if/ico/modelicons.xml map with name
 
 # if/diz folder
-MODEL_NAMES_XML = os.path.join(GAME_FOLDER, "data", "if", "diz",
+MODEL_NAMES_XML = os.path.join("data", "if", "diz",
                                "model_names.xml")  # data\if\diz\model_names.xml
-QUEST_INFO_GLOB_XML = os.path.join(GAME_FOLDER, "data", "if", "diz",
+QUEST_INFO_GLOB_XML = os.path.join("data", "if", "diz",
                                    "questinfoglobal.xml")  # data\if\diz\questinfoglobal.xml
 
 

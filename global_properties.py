@@ -8,19 +8,19 @@ class Kernel(object):
         self.engineConfig = EngineConfig()
         # self.fileMan = FileServer()  # probably useless for use in tool
         self.scriptHandle = 0
-        self.scriptServer = ScriptServer()
+        # self.scriptServer = ScriptServer()
 
 
 class Server(object):
-    def InitOnce(self):
-        engine_config = Kernel.engineConfig
+    def InitOnce(self, theKernel):
+        engine_config = theKernel.engineConfig
         self.LoadGlobalPropertiesFromXML(engine_config.global_properties_path)
 
     def LoadGlobalPropertiesFromXML(self, fileName):
         xmlFile = xml_to_objfy(fileName)
         if xmlFile.tag == "Properties":
-            self.theGlobalProp = GlobalProperties()
-            self.theGlobalProp.LoadFromXML(fileName, xmlFile)
+            self.theGlobalProperties = GlobalProperties()
+            self.theGlobalProperties.LoadFromXML(fileName, xmlFile)
         else:
             raise NameError("GlobalProperties file should contain Properties tag")
 
@@ -83,8 +83,8 @@ class GlobalProperties(object):
         self.targetInfoContourWidth = 0.69999999
         self.throwCoeff = 3.0
         self.timeOutForReAimGuns = 0.5
-        self.unlockRegion.x = 100.0
-        self.unlockRegion.y = 100.0
+        self.unlockRegion_x = 100.0
+        self.unlockRegion_y = 100.0
         self.vehicleAiFiringRangeMult = 1.0
         self.vehiclesDropChests = 1
         self.zoneDefaultFirstSpawnTime = 10.0
@@ -92,28 +92,28 @@ class GlobalProperties(object):
 
     def LoadFromXML(self, xmlFile, xmlNode):
         namedBelongIds = read_from_xml_node(xmlNode["Belongs"], "Values")
-        self.namedBelongIds = namedBelongIds.split()
+        self.namedBelongIds = [int(belong) for belong in namedBelongIds.split()]
         self.namedBelongIdsVector = self.namedBelongIds  # ??? are both needed?
 
         izvratRepositoryMaxSize = read_from_xml_node(xmlNode["IzvratRepository"], "MaxSize")
-        self.izvratRepositoryMaxSize_x = izvratRepositoryMaxSize.split()[0]
-        self.izvratRepositoryMaxSize_y = izvratRepositoryMaxSize.split()[1]
+        self.izvratRepositoryMaxSize_x = int(izvratRepositoryMaxSize.split()[0])
+        self.izvratRepositoryMaxSize_y = int(izvratRepositoryMaxSize.split()[1])
 
         groundRepositorySize = read_from_xml_node(xmlNode["GroundRepository"], "Size")
-        self.groundRepositorySize_x = groundRepositorySize.split()[0]
-        self.groundRepositorySize_y = groundRepositorySize.split()[1]
+        self.groundRepositorySize_x = int(groundRepositorySize.split()[0])
+        self.groundRepositorySize_y = int(groundRepositorySize.split()[1])
 
-        self.gameTimeMult = read_from_xml_node(xmlNode["Mult"], "GameTimeMult")
+        self.gameTimeMult = float(read_from_xml_node(xmlNode["Mult"], "GameTimeMult"))
         if self.gameTimeMult <= 0.000099999997:
             warn("GameTimeMult is too low! Set to 0.0001 or higher")
         self.vehicleAiFiringRangeMult = read_from_xml_node(xmlNode["Mult"], "VehicleAIFiringRangeMult")
 
-        self.maxBurstTime = read_from_xml_node(xmlNode["BurstParameters"], "MaxBurstTime")
-        self.minBurstTime = read_from_xml_node(xmlNode["BurstParameters"], "MinBurstTime")
-        self.timeBetweenBursts = read_from_xml_node(xmlNode["BurstParameters"], "TimeBetweenBursts")
+        self.maxBurstTime = int(read_from_xml_node(xmlNode["BurstParameters"], "MaxBurstTime"))
+        self.minBurstTime = int(read_from_xml_node(xmlNode["BurstParameters"], "MinBurstTime"))
+        self.timeBetweenBursts = int(read_from_xml_node(xmlNode["BurstParameters"], "TimeBetweenBursts"))
 
         self.probabilityToGenerateDynamicQuestInTown = \
-            read_from_xml_node(xmlNode["DynamicQuest"], "ProbabilityToGenerateDynamicQuestInTown")
+            float(read_from_xml_node(xmlNode["DynamicQuest"], "ProbabilityToGenerateDynamicQuestInTown"))
         if self.probabilityToGenerateDynamicQuestInTown < 0.0 or self.probabilityToGenerateDynamicQuestInTown > 1.0:
             warn("ProbabilityToGenerateDynamicQuestInTown value is invalid! Set between 0.0 and 1.0")
 
@@ -124,9 +124,9 @@ class GlobalProperties(object):
         self.pathToAffixes = read_from_xml_node(xmlNode["CommonPaths"], "Affixes")
         self.pathToVehiclePartTypes = read_from_xml_node(xmlNode["CommonPaths"], "VehiclePartTypes")
 
-        self.distToTurnOnPhysics = read_from_xml_node(xmlNode["Physics"], "DistToTurnOnPhysics")
-        self.distToTurnOffPhysics = read_from_xml_node(xmlNode["Physics"], "DistToTurnOffPhysics")
-        self.physicStepTime = read_from_xml_node(xmlNode["Physics"], "PhysicStepTime")
+        self.distToTurnOnPhysics = float(read_from_xml_node(xmlNode["Physics"], "DistToTurnOnPhysics"))
+        self.distToTurnOffPhysics = float(read_from_xml_node(xmlNode["Physics"], "DistToTurnOffPhysics"))
+        self.physicStepTime = float(read_from_xml_node(xmlNode["Physics"], "PhysicStepTime"))
         if self.distToTurnOffPhysics - 10.0 <= self.distToTurnOnPhysics:
             warn("Differenece between distToTurnOffPhysics and distToTurnOnPhysics is too low! "
                  "Set to be at least 10.0 appart")
@@ -134,84 +134,91 @@ class GlobalProperties(object):
         self.barmenModelName = read_from_xml_node(xmlNode["Npc"], "BarmenModelName")
 
         self.splintersAutoDisableLinearThreshold = \
-            read_from_xml_node(xmlNode["BreakableObjectSplinters"], "AutoDisableLinearThreshold")
+            float(read_from_xml_node(xmlNode["BreakableObjectSplinters"], "AutoDisableLinearThreshold"))
         self.splintersAutoDisableAngularThreshold = \
-            read_from_xml_node(xmlNode["BreakableObjectSplinters"], "AutoDisableAngularThreshold")
+            float(read_from_xml_node(xmlNode["BreakableObjectSplinters"], "AutoDisableAngularThreshold"))
         self.splintersAutoDisableNumSteps = \
-            read_from_xml_node(xmlNode["BreakableObjectSplinters"], "AutoDisableNumSteps")
+            int(read_from_xml_node(xmlNode["BreakableObjectSplinters"], "AutoDisableNumSteps"))
 
         self.vehiclesDropChests = \
             parse_str_to_bool(read_from_xml_node(xmlNode["Vehicles"], "VehiclesDropChests"))
-        maxSpeedWithNoFuel = read_from_xml_node(xmlNode["Vehicles"], "MaxSpeedWithNoFuel")
+        maxSpeedWithNoFuel = float(read_from_xml_node(xmlNode["Vehicles"], "MaxSpeedWithNoFuel"))
         # ??? why? Is this working?
-        self.maxSpeedWithNoFuel = maxSpeedWithNoFuel * 0.27777779  # 5/18 = 0.2(7)
+        self.maxSpeedWithNoFuel = maxSpeedWithNoFuel * 0.27777779  # 5/18 = 0.2(7) ???
 
-        self.infoAreaRadius = read_from_xml_node(xmlNode["SmartCursor"], "InfoAreaRadius")
-        self.lockTimeout = read_from_xml_node(xmlNode["SmartCursor"], "LockTimeout")
+        self.infoAreaRadius = int(read_from_xml_node(xmlNode["SmartCursor"], "InfoAreaRadius"))
+        self.lockTimeout = float(read_from_xml_node(xmlNode["SmartCursor"], "LockTimeout"))
         unlockRegion = read_from_xml_node(xmlNode["SmartCursor"], "UnlockRegion")
-        self.unlockRegion = unlockRegion.split()
+        self.unlockRegion_x = float(unlockRegion.split()[0])
+        self.unlockRegion_y = float(unlockRegion.split()[1])
         # ??? unused in actual game globalproperties.cfg
         # self.infoObjUpdateTimeout = read_from_xml_node(xmlNode["SmartCursor"], "InfoObjUpdateTimeout")
 
         self.blastWaveCameraShakeRadiusCoeff = \
-            read_from_xml_node(xmlNode["CameraController"], "BlastWaveCameraShakeRadiusCoeff")
-        self.shakeDamageToDurationCoeff = read_from_xml_node(xmlNode["CameraController"], "ShakeDamageToDurationCoeff")
-        self.maxShakeDamage = read_from_xml_node(xmlNode["CameraController"], "MaxShakeDamage")
+            float(read_from_xml_node(xmlNode["CameraController"], "BlastWaveCameraShakeRadiusCoeff"))
+        self.shakeDamageToDurationCoeff = \
+            float(read_from_xml_node(xmlNode["CameraController"], "ShakeDamageToDurationCoeff"))
+        self.maxShakeDamage = float(read_from_xml_node(xmlNode["CameraController"], "MaxShakeDamage"))
         if self.maxShakeDamage <= 1.0:
             warn("maxShakeDamage should be more than 1.0!")
 
-        self.distanceFromPlayerToMoveout = read_from_xml_node(xmlNode["Caravans"], "DistanceFromPlayerToMoveout")
+        self.distanceFromPlayerToMoveout = int(read_from_xml_node(xmlNode["Caravans"], "DistanceFromPlayerToMoveout"))
 
-        self.defaultLookBoxLength = read_from_xml_node(xmlNode["ObstacleAvoidance"], "DefaultLookBoxLength")
-        self.defaultTargetBoxLength = read_from_xml_node(xmlNode["ObstacleAvoidance"], "DefaultTargetBoxLength")
-        self.attractiveCoeff = read_from_xml_node(xmlNode["ObstacleAvoidance"], "AttractiveCoeff")
-        self.repulsiveCoeff = read_from_xml_node(xmlNode["ObstacleAvoidance"], "RepulsiveCoeff")
-        self.maxDistToAvoid = read_from_xml_node(xmlNode["ObstacleAvoidance"], "MaxDistToAvoid")
-        self.predictionTime = read_from_xml_node(xmlNode["ObstacleAvoidance"], "PredictionTime")
+        self.defaultLookBoxLength = float(read_from_xml_node(xmlNode["ObstacleAvoidance"], "DefaultLookBoxLength"))
+        self.defaultTargetBoxLength = float(read_from_xml_node(xmlNode["ObstacleAvoidance"], "DefaultTargetBoxLength"))
+        self.attractiveCoeff = float(read_from_xml_node(xmlNode["ObstacleAvoidance"], "AttractiveCoeff"))
+        self.repulsiveCoeff = float(read_from_xml_node(xmlNode["ObstacleAvoidance"], "RepulsiveCoeff"))
+        self.maxDistToAvoid = float(read_from_xml_node(xmlNode["ObstacleAvoidance"], "MaxDistToAvoid"))
+        self.predictionTime = float(read_from_xml_node(xmlNode["ObstacleAvoidance"], "PredictionTime"))
 
-        self.throwCoeff = read_from_xml_node(xmlNode["DeathProperties"], "ThrowCoeff")
-        self.flowVpVelocity = read_from_xml_node(xmlNode["DeathProperties"], "FlowVpVelocity")
-        self.flowWheelVelocity = read_from_xml_node(xmlNode["DeathProperties"], "FlowWheelVelocity")
-        self.energyBlowDeltaTime = read_from_xml_node(xmlNode["DeathProperties"], "EnergyBlowDeltaTime")
-        self.energyVpBlowProbability = read_from_xml_node(xmlNode["DeathProperties"], "EnergyVpBlowProbability")
-        self.energyWheelBlowProbability = read_from_xml_node(xmlNode["DeathProperties"], "EnergyWheelBlowProbability")
+        self.throwCoeff = float(read_from_xml_node(xmlNode["DeathProperties"], "ThrowCoeff"))
+        self.flowVpVelocity = float(read_from_xml_node(xmlNode["DeathProperties"], "FlowVpVelocity"))
+        self.flowWheelVelocity = float(read_from_xml_node(xmlNode["DeathProperties"], "FlowWheelVelocity"))
+        self.energyBlowDeltaTime = float(read_from_xml_node(xmlNode["DeathProperties"], "EnergyBlowDeltaTime"))
+        self.energyVpBlowProbability = int(read_from_xml_node(xmlNode["DeathProperties"], "EnergyVpBlowProbability"))
+        self.energyWheelBlowProbability = \
+            int(read_from_xml_node(xmlNode["DeathProperties"], "EnergyWheelBlowProbability"))
 
-        self.healthUnitPrice = read_from_xml_node(xmlNode["Repair"], "HealthUnitPrice")
+        self.healthUnitPrice = float(read_from_xml_node(xmlNode["Repair"], "HealthUnitPrice"))
 
         self.defaultArticleRegenerationTime = \
-            read_from_xml_node(xmlNode["Articles"], "DefaultRegenerationTime")
+            float(read_from_xml_node(xmlNode["Articles"], "DefaultRegenerationTime"))
         self.probabilityToDropArticlesFromDeadVehicles = \
-            read_from_xml_node(xmlNode["Articles"], "ProbabilityToDropArticlesFromDeadVehicles")
+            float(read_from_xml_node(xmlNode["Articles"], "ProbabilityToDropArticlesFromDeadVehicles"))
         self.probabilityToDropGunsFromDeadVehicles = \
-            read_from_xml_node(xmlNode["Articles"], "ProbabilityToDropGunsFromDeadVehicles")
+            float(read_from_xml_node(xmlNode["Articles"], "ProbabilityToDropGunsFromDeadVehicles"))
 
         self.zoneRespawnTimeOutIncreaseCoeff = \
-            read_from_xml_node(xmlNode["InfectionZones"], "ZoneRespawnTimeOutIncreaseCoeff")
+            float(read_from_xml_node(xmlNode["InfectionZones"], "ZoneRespawnTimeOutIncreaseCoeff"))
         self.zoneDefaultFirstSpawnTime = \
-            read_from_xml_node(xmlNode["InfectionZones"], "ZoneDefaultFirstSpawnTime")
+            float(read_from_xml_node(xmlNode["InfectionZones"], "ZoneDefaultFirstSpawnTime"))
 
         self.colorFriend = read_from_xml_node(xmlNode["InterfaceStuff"], "ColorFriend")
         self.colorEnemy = read_from_xml_node(xmlNode["InterfaceStuff"], "ColorEnemy")
         self.colorTargetCaptured = read_from_xml_node(xmlNode["InterfaceStuff"], "ColorTargetCaptured")
-        self.targetInfoContourWidth = read_from_xml_node(xmlNode["InterfaceStuff"], "TargetInfoContourWidth")
-        self.targetCapturedContourWidth = read_from_xml_node(xmlNode["InterfaceStuff"], "TargetCapturedContourWidth")
+        self.targetInfoContourWidth = float(read_from_xml_node(xmlNode["InterfaceStuff"], "TargetInfoContourWidth"))
+        self.targetCapturedContourWidth = \
+            float(read_from_xml_node(xmlNode["InterfaceStuff"], "TargetCapturedContourWidth"))
 
-        self.playerPassMapUnpassableMu = read_from_xml_node(xmlNode["PlayerPassmap"], "PlayerPassMapUnpassableMu")
-        self.playerPassMapUnpassableErp = read_from_xml_node(xmlNode["PlayerPassmap"], "PlayerPassMapUnpassableErp")
-        self.playerPassMapUnpassableCfm = read_from_xml_node(xmlNode["PlayerPassmap"], "PlayerPassMapUnpassableCfm")
+        self.playerPassMapUnpassableMu = \
+            float(read_from_xml_node(xmlNode["PlayerPassmap"], "PlayerPassMapUnpassableMu"))
+        self.playerPassMapUnpassableErp = \
+            float(read_from_xml_node(xmlNode["PlayerPassmap"], "PlayerPassMapUnpassableErp"))
+        self.playerPassMapUnpassableCfm = \
+            float(read_from_xml_node(xmlNode["PlayerPassmap"], "PlayerPassMapUnpassableCfm"))
 
-        fullGroupingAngleDegree = read_from_xml_node(xmlNode["Weapon"], "MaxGroupingAngle")
+        fullGroupingAngleDegree = float(read_from_xml_node(xmlNode["Weapon"], "MaxGroupingAngle"))
         self.maxGroupingAngle = fullGroupingAngleDegree * 0.017453292 * 0.5  # pi/180 = 0.017453292
-        self.timeOutForReAimGuns = read_from_xml_node(xmlNode["Weapon"], "TimeOutForReAimGuns")
+        self.timeOutForReAimGuns = float(read_from_xml_node(xmlNode["Weapon"], "TimeOutForReAimGuns"))
 
-        diffLevels = xmlNode["DifficultyLevels"]
+        diffLevels = xmlNode["DifficultyLevels"]["Level"]
         for diffLevel in diffLevels:
             if diffLevel.tag == "Level":
-                self.difficultyLevelCoeffs.append(CoeffsForDifficultyLevel().LoadFromXML(xmlFile, xmlNode))
+                self.difficultyLevelCoeffs.append(CoeffsForDifficultyLevel().LoadFromXML(xmlFile, diffLevels))
             else:
                 warn(f"Unexpected tag {diffLevel.tag} in DifficultyLevels enumeration")
 
-        self.property2PriceCoeff = read_from_xml_node(xmlNode["Price"], "Property2PriceCoeff")
+        self.property2PriceCoeff = float(read_from_xml_node(xmlNode["Price"], "Property2PriceCoeff"))
         if not self.difficultyLevelCoeffs:
             raise ValueError("No difficulty levels in GlobalProperties!")
 
@@ -224,9 +231,14 @@ class CoeffsForDifficultyLevel(object):
 
     def LoadFromXML(self, xmlFile, xmlNode):
         self.name = read_from_xml_node(xmlNode, "Name")
-        self.damageCoeffForPlayerFromEnemies = read_from_xml_node(xmlNode, "EnemyWeaponCoeff")
-        self.enemiesShootingDelay = read_from_xml_node(xmlNode, "EnemyShootingDelay")
+        self.damageCoeffForPlayerFromEnemies = float(read_from_xml_node(xmlNode, "EnemyWeaponCoeff"))
+        self.enemiesShootingDelay = float(read_from_xml_node(xmlNode, "EnemyShootingDelay"))
         if self.damageCoeffForPlayerFromEnemies < 0.0:
             warn("Invalid EnemyWeaponCoeff! Should be a positive float number!")
         if self.enemiesShootingDelay < 0.0 or self.enemiesShootingDelay > 3.0:
             warn("Invalid EnemyShootingDelay! Should be a positive float number between 0.0 and 3.0")
+
+
+theKernel = Kernel()
+theServer = Server()
+theServer.InitOnce(theKernel)

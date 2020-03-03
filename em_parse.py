@@ -1,6 +1,9 @@
+import os
 from warnings import warn
 from lxml import etree, objectify
+
 from em_classes import ClanClass
+from constants import WORKING_DIRECTORY
 
 ENCODING = 'windows-1251'
 
@@ -68,8 +71,9 @@ def parse_belong_faction_to_dict(path: str):
     return dictionary
 
 
-def xml_to_objfy(path: str):
-    with open(path, 'r', encoding=ENCODING) as f:
+def xml_to_objfy(path_to_file: str):
+    full_path = os.path.join(WORKING_DIRECTORY, path_to_file)
+    with open(full_path, 'r', encoding=ENCODING) as f:
         parser_recovery = objectify.makeparser(recover=True)
         objectify.enable_recursive_str()
         objfy = objectify.parse(f, parser_recovery)
@@ -134,19 +138,19 @@ def parse_config(xml_file):
         raise NameError("Config should contain config tag with config entries as attributes!")
 
 
-def read_from_xml_node(xmlNode: objectify.ObjectifiedElement, protName: str):
+def read_from_xml_node(xmlNode: objectify.ObjectifiedElement, attribName: str):
     attribs = xmlNode.attrib
     if attribs:
-        prot = attribs.get(protName)
+        prot = attribs.get(attribName)
         if prot is not None:
             return prot
         else:
-            warn(f"There is no prot with the name protName: {protName} "
-                 f"in a tag {xmlNode.tag}")
+            warn(f"There is no attrib with the name: {attribName} "
+                 f"in a tag {xmlNode.tag} of {xmlNode.base}")
             return None
 
     else:
-        warn(f"Node {xmlNode.tag} is empty!")
+        warn(f"Node {xmlNode.tag} of {xmlNode.base} is empty!")
         return None
 
 
