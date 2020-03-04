@@ -16,6 +16,10 @@ class Server(object):
         engine_config = theKernel.engineConfig
         self.LoadGlobalPropertiesFromXML(engine_config.global_properties_path)
 
+    def Load(self, a2: int = 0, startupMode, xmlFile, xmlNode, isContiniousMap=0, saveType=0):
+        self.saveType = saveType
+{
+
     def LoadGlobalPropertiesFromXML(self, fileName):
         xmlFile = xml_to_objfy(fileName)
         if xmlFile.tag == "Properties":
@@ -23,6 +27,8 @@ class Server(object):
             self.theGlobalProperties.LoadFromXML(fileName, xmlFile)
         else:
             raise NameError("GlobalProperties file should contain Properties tag")
+
+    def LoadPrototypeNamesFromXML(
 
 
 class GlobalProperties(object):
