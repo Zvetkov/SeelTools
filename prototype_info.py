@@ -7,31 +7,30 @@ from em_parse import read_from_xml_node, parse_str_to_bool
 
 class Relationship(object):
     def __init__(self):
-        self.toleranceMap  # ??? can this be useful?
+        self.toleranceMap = {}  # ??? can this be useful?
         self.tolerance = 0
-        self.playerDefaultTolerance = 0
+        self.playerDefaultTolerance = 0  # pTolerance
+        self.defaultTolerance = 1
         self.minID = 0
         self.maxId = -1
-        self.defaultTolerance = 1
-        self.toleranceList = {"enemy", "neutral", "ally", "own"}
+        self.toleranceList = []
 
-        self.toleranceList["enemy"] = {"name": "",
-                                       "tolerance": 1}
-        self.toleranceList["neutral"] = {"name": "",
-                                         "tolerance": 2}
-        self.toleranceList["ally"] = {"name": "",
-                                      "tolerance": 3}
-        self.toleranceList["own"] = {"name": "",
-                                     "tolerance": 4}
+        self.toleranceMap["enemy"] = {"name": "enemy",
+                                      "tolerance": 1}
+        self.toleranceMap["neutral"] = {"name": "neutral",
+                                        "tolerance": 2}
+        self.toleranceMap["ally"] = {"name": "ally",
+                                     "tolerance": 3}
+        self.toleranceMap["own"] = {"name": "own",
+                                    "tolerance": 4}
 
+        self.toleranceList = [tol for tol in self.toleranceMap.values()]
 
-    def LoadFromXmlFile(self, saveType, xmlFile):
-        '''Replacing LoadFromXmlFile'''
-        pass
+    # def LoadFromXmlFile(self, saveType, xmlFile):
+    #     pass
 
-    def LoadDefaultFromXmlFile(self, saveType, xmlFile):
-        '''Replacing LoadDefaultFromXmlFile'''
-        pass
+    # def LoadDefaultFromXmlFile(self, saveType, xmlFile):
+    #     pass
 
     def LoadFromXML(self, xmlFile, xmlNode, default: bool = True):
         self.tolerance = {}
@@ -42,8 +41,9 @@ class Relationship(object):
         if self.minID <= self.maxID:
             if self.maxID - self.minID + 1 > 1000:
                 self.maxID = self.minID + 1001
-                warn(f"There can't be more that 1001 belongs, for example 1000-2001 is valid. Reseting max value to be {self.maxID}")
-                belongs_number = self.maxID - self.minID
+                warn(f"Tolerance range can't be more than 1001, for example 1000-2001 range is valid."
+                     f"Reseting max value to be {self.maxID}")
+                # tolerance_diff = self.maxID - self.minID
                 tolerance_range = range(self.minID, self.maxID)
                 for tolerance in tolerance_range:
                     format_type = xmlNode.attrib.get("FormatType")
@@ -129,20 +129,33 @@ class PrototypeInfo(object):
             warn(f"XML Node with unexpected tag {xmlNode.tag} given for PrototypeInfo loading")
 
 
+class Affix(object):
+    def __init__(self, affixGroup):
+        self.affixGroup = affixGroup
+        self.affixId = -1
+        self.name = ""
+        self.modifications = []
+
+    def ApplyToObj(self, obj):
+        if self.modifications:
+            for mod in self.modifications:
+                if not self.ModificationInfo.ApplyToObj(self.modifications, self, obj):
+                    return 0
+            return 1
+
+    def GetLocalizedName(self, localizationIndex):
+        local_name = theStringManager.GetStringByStringId(localizationIndex, 0)
+        return local_name
+
+
 class AffixGroup(object):
     def __init__(self):
-        self.theAffixManager = AffixManager()
+        self.theAffixManager = AffixManager()  # ??? should it be here?
         self.affixGroupId = -1
         self.name = ""
         self.order = -1
         self.targetResourceId = -1
         self.affixIds = []
-
-    def AddAffix(self, affix: Affix):
-        if self.theAffixManager.GetAffixByNameAndResource(self, affix.name, self.targetResourceId) != -1:
-            warn(f"Affix {affix.name} already exists for resource!")
-        else:
-            pass
 
 
 class AffixManager(object):
@@ -201,6 +214,12 @@ class AffixManager(object):
     def GetNumAffixes(self):
         return len(self.affixes)
 
+    def AddAffix(self, affix: Affix):
+        if self.GetAffixByNameAndResource(self, affix.name, self.targetResourceId) != -1:
+            warn(f"Affix {affix.name} already exists for resource!")
+        else:
+            self.affixes.append(affix)
+
 
 class AffixGeneratorPrototypeInfo(PrototypeInfo):
     def __init__(self):
@@ -221,27 +240,10 @@ class AffixGeneratorPrototypeInfo(PrototypeInfo):
     # trying to replace with simple dict ??? why do we need this class?
 
 
-class Affix(object):
-    def __init__(self, affixGroup):
-        self.affixGroup = affixGroup
-        self.affixId = -1
-        self.name = ""
-        self.modifications = []
-
-    def ApplyToObj(self, obj):
-        if self.modifications:
-            for mod in self.modifications:
-                if not ModificationInfo.ApplyToObj(self.modifications, self, obj):
-                    return 0
-            return 1
-
-    def GetLocalizedName(self, localizationIndex):
-        local_name = theLocalizationManager.GetStringByStringId(localizationIndex, 0)
-        return local_name
-
     class ModificationInfo(object):
         def __init__(self):
-            pass
+            self.pass_id = 0
+            # raise NotImplementedError('Not implemmented ModificationInfo initiatilization') 
 
 
 class somethingPrototypeInfo(PrototypeInfo):
@@ -271,3 +273,10 @@ class StringManager(object):
             return string
         else:
             warn(f"String name given is not in String Dictionary: {string}")
+
+    def LoadFromXML():
+        pass
+
+
+theStringManager = StringManager()
+theStringManager.LoadFromXML()
