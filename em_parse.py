@@ -138,26 +138,47 @@ def parse_config(xml_file):
         raise NameError("Config should contain config tag with config entries as attributes!")
 
 
-def read_from_xml_node(xmlNode: objectify.ObjectifiedElement, attribName: str):
-    attribs = xmlNode.attrib
+def read_from_xml_node(xml_node: objectify.ObjectifiedElement, attrib_name: str):
+    attribs = xml_node.attrib
     if attribs:
-        prot = attribs.get(attribName)
+        prot = attribs.get(attrib_name)
         if prot is not None:
             return prot
         else:
-            warn(f"There is no attrib with the name: {attribName} "
-                 f"in a tag {xmlNode.tag} of {xmlNode.base}")
+            warn(f"There is no attrib with the name: {attrib_name} "
+                 f"in a tag {xml_node.tag} of {xml_node.base}")
             return None
 
     else:
-        warn(f"Node {xmlNode.tag} of {xmlNode.base} is empty!")
+        warn(f"Node {xml_node.tag} of {xml_node.base} is empty!")
         return None
 
 
-def is_xml_node_contains(xmlNode, protName):
-    attribs = xmlNode.attrib
+def is_xml_node_contains(xml_node: objectify.ObjectifiedElement, attrib_name: str):
+    attribs = xml_node.attrib
     if attribs:
-        return attribs.get(protName) is not None
+        return attribs.get(attrib_name) is not None
+    else:
+        warn(f"Asking for attributes of node without attributes: {xml_node.base}")
+
+
+def child_from_xml_node(xml_node: objectify.ObjectifiedElement, child_name: str):
+    try:
+        return xml_node[child_name]
+    except ValueError:
+        warn(f"There is no child with name {child_name} for xml node {xml_node.tag} in {xml_node.base}")
+        return None
+
+
+def check_mono_xml_node(xml_node: objectify.ObjectifiedElement, expected_child_name: str):
+    children = xml_node.getchildren()
+    if len() > 0:
+        for child in children:
+            if child.tag != expected_child_name:
+                warn(f"Unexpected node with a name {child.tag} found in xml node: {xml_node.tag} in {xml_node.base}!")
+    else:
+        raise(f"Empty node with a name {child.tag} when expecting to find child nodes with a name {expected_child_name} "
+              f"in {xml_node.base}")
 
 
 def parse_str_to_bool(string: str):

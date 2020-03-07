@@ -1,6 +1,5 @@
 from warnings import warn
 
-from global_properties import theServer
 from em_parse import xml_to_objfy, read_from_xml_node
 
 
@@ -142,7 +141,3 @@ class ResourceManager(object):
 
     def GetResourceDescendants(self, resourceId):
         return [resource for resource in self.resourceVector if resource.IsKindOf(self, resourceId)]
-
-
-# resource manager
-theResourceManager = ResourceManager(theServer)

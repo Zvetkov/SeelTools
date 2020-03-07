@@ -1,6 +1,12 @@
 from warnings import warn
 from engine_config import EngineConfig
 from em_parse import xml_to_objfy, read_from_xml_node, parse_str_to_bool
+import logging
+from relationship import theRelationship
+from resource_manager import ResourceManager
+
+theRelationship = Relationship()
+theResourceManager = None
 
 
 class Kernel(object):
@@ -13,12 +19,18 @@ class Kernel(object):
 
 class Server(object):
     def InitOnce(self, theKernel):
+        '''Called by CMiracle3d::LoadLevel'''
         engine_config = theKernel.engineConfig
         self.LoadGlobalPropertiesFromXML(engine_config.global_properties_path)
+        self.theResourceManager = ResourceManager(self, 0, 0)
+        self.theAffixManager = AffixManager(self.theResourceManager)
+        self.theAffixManager.LoadFromXML(engine_config.affixes_path)
 
     def Load(self, a2: int = 0, startupMode, xmlFile, xmlNode, isContiniousMap=0, saveType=0):
+        logging.info("Loading Server")
         self.saveType = saveType
-{
+        if not isContiniousMap:
+            logging.info("Loading Realtionship")
 
     def LoadGlobalPropertiesFromXML(self, fileName):
         xmlFile = xml_to_objfy(fileName)
@@ -26,7 +38,7 @@ class Server(object):
             self.theGlobalProperties = GlobalProperties()
             self.theGlobalProperties.LoadFromXML(fileName, xmlFile)
         else:
-            raise NameError("GlobalProperties file should contain Properties tag")
+            raise NameError("GlobalProperties file should contain root Properties tag")
 
     def LoadPrototypeNamesFromXML(
 
