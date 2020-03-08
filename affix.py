@@ -33,9 +33,11 @@ class Affix(object):
         if is_prefix:
             forms_quantity = theEngineConfig.loc_forms_quantity
         if forms_quantity > 0:
+            default_localized_string = self.GetLocalizedName(self.name)
+            logging.info(f"Default localized string {default_localized_string} found for {self.name}")
             for localization_index in range(forms_quantity):
-                localized_string = theStringManager.GetStringByStringId(self.name, localization_index)
-                logging.log(f"localized string {localized_string} found for {self.name}")
+                localized_string = self.GetLocalizedName(self.name, str(localization_index))
+                logging.info(f"localized string {localized_string} found for {self.name}")
         modifications_str = read_from_xml_node(xmlNode, "modifications")
         modifications_str = modifications_str.split(";")
         for mod in modifications_str:
@@ -49,14 +51,13 @@ class Affix(object):
                     return 0
             return 1
 
-    def GetLocalizedName(self, localizationIndex):
-        local_name = theStringManager.GetStringByStringId(localizationIndex, 0)
+    def GetLocalizedName(self, name, localizationIndex: str = ""):
+        local_name = theWndStation.GetStringByStringId(name, localizationIndex)
         return local_name
 
 
 class AffixGroup(object):
-    def __init__(self, affixManager):
-        self.theAffixManager = affixManager  # ??? should it be here?
+    def __init__(self):
         self.affixGroupId = -1
         self.name = ""
         self.order = -1
@@ -64,13 +65,13 @@ class AffixGroup(object):
         self.affixIds = []
 
     def LoadFromXML(self, xmlFile, xmlNode):
-        localizationPath = theEngineConfig.loc_forms_quantity
         self.name = read_from_xml_node(xmlNode, "Name")
         self.order = int(read_from_xml_node(xmlNode, "order"))
         check_mono_xml_node(xmlNode, "Affix")
         for affix_node in xmlNode["Affix"]:
             affix = Affix(self)
             affix.LoadFromXML(xmlFile, affix_node)
+            self.affixIds.append(affix)
 
 
 class AffixManager(object):
@@ -78,13 +79,11 @@ class AffixManager(object):
         self.affixGroups = []
         self.affixes = []
         self.affix_map = {}
-        self.affixGroup_map = {}
         self.theResourceManager = theResourceManager
 
     def LoadFromXML(self, fileName):
         xmlFile = xml_to_objfy(fileName)
         if xmlFile.tag == "Affixes":
-
             for resource_node in xmlFile.iterchildren():
                 if resource_node.tag == "ForResource":
                     resource_name = read_from_xml_node(resource_node, "Name")
@@ -92,13 +91,13 @@ class AffixManager(object):
                     if resource_id == -1:
                         warn(f"Error loading affixes: invalid resource name: {resource_name}")
                     else:
-                        prefixes = child_from_xml_node(resource_node, "Prefixes")
-                        suffixes = child_from_xml_node(resource_node, "Suffixes")
+                        prefixes = child_from_xml_node(resource_node, "Prefixes", do_not_warn=True)
+                        suffixes = child_from_xml_node(resource_node, "Suffixes", do_not_warn=True)
 
                         if prefixes is not None:
                             check_mono_xml_node(prefixes, "AffixGroup")
                             for affix_group_node in child_from_xml_node(prefixes, "AffixGroup"):
-                                affix_group = AffixGroup(self)
+                                affix_group = AffixGroup()
                                 affix_group.affixType = 0
                                 affix_group.LoadFromXML(xmlFile, affix_group_node)
 
@@ -110,7 +109,7 @@ class AffixManager(object):
                         if suffixes is not None:
                             check_mono_xml_node(suffixes, "AffixGroup")
                             for affix_group_node in child_from_xml_node(suffixes, "AffixGroup"):
-                                affix_group = AffixGroup(self)
+                                affix_group = AffixGroup()
                                 affix_group.affixType = 1
                                 affix_group.LoadFromXML(xmlFile, affix_group_node)
 
@@ -119,6 +118,8 @@ class AffixManager(object):
                                 affix_group.targetResourceId = resource_id
 
                                 self.affixGroups.append(affix_group)
+                        if suffixes is None and prefixes is None:
+                            warn(f"Affixes node for resource {resource_name} has no Prefixes and no Suffixes!")
                 else:
                     warn(f"Unexpected node with name {resource_node.tag} found in Affixes xml!")
         else:
@@ -136,11 +137,11 @@ class AffixManager(object):
         else:
             return self.affixGroups[affixId]
 
-    def GetAffixGroupIdByName(self, affixName):
-        if not self.affixGroups:
-            return -1
-        else:
-            return self.affixGroup_map[affixName]
+    # def GetAffixGroupIdByName(self, affixName):
+    #     if not self.affixGroups:
+    #         return -1
+    #     else:
+    #         return self.affixGroup_map[affixName]
 
     def GetAffixGroupsByResourceId(self, resourceId):
         if not self.affixGroups:
@@ -177,27 +178,61 @@ class AffixManager(object):
             self.affixes.append(affix)
 
 
-class StringManager(object):
-    '''Replacement for m3d::ui::WndStation and m3d::CStrHash'''
+class WndStation(object):
+    '''UI manager containing GfxServer and UI strings repository '''
     def __init__(self):
-        self.string_dict = {}
+        self.strings = {}
+        self.allWindows = {}
+        self.allWindowsById = {}
 
-    def GetStringByStringId(self, str_id, localizationIndex: str = ""):
+    def GetStringByStringId(self, str_id, localizationIndex: str = ''):
         if len(localizationIndex) > 0:
             if localizationIndex in ["0", "1"]:
                 localizationIndex = f"_localizedform_{localizationIndex}"
             else:
                 warn("Invalid localization index, only empty, 0 and 1 available")
 
-        string = self.string_dict.get(f"{str_id}{localizationIndex}")
+        string = self.strings.get(f"{str_id}{localizationIndex}")
         if string is not None:
             return string
         else:
-            warn(f"String name given is not in String Dictionary: {string}")
+            warn(f"String name given is not in String Dictionary: {str_id}")
 
-    def LoadFromXML(self):
-        pass
+    def Create(self, stringsName: str, schemaName: str = ""):
+        # self.theGfxServer.Create()
+        # self.theGfxServer.SetSchema(schemaName)
+        self.CreateDefaultStrings()
+        self.LoadStrings(stringsName)
+        return 1
+
+    def CreateDefaultStrings(self):
+        self.strings["ok"] = "Ok"
+        self.strings["cancel"] = "Cancel"
+        self.strings["yes"] = "Yes"
+        self.strings["no"] = "No"
+        self.strings["error"] = "Error"
+
+    def LoadStrings(self, stringsName: str):
+        xmlFile = xml_to_objfy(stringsName)
+        if xmlFile.tag == "resource":
+            check_mono_xml_node(xmlFile, "string")
+            for xml_node in child_from_xml_node(xmlFile, "string"):
+                id_attr = read_from_xml_node(xml_node, "id")
+                value_attr = read_from_xml_node(xml_node, "value")
+                self.strings[id_attr] = value_attr
 
 
-theStringManager = StringManager()
-theStringManager.LoadFromXML()
+# class GfxServer(object):
+#     def __init__(self):
+#         raise NotImplementedError()
+
+#     def Create(self):
+#         raise NotImplementedError()
+
+#     def SetSchema(self):
+#         raise NotImplementedError()
+
+
+theWndStation = WndStation()
+theWndStation.Create(theEngineConfig.ui_edit_strings)
+theWndStation.LoadStrings(theEngineConfig.affixes_strings_path)

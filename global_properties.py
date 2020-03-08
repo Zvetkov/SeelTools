@@ -25,7 +25,7 @@ class Server(object):
         self.LoadGlobalPropertiesFromXML(self.engine_config.global_properties_path)
         self.theResourceManager = ResourceManager(self, 0, 0)
         self.theAffixManager = AffixManager(self.theResourceManager)
-        self.theAffixManager.LoadFromXML(self.engine_config.affixes_path)
+        self.theAffixManager.LoadFromXML(self.theGlobalProperties.pathToAffixes)
 
     def Load(self, a2: int = 0, startupMode=0, xmlFile=0, xmlNode=0, isContiniousMap=0, saveType=0):
         logging.info("Loading Server")
@@ -33,7 +33,7 @@ class Server(object):
         if not isContiniousMap:
             logging.info("Loading Realtionship")
             self.theRelationship = Relationship()
-            self.theRelationship.LoadFromXML(self.engine_config.relationship_path)
+            self.theRelationship.LoadFromXML(self.theGlobalProperties.pathToRelationship)
 
     def LoadGlobalPropertiesFromXML(self, fileName):
         xmlFile = xml_to_objfy(fileName)
@@ -233,10 +233,11 @@ class GlobalProperties(object):
         self.maxGroupingAngle = fullGroupingAngleDegree * 0.017453292 * 0.5  # pi/180 = 0.017453292
         self.timeOutForReAimGuns = float(read_from_xml_node(xmlNode["Weapon"], "TimeOutForReAimGuns"))
 
-        diffLevels = xmlNode["DifficultyLevels"]["Level"]
-        for diffLevel in diffLevels:
+        for diffLevel in xmlNode["DifficultyLevels"].iterchildren():
             if diffLevel.tag == "Level":
-                self.difficultyLevelCoeffs.append(CoeffsForDifficultyLevel().LoadFromXML(xmlFile, diffLevels))
+                coeffs = CoeffsForDifficultyLevel()
+                coeffs.LoadFromXML(xmlFile, diffLevel)
+                self.difficultyLevelCoeffs.append(coeffs)
             else:
                 warn(f"Unexpected tag {diffLevel.tag} in DifficultyLevels enumeration")
 

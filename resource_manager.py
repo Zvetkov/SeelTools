@@ -17,8 +17,8 @@ class Resource(object):
 
     def LoadFromXML(self, xmlFile, xmlNode):
         self.name = read_from_xml_node(xmlNode, "Name")
-        strGeomSize = read_from_xml_node(xmlNode, "geomsize")
-        if strGeomSize:  # if not empty and length > 0
+        strGeomSize = xmlNode.attrib.get("geomsize")
+        if strGeomSize is not None:
             self.geomSize_x = strGeomSize.split()[0]
             self.geomSize_y = strGeomSize.split()[1]
 

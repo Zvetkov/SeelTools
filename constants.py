@@ -107,6 +107,11 @@ OBJECT_DESCR_XML = os.path.join("data", "if", "strings",
                                 "objectdiz.xml")  # "data\if\strings\objectdiz.xml
 CLANDIZ_XML = os.path.join("data", "if", "strings",
                            "clansdiz.xml")  # data/if/strings/clansdiz.xml
+UI_EDIT_STRINGS_XML = os.path.join("data", "if", "strings",
+                                   "uieditstrings.xml")  # data/if/strings/uieditstrings.xml
+AFFIXES_STRINGS_XML = os.path.join("data", "if", "strings",
+                                   "affixesdiz.xml")  # "data\if\strings\affixesdiz.xml
+
 
 # if/ico folder
 MODEL_ICONS_XML = os.path.join("data", "if", "ico",

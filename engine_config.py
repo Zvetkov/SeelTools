@@ -1,12 +1,12 @@
-from constants import GLOBAL_PROP_XML, AFFIXES_XML, LOCALIZED_FORMS_QUANTITY, RELATIONSHIP_XML
+from constants import GLOBAL_PROP_XML, AFFIXES_XML, LOCALIZED_FORMS_QUANTITY, RELATIONSHIP_XML, UI_EDIT_STRINGS_XML, AFFIXES_STRINGS_XML
 
 
 class EngineConfig(object):
     def __init__(self):
         self.global_properties_path = GLOBAL_PROP_XML
-        self.affixes_path = AFFIXES_XML
         self.loc_forms_quantity = LOCALIZED_FORMS_QUANTITY
-        self.relationship_path = RELATIONSHIP_XML
+        self.ui_edit_strings = UI_EDIT_STRINGS_XML
+        self.affixes_strings_path = AFFIXES_STRINGS_XML
 
 
 theEngineConfig = EngineConfig()

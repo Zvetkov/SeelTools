@@ -138,15 +138,16 @@ def parse_config(xml_file):
         raise NameError("Config should contain config tag with config entries as attributes!")
 
 
-def read_from_xml_node(xml_node: objectify.ObjectifiedElement, attrib_name: str):
+def read_from_xml_node(xml_node: objectify.ObjectifiedElement, attrib_name: str, do_not_warn: bool = False):
     attribs = xml_node.attrib
     if attribs:
         prot = attribs.get(attrib_name)
         if prot is not None:
             return prot
         else:
-            warn(f"There is no attrib with the name: {attrib_name} "
-                 f"in a tag {xml_node.tag} of {xml_node.base}")
+            if not do_not_warn:
+                warn(f"There is no attrib with the name: {attrib_name} "
+                     f"in a tag {xml_node.tag} of {xml_node.base}")
             return None
 
     else:
@@ -162,11 +163,12 @@ def is_xml_node_contains(xml_node: objectify.ObjectifiedElement, attrib_name: st
         warn(f"Asking for attributes of node without attributes: {xml_node.base}")
 
 
-def child_from_xml_node(xml_node: objectify.ObjectifiedElement, child_name: str):
+def child_from_xml_node(xml_node: objectify.ObjectifiedElement, child_name: str, do_not_warn: bool = False):
     try:
         return xml_node[child_name]
     except AttributeError:
-        warn(f"There is no child with name {child_name} for xml node {xml_node.tag} in {xml_node.base}")
+        if not do_not_warn:
+            warn(f"There is no child with name {child_name} for xml node {xml_node.tag} in {xml_node.base}")
         return None
 
 
