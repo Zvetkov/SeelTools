@@ -1,9 +1,22 @@
+import logging
 from warnings import warn
 from lxml import objectify
 
 from resource_manager import ResourceManager
+from engine_config import theEngineConfig
 
 from em_parse import xml_to_objfy, read_from_xml_node, child_from_xml_node, check_mono_xml_node
+
+
+class ModificationInfo(object):
+    def __init__(self, mod: str):
+        mod_params = mod.split()
+        self.propertyName = mod_params[0]
+        self.lowCoeff = int(mod_params[1]) * 0.01  # percentage points
+        self.highCoeff = int(mod_params[2]) * 0.01  # percentage points
+
+    def ApplyToObj(self, a2: int, affix, obj):
+        raise NotImplementedError("ToDo: implement ModificatonInfo ApplyToObj!")
 
 
 class Affix(object):
@@ -12,6 +25,22 @@ class Affix(object):
         self.affixId = -1
         self.name = ""
         self.modifications = []
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        self.name = read_from_xml_node(xmlNode, "Name")
+        forms_quantity = 1
+        is_prefix = self.affixGroup.affixType == 0
+        if is_prefix:
+            forms_quantity = theEngineConfig.loc_forms_quantity
+        if forms_quantity > 0:
+            for localization_index in range(forms_quantity):
+                localized_string = theStringManager.GetStringByStringId(self.name, localization_index)
+                logging.log(f"localized string {localized_string} found for {self.name}")
+        modifications_str = read_from_xml_node(xmlNode, "modifications")
+        modifications_str = modifications_str.split(";")
+        for mod in modifications_str:
+            modification = ModificationInfo(mod.strip())
+            self.modifications.append(modification)
 
     def ApplyToObj(self, obj):
         if self.modifications:
@@ -26,8 +55,8 @@ class Affix(object):
 
 
 class AffixGroup(object):
-    def __init__(self, AffixManager):
-        self.theAffixManager = AffixManager  # ??? should it be here?
+    def __init__(self, affixManager):
+        self.theAffixManager = affixManager  # ??? should it be here?
         self.affixGroupId = -1
         self.name = ""
         self.order = -1
@@ -35,6 +64,7 @@ class AffixGroup(object):
         self.affixIds = []
 
     def LoadFromXML(self, xmlFile, xmlNode):
+        localizationPath = theEngineConfig.loc_forms_quantity
         self.name = read_from_xml_node(xmlNode, "Name")
         self.order = int(read_from_xml_node(xmlNode, "order"))
         check_mono_xml_node(xmlNode, "Affix")
@@ -165,7 +195,7 @@ class StringManager(object):
         else:
             warn(f"String name given is not in String Dictionary: {string}")
 
-    def LoadFromXML():
+    def LoadFromXML(self):
         pass
 
 

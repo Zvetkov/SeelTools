@@ -165,14 +165,14 @@ def is_xml_node_contains(xml_node: objectify.ObjectifiedElement, attrib_name: st
 def child_from_xml_node(xml_node: objectify.ObjectifiedElement, child_name: str):
     try:
         return xml_node[child_name]
-    except ValueError:
+    except AttributeError:
         warn(f"There is no child with name {child_name} for xml node {xml_node.tag} in {xml_node.base}")
         return None
 
 
 def check_mono_xml_node(xml_node: objectify.ObjectifiedElement, expected_child_name: str):
     children = xml_node.getchildren()
-    if len() > 0:
+    if len(children) > 0:
         for child in children:
             if child.tag != expected_child_name:
                 warn(f"Unexpected node with a name {child.tag} found in xml node: {xml_node.tag} in {xml_node.base}!")

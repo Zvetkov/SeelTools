@@ -1,11 +1,12 @@
-from warnings import warn
-from engine_config import EngineConfig
-from em_parse import xml_to_objfy, read_from_xml_node, parse_str_to_bool
 import logging
-from relationship import theRelationship
-from resource_manager import ResourceManager
+from warnings import warn
 
-theRelationship = Relationship()
+from em_parse import xml_to_objfy, read_from_xml_node, parse_str_to_bool
+from engine_config import EngineConfig
+from relationship import Relationship
+from resource_manager import ResourceManager
+from affix import AffixManager
+
 theResourceManager = None
 
 
@@ -20,17 +21,19 @@ class Kernel(object):
 class Server(object):
     def InitOnce(self, theKernel):
         '''Called by CMiracle3d::LoadLevel'''
-        engine_config = theKernel.engineConfig
-        self.LoadGlobalPropertiesFromXML(engine_config.global_properties_path)
+        self.engine_config = theKernel.engineConfig
+        self.LoadGlobalPropertiesFromXML(self.engine_config.global_properties_path)
         self.theResourceManager = ResourceManager(self, 0, 0)
         self.theAffixManager = AffixManager(self.theResourceManager)
-        self.theAffixManager.LoadFromXML(engine_config.affixes_path)
+        self.theAffixManager.LoadFromXML(self.engine_config.affixes_path)
 
-    def Load(self, a2: int = 0, startupMode, xmlFile, xmlNode, isContiniousMap=0, saveType=0):
+    def Load(self, a2: int = 0, startupMode=0, xmlFile=0, xmlNode=0, isContiniousMap=0, saveType=0):
         logging.info("Loading Server")
         self.saveType = saveType
         if not isContiniousMap:
             logging.info("Loading Realtionship")
+            self.theRelationship = Relationship()
+            self.theRelationship.LoadFromXML(self.engine_config.relationship_path)
 
     def LoadGlobalPropertiesFromXML(self, fileName):
         xmlFile = xml_to_objfy(fileName)
@@ -40,7 +43,8 @@ class Server(object):
         else:
             raise NameError("GlobalProperties file should contain root Properties tag")
 
-    def LoadPrototypeNamesFromXML(
+    def LoadPrototypeNamesFromXML():
+        raise NotImplementedError("LoadPrototypeNamesFromXML not implementet for Server")
 
 
 class GlobalProperties(object):

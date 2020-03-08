@@ -8,6 +8,8 @@ MAP_NAME = "r1m3"
 
 # CONFIG_PATH = os.path.join("data", "config.cfg")
 
+LOCALIZED_FORMS_QUANTITY = 2
+
 # CONFIG = parse_config(CONFIG_PATH)
 # CONFIG = {"pathToAffixes": "data/gamedata/Affixes.xml",
 #           "pathToDialogs": "data/if/diz/DialogsGlobal.xml",

@@ -1,5 +1,5 @@
 from warnings import warn
-from em_parse import read_from_xml_node
+from em_parse import read_from_xml_node, xml_to_objfy
 
 
 class Relationship(object):
@@ -23,22 +23,19 @@ class Relationship(object):
 
         self.toleranceList = [tol for tol in self.toleranceMap.values()]
 
-    # def LoadFromXmlFile(self, saveType, xmlFile):
-    #     pass
-
-    # def LoadDefaultFromXmlFile(self, saveType, xmlFile):
-    #     pass
-
-    def LoadFromXML(self, xmlFile, xmlNode, default: bool = True):
+    def LoadFromXML(self, xmlFile):
+        xmlNode = xml_to_objfy(xmlFile)
+        if xmlNode.tag != "relationship":
+            raise ValueError("Relationship XML should contain root tag 'relationship'!")
         self.tolerance = {}
-        self.minID = int(read_from_xml_node(xmlNode, "MinPlayerID")
-        self.maxID = int(read_from_xml_node(xmlNode, "MaxPlayerID")
+        self.minID = int(read_from_xml_node(xmlNode, "MinPlayerID"))
+        self.maxID = int(read_from_xml_node(xmlNode, "MaxPlayerID"))
         self.playerDefaultTolerance = read_from_xml_node(xmlNode, "DefaultTolerance")
 
         if self.playerDefaultTolerance is not None:
             self.playerDefaultTolerance = 0  # ??? why we discarding saved value?
 
-        defaultTolerance = int(read_from_xml_node(xmlNode, "DefaultTolerance")
+        defaultTolerance = int(read_from_xml_node(xmlNode, "DefaultTolerance"))
         tolerance = self.GetToleranceByName(defaultTolerance)
         self.defaultTolerance = tolerance
 
@@ -69,8 +66,10 @@ class Relationship(object):
             if rel.tag != "set":
                 warn(f"Invalid tag {rel.tag} in Relationship map {xmlNode.base}")
             else:
-                tolerance = self.GetToleranceByName(read_from_xml_node(rel, "tolerance")
-                self.SetTolerance(read_from_xml_node(rel, "forwhom"), read_from_xml_node(rel, "who"), tolerance)
+                tolerance = self.GetToleranceByName(read_from_xml_node(rel, "tolerance"))
+                for_whom = read_from_xml_node(rel, "forwhom")
+                who = read_from_xml_node(rel, "who")
+                self.SetTolerance(for_whom, who, tolerance)
 
     def GetToleranceByName(self, tol_name):
         tol = self.toleranceMap.get(tol_name)
