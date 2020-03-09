@@ -1,9 +1,11 @@
 import os
-from warnings import warn
 from lxml import etree, objectify
+from html import unescape
 
 from em_classes import ClanClass
 from constants import WORKING_DIRECTORY
+
+from logger import logger
 
 ENCODING = 'windows-1251'
 
@@ -74,7 +76,7 @@ def parse_belong_faction_to_dict(path: str):
 def xml_to_objfy(path_to_file: str):
     full_path = os.path.join(WORKING_DIRECTORY, path_to_file)
     with open(full_path, 'r', encoding=ENCODING) as f:
-        parser_recovery = objectify.makeparser(recover=True)
+        parser_recovery = objectify.makeparser(recover=True, encoding=ENCODING, collect_ids=False)
         objectify.enable_recursive_str()
         objfy = objectify.parse(f, parser_recovery)
     objectify_tree = objfy.getroot()
@@ -130,8 +132,8 @@ def parse_config(xml_file):
             if config.get(entry_name) is None:
                 config[entry_name] = config_entries[entry_name]
             else:
-                warn(f"There is a duplicate config value with name: {entry_name}, "
-                     f"will be using last available value for the name.")
+                logger.warning(f"There is a duplicate config value with name: {entry_name}, "
+                               f"will be using last available value for the name.")
             config[entry_name] = config_entries[entry_name]
         return config
     else:
@@ -146,12 +148,12 @@ def read_from_xml_node(xml_node: objectify.ObjectifiedElement, attrib_name: str,
             return prot
         else:
             if not do_not_warn:
-                warn(f"There is no attrib with the name: {attrib_name} "
-                     f"in a tag {xml_node.tag} of {xml_node.base}")
+                logger.warning(f"There is no attrib with the name: {attrib_name} "
+                               f"in a tag {xml_node.tag} of {xml_node.base}")
             return None
 
     else:
-        warn(f"Node {xml_node.tag} of {xml_node.base} is empty!")
+        logger.warning(f"Node {xml_node.tag} of {xml_node.base} is empty!")
         return None
 
 
@@ -160,7 +162,7 @@ def is_xml_node_contains(xml_node: objectify.ObjectifiedElement, attrib_name: st
     if attribs:
         return attribs.get(attrib_name) is not None
     else:
-        warn(f"Asking for attributes of node without attributes: {xml_node.base}")
+        logger.warning(f"Asking for attributes of node without attributes: {xml_node.base}")
 
 
 def child_from_xml_node(xml_node: objectify.ObjectifiedElement, child_name: str, do_not_warn: bool = False):
@@ -168,7 +170,7 @@ def child_from_xml_node(xml_node: objectify.ObjectifiedElement, child_name: str,
         return xml_node[child_name]
     except AttributeError:
         if not do_not_warn:
-            warn(f"There is no child with name {child_name} for xml node {xml_node.tag} in {xml_node.base}")
+            logger.warning(f"There is no child with name {child_name} for xml node {xml_node.tag} in {xml_node.base}")
         return None
 
 
@@ -177,10 +179,18 @@ def check_mono_xml_node(xml_node: objectify.ObjectifiedElement, expected_child_n
     if len(children) > 0:
         for child in children:
             if child.tag != expected_child_name:
-                warn(f"Unexpected node with a name {child.tag} found in xml node: {xml_node.tag} in {xml_node.base}!")
+                if child.tag == "comment":
+                    comment = unescape(str(etree.tostring(child)))
+                    path = xml_node.base.strip(f'file:/{WORKING_DIRECTORY}')
+                    logger.debug(f"Comment {comment}\n"
+                                 f"in node with tag: {xml_node.tag} "
+                                 f"in file: {path}.")
+                else:
+                    logger.warning(f"Unexpected node with a name {child.tag} found "
+                                   f"in xml node: {xml_node.tag} in {xml_node.base}!")
     else:
-        raise(f"Empty node with a name {child.tag} when expecting to find child nodes with a name {expected_child_name} "
-              f"in {xml_node.base}")
+        logger.error(f"Empty node with a name {child.tag} when expecting to find child "
+                     f"nodes with a name {expected_child_name} in {xml_node.base}")
 
 
 def parse_str_to_bool(string: str):

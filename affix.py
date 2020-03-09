@@ -1,6 +1,6 @@
-import logging
-from warnings import warn
 from lxml import objectify
+
+from logger import logger
 
 from resource_manager import ResourceManager
 from engine_config import theEngineConfig
@@ -26,7 +26,7 @@ class Affix(object):
         self.name = ""
         self.modifications = []
 
-    def LoadFromXML(self, xmlFile, xmlNode):
+    def LoadFromXML(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
         self.name = read_from_xml_node(xmlNode, "Name")
         forms_quantity = 1
         is_prefix = self.affixGroup.affixType == 0
@@ -34,10 +34,10 @@ class Affix(object):
             forms_quantity = theEngineConfig.loc_forms_quantity
         if forms_quantity > 0:
             default_localized_string = self.GetLocalizedName(self.name)
-            logging.info(f"Default localized string {default_localized_string} found for {self.name}")
+            logger.debug(f"Default localized string {default_localized_string} found for {self.name}")
             for localization_index in range(forms_quantity):
                 localized_string = self.GetLocalizedName(self.name, str(localization_index))
-                logging.info(f"localized string {localized_string} found for {self.name}")
+                logger.debug(f"localized string {localized_string} found for {self.name}")
         modifications_str = read_from_xml_node(xmlNode, "modifications")
         modifications_str = modifications_str.split(";")
         for mod in modifications_str:
@@ -57,7 +57,8 @@ class Affix(object):
 
 
 class AffixGroup(object):
-    def __init__(self):
+    def __init__(self, affix_manager):
+        self.theAffixManager = affix_manager
         self.affixGroupId = -1
         self.name = ""
         self.order = -1
@@ -72,6 +73,7 @@ class AffixGroup(object):
             affix = Affix(self)
             affix.LoadFromXML(xmlFile, affix_node)
             self.affixIds.append(affix)
+            self.theAffixManager.AddAffix(affix)
 
 
 class AffixManager(object):
@@ -84,44 +86,42 @@ class AffixManager(object):
     def LoadFromXML(self, fileName):
         xmlFile = xml_to_objfy(fileName)
         if xmlFile.tag == "Affixes":
-            for resource_node in xmlFile.iterchildren():
-                if resource_node.tag == "ForResource":
-                    resource_name = read_from_xml_node(resource_node, "Name")
-                    resource_id = self.theResourceManager.GetResourceId(resource_name)
-                    if resource_id == -1:
-                        warn(f"Error loading affixes: invalid resource name: {resource_name}")
-                    else:
-                        prefixes = child_from_xml_node(resource_node, "Prefixes", do_not_warn=True)
-                        suffixes = child_from_xml_node(resource_node, "Suffixes", do_not_warn=True)
-
-                        if prefixes is not None:
-                            check_mono_xml_node(prefixes, "AffixGroup")
-                            for affix_group_node in child_from_xml_node(prefixes, "AffixGroup"):
-                                affix_group = AffixGroup()
-                                affix_group.affixType = 0
-                                affix_group.LoadFromXML(xmlFile, affix_group_node)
-
-                                affix_groups_list_size = len(self.affixGroups)
-                                affix_group.affixGroupId = affix_groups_list_size
-                                affix_group.targetResourceId = resource_id
-
-                                self.affixGroups.append(affix_group)
-                        if suffixes is not None:
-                            check_mono_xml_node(suffixes, "AffixGroup")
-                            for affix_group_node in child_from_xml_node(suffixes, "AffixGroup"):
-                                affix_group = AffixGroup()
-                                affix_group.affixType = 1
-                                affix_group.LoadFromXML(xmlFile, affix_group_node)
-
-                                affix_groups_list_size = len(self.affixGroups)
-                                affix_group.affixGroupId = affix_groups_list_size
-                                affix_group.targetResourceId = resource_id
-
-                                self.affixGroups.append(affix_group)
-                        if suffixes is None and prefixes is None:
-                            warn(f"Affixes node for resource {resource_name} has no Prefixes and no Suffixes!")
+            check_mono_xml_node(xmlFile, "ForResource")
+            for resource_node in xmlFile["ForResource"]:
+                resource_name = read_from_xml_node(resource_node, "Name")
+                resource_id = self.theResourceManager.GetResourceId(resource_name)
+                if resource_id == -1:
+                    logger.warning(f"Error loading affixes: invalid resource name: {resource_name}")
                 else:
-                    warn(f"Unexpected node with name {resource_node.tag} found in Affixes xml!")
+                    prefixes = child_from_xml_node(resource_node, "Prefixes", do_not_warn=True)
+                    suffixes = child_from_xml_node(resource_node, "Suffixes", do_not_warn=True)
+
+                    if prefixes is not None:
+                        check_mono_xml_node(prefixes, "AffixGroup")
+                        for affix_group_node in child_from_xml_node(prefixes, "AffixGroup"):
+                            affix_group = AffixGroup(self)
+                            affix_group.affixType = 0
+                            affix_group.LoadFromXML(xmlFile, affix_group_node)
+
+                            affix_groups_list_size = len(self.affixGroups)
+                            affix_group.affixGroupId = affix_groups_list_size
+                            affix_group.targetResourceId = resource_id
+
+                            self.affixGroups.append(affix_group)
+                    if suffixes is not None:
+                        check_mono_xml_node(suffixes, "AffixGroup")
+                        for affix_group_node in child_from_xml_node(suffixes, "AffixGroup"):
+                            affix_group = AffixGroup(self)
+                            affix_group.affixType = 1
+                            affix_group.LoadFromXML(xmlFile, affix_group_node)
+
+                            affix_groups_list_size = len(self.affixGroups)
+                            affix_group.affixGroupId = affix_groups_list_size
+                            affix_group.targetResourceId = resource_id
+
+                            self.affixGroups.append(affix_group)
+                    if suffixes is None and prefixes is None:
+                        logger.warning(f"Affixes node for resource {resource_name} has no Prefixes and no Suffixes!")
         else:
             raise NameError("Affixes file should contain root Affixes tag")
 
@@ -151,7 +151,7 @@ class AffixManager(object):
                 valid_afx_gr = [afx_gr for afx_gr in self.affixGroups
                                 if self.theResourceManager.ResourceIsKindOf(resourceId, afx_gr.targetResourceId)]
                 if len(valid_afx_gr) > 1:
-                    warn(f"There is more than one available affixGroup for resource id {resourceId}!")
+                    logger.warning(f"There is more than one available affixGroup for resource id {resourceId}!")
                 return valid_afx_gr[0]
 
             else:
@@ -162,20 +162,22 @@ class AffixManager(object):
             return -1
         else:
             afx = self.affix_map[affixName]
-            if self.theResourceManager.ResourceIsKindOf(resourceId, afx.AffixGroup.targerResourceId):
+            if self.theResourceManager.ResourceIsKindOf(resourceId, afx.affixGroup.targetResourceId):
                 return afx.affixId
             else:
-                raise TypeError(f"Affix {affixName} has unexpected resource type {afx.AffixGroup.targerResourceId}, "
+                raise TypeError(f"Affix {affixName} has unexpected resource type {afx.affixGroup.targetResourceId}, "
                                 f"compared to given resourceId {resourceId}")
 
     def GetNumAffixes(self):
         return len(self.affixes)
 
     def AddAffix(self, affix: Affix):
-        if self.GetAffixByNameAndResource(self, affix.name, self.targetResourceId) != -1:
-            warn(f"Affix {affix.name} already exists for resource!")
+        if self.GetAffixIdByNameAndResource(affix.name, affix.affixGroup.targetResourceId) != -1:
+            logger.warning(f"Affix {affix.name} already exists for resource!")
         else:
+            affix.affixId = len(self.affixes)
             self.affixes.append(affix)
+            self.affix_map[affix.name] = affix
 
 
 class WndStation(object):
@@ -190,13 +192,13 @@ class WndStation(object):
             if localizationIndex in ["0", "1"]:
                 localizationIndex = f"_localizedform_{localizationIndex}"
             else:
-                warn("Invalid localization index, only empty, 0 and 1 available")
+                logger.warning("Invalid localization index, only empty, 0 and 1 available")
 
         string = self.strings.get(f"{str_id}{localizationIndex}")
         if string is not None:
             return string
         else:
-            warn(f"String name given is not in String Dictionary: {str_id}")
+            logger.warning(f"String name given is not in String Dictionary: {str_id}")
 
     def Create(self, stringsName: str, schemaName: str = ""):
         # self.theGfxServer.Create()

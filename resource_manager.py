@@ -1,6 +1,6 @@
-from warnings import warn
+from em_parse import xml_to_objfy, read_from_xml_node, check_mono_xml_node
 
-from em_parse import xml_to_objfy, read_from_xml_node
+from logger import logger
 
 
 class Resource(object):
@@ -25,9 +25,13 @@ class Resource(object):
     def IsKindOf(self, theResourceManager, resourceId):
         resourceVector = theResourceManager.resourceVector
         resourceVectorSize = len(resourceVector)
+        if self.id == -1:
+            return False
+        if self.id == resourceId:
+            return True
         if resourceVector:
             if self.id < 0 or self.id > resourceVectorSize:
-                warn(f"Resource id is {self.id}, resourceVector size is {resourceVectorSize}")
+                logger.warning(f"Resource id given is {self.id}, resourceVector size is {resourceVectorSize}")
                 return False
             elif self.parentId == -1:
                 return False
@@ -36,7 +40,7 @@ class Resource(object):
             else:
                 return False
         else:
-            warn("theResourceManager doesn't have a resourceVector!")
+            logger.error("theResourceManager doesn't have a resourceVector!")
             return False
 
 
@@ -51,11 +55,9 @@ class ResourceManager(object):
     def _LoadFromXmlFile(self, some_int, fileName):
         resourceTypesXmlNode = xml_to_objfy(fileName)
         if resourceTypesXmlNode.tag == "ResourceTypes":
-            for resource in resourceTypesXmlNode.iterchildren():
-                if resource.tag == "Type":
-                    self._ReadResourceFromXml(fileName, resource, 0)
-                else:
-                    warn(f"Unexpected tag {resource.tag} in ResourceTypes XML!")
+            check_mono_xml_node(resourceTypesXmlNode, "Type")
+            for resource in resourceTypesXmlNode["Type"]:
+                self._ReadResourceFromXml(fileName, resource, 0)
         else:
             raise FileNotFoundError("Can't load ResourceTypes from XML!")
 
@@ -63,23 +65,19 @@ class ResourceManager(object):
         vehiclePartTypesXmlNode = xml_to_objfy(fileName)
         if vehiclePartTypesXmlNode.tag == "VehiclePartTypes":
             if len(vehiclePartTypesXmlNode.getchildren()) > 1:
-                for vehicle_part in vehiclePartTypesXmlNode.iterchildren():
-                    if vehicle_part.tag == "VehiclePart":
-                        vehiclePartName = read_from_xml_node(vehicle_part, "PartName")
-                        resourceName = read_from_xml_node(vehicle_part, "ResourceName")
-                        if self.GetResourceId(resourceName) == -1:
-                            warn((f"ResourceManager: warning - invalid resource name '{resourceName}' "
-                                  f"is matched to vehicle part type '{vehiclePartName}'"))
-                        else:
-                            if self.vehiclePart2Resource.get(vehiclePartName) is None:
-                                self.vehiclePart2Resource[vehiclePartName] = resourceName
-                            else:
-                                raise NameError(f"ResourceManager: Can't add vehicle part with name {vehiclePartName} "
-                                                f"to vehiclePart2Resource map. Already exist mapping with this name.")
-                    elif vehicle_part.tag == "comment":
-                        warn(f"Encountered commented tag in VehiclePartTypes XML.")
+                check_mono_xml_node(vehiclePartTypesXmlNode, "VehiclePart")
+                for vehicle_part in vehiclePartTypesXmlNode["VehiclePart"]:
+                    vehiclePartName = read_from_xml_node(vehicle_part, "PartName")
+                    resourceName = read_from_xml_node(vehicle_part, "ResourceName")
+                    if self.GetResourceId(resourceName) == -1:
+                        logger.warning(f"ResourceManager: warning - invalid resource name '{resourceName}' "
+                                       f"is matched to vehicle part type '{vehiclePartName}'")
                     else:
-                        warn(f"Foreign element {vehicle_part.tag} in VehiclePartTypes XML!")
+                        if self.vehiclePart2Resource.get(vehiclePartName) is None:
+                            self.vehiclePart2Resource[vehiclePartName] = resourceName
+                        else:
+                            raise NameError(f"ResourceManager: Can't add vehicle part with name {vehiclePartName} "
+                                            f"to vehiclePart2Resource map. Already exist mapping with this name.")
         else:
             raise FileNotFoundError("Can't load VehiclePartTypes from XML!")
 
@@ -101,20 +99,16 @@ class ResourceManager(object):
         if self.resourceMap.get(resource.name) is None:
             self.resourceMap[resource.name] = resource
         else:
-            warn(f"Error: duplicate resource name: {resource.name}")
+            logger.warning(f"Error: duplicate resource name: {resource.name}")
 
         resourceVectorSize = len(self.resourceVector)
         resource.id = resourceVectorSize
         self.resourceVector.append(resource)
 
         if len(xmlNode.getchildren()) > 1:
-            for child in xmlNode.iterchildren():
-                if child.tag == "Type":
-                    self._ReadResourceFromXml(xmlFile, child, resource)
-                elif child.tag == "comment":
-                    warn(f"Encountered commented tag in ResourceTypes XML.")
-                else:
-                    warn(f"Foreign tag {child.tag} in ResourceTypes XML!")
+            check_mono_xml_node(xmlNode, "Type")
+            for child in xmlNode["Type"]:
+                self._ReadResourceFromXml(xmlFile, child, resource)
 
     def GetResource(self, resourceId):
         return self.resourceVector[resourceId]
@@ -137,7 +131,7 @@ class ResourceManager(object):
         if res_name is not None:
             return res_name
         else:
-            warn(f"ResourceManager: can't find ResourceName for given VehiclePartName : {vehiclePartName}")
+            logger.warning(f"ResourceManager: can't find ResourceName for given VehiclePartName : {vehiclePartName}")
 
     def GetResourceDescendants(self, resourceId):
         return [resource for resource in self.resourceVector if resource.IsKindOf(self, resourceId)]

@@ -1,6 +1,4 @@
-# import os
-from warnings import warn
-# from lxml import objectify
+from logger import logger
 
 
 class Object(object):
@@ -15,7 +13,7 @@ class Obj(Object):
     '''Base class with belong'''
     def __init__(self, name: str, prototype: str,
                  belong: int = 1000, flags: int = 17,  # what is this magic 17 ???
-                 parent_repository: GeomRepository = None):
+                 parent_repository=None):
         Object.__init__(self, name, prototype)
         self.belong = belong
         self.flags = flags
@@ -50,7 +48,7 @@ class Player(Obj):
                  money: int,
                  model_name: str,  # xmlNode, "ModelFile"
                  skin_number: int = 0, cfg_number: int = 0,
-                 vehicle: Vehicle = None):
+                 vehicle=None):
         Obj.__init__(self, name, prototype)
         self.money = money
         self.vehicle = vehicle
@@ -177,7 +175,7 @@ class Trigger(Obj):
     def __init__(self, name: str, prototype: str, belong: int,
                  position: str, rotation: str, skin: int, logo: int):
         Obj.__init__(self, name, prototype, belong)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass
 
 

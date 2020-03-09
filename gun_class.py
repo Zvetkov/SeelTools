@@ -1,5 +1,5 @@
 from base_classes import VehiclePart
-from warnings import warn
+from logger import logger
 
 
 class Gun(VehiclePart):
@@ -7,7 +7,7 @@ class Gun(VehiclePart):
                  position: str, rotation: str, skin: int, logo: int):
         VehiclePart.__init__(self, name, prototype, belong,
                              position, rotation, skin, logo)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass
 
 
@@ -16,7 +16,7 @@ class BulletLauncher(Gun):
                  position: str, rotation: str, skin: int, logo: int):
         Gun.__init__(self, name, prototype, belong,
                      position, rotation, skin, logo)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass
 
 
@@ -25,7 +25,7 @@ class LocationPusher(Gun):
                  position: str, rotation: str, skin: int, logo: int):
         Gun.__init__(self, name, prototype, belong,
                      position, rotation, skin, logo)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass
 
 
@@ -34,7 +34,7 @@ class MinePusher(Gun):
                  position: str, rotation: str, skin: int, logo: int):
         Gun.__init__(self, name, prototype, belong,
                      position, rotation, skin, logo)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass
 
 
@@ -43,7 +43,7 @@ class Mortar(Gun):
                  position: str, rotation: str, skin: int, logo: int):
         Gun.__init__(self, name, prototype, belong,
                      position, rotation, skin, logo)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass
 
 
@@ -52,7 +52,7 @@ class MortarVolleyLauncher(Mortar):
                  position: str, rotation: str, skin: int, logo: int):
         Mortar.__init__(self, name, prototype, belong,
                         position, rotation, skin, logo)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass
 
 
@@ -61,7 +61,7 @@ class PlasmaBunchLauncher(Gun):
                  position: str, rotation: str, skin: int, logo: int):
         Gun.__init__(self, name, prototype, belong,
                      position, rotation, skin, logo)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass
 
 
@@ -70,7 +70,7 @@ class RocketLauncher(Gun):
                  position: str, rotation: str, skin: int, logo: int):
         Gun.__init__(self, name, prototype, belong,
                      position, rotation, skin, logo)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass
 
 
@@ -79,7 +79,7 @@ class RocketVolleyLauncher(RocketLauncher):
                  position: str, rotation: str, skin: int, logo: int):
         RocketLauncher.__init__(self, name, prototype, belong,
                                 position, rotation, skin, logo)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass
 
 
@@ -88,7 +88,7 @@ class ThunderboltLauncher(Gun):
                  position: str, rotation: str, skin: int, logo: int):
         Gun.__init__(self, name, prototype, belong,
                      position, rotation, skin, logo)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass
 
 
@@ -97,5 +97,5 @@ class TurboAcceleratorPusher(Gun):
                  position: str, rotation: str, skin: int, logo: int):
         Gun.__init__(self, name, prototype, belong,
                      position, rotation, skin, logo)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass

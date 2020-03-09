@@ -1,8 +1,9 @@
 import sys
 
-from warnings import warn
 from lxml import objectify
 from timeit import default_timer as timer
+
+from logger import logger
 
 from em_parse import (xml_to_dict, xml_to_objfy, objfy_to_dict,
                       parse_clans_to_native, parse_belong_faction_to_dict,
@@ -24,13 +25,15 @@ from constants import (GLOBAL_PROP_XML, GAME_OBJECTS_XML, DYNAMIC_SCENE_XML,
                        CLANDIZ_XML, RELATIONSHIP_XML, BELONG_LOGO_XML, LOGOS_GAM,
                        DIALOGS_GLOBAL_XML, RADIO_SOUNDS_XML,
                        TOWNS_XML, VEHICLE_PARTS_XML, VEHICLES_XML, GUNS_XML_DICT,
-                       PREFABS_XML, BREAKABLE_OBJ_XML, MISC_XML, BOSSES_XML)
+                       PREFABS_XML, BREAKABLE_OBJ_XML, MISC_XML, BOSSES_XML,
+                       AFFIXES_STRINGS_XML, WORKING_DIRECTORY)
 
 from global_properties import theServer
 
 
 def main():
     start = timer()
+    logger.info("Main module started")
 
     server = theServer
 
@@ -204,7 +207,7 @@ def parse_dynamicscene(objfy_tree: objectify.ObjectifiedElement,
         elif obj.tag in villages:
             tree["villages"][obj.tag] = TownClass(obj, dicts)
         elif obj.tag == "settlementTeam":
-            warn("settlementTeam element found in root")
+            logger.warning("settlementTeam element found in root")
             tree["suspect_error"].append(obj)
         else:
             tree["unsorted"].append(obj)

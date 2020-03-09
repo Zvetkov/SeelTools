@@ -1,5 +1,5 @@
 from base_classes import PhysicObj
-from warnings import warn
+from logger import logger
 
 
 class SimplePhysicObj(PhysicObj):
@@ -8,7 +8,7 @@ class SimplePhysicObj(PhysicObj):
                  position: str, rotation: str, skin: int):
         PhysicObj.__init__(self, name, prototype, belong,
                            position, rotation, skin)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass
 
 
@@ -18,7 +18,7 @@ class Settlement(SimplePhysicObj):
                  position: str, rotation: str, skin: int):
         SimplePhysicObj.__init__(self, name, prototype, belong,
                                  position, rotation, skin)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass
 
 
@@ -28,7 +28,7 @@ class Town(Settlement):
                  position: str, rotation: str, skin: int):
         Settlement.__init__(self, name, prototype, belong,
                             position, rotation, skin)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass
 
 
@@ -38,7 +38,7 @@ class Lair(Settlement):
                  position: str, rotation: str, skin: int):
         Settlement.__init__(self, name, prototype, belong,
                             position, rotation, skin)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass
 
 
@@ -48,7 +48,7 @@ class InfectionLair(Settlement):
                  position: str, rotation: str, skin: int):
         Settlement.__init__(self, name, prototype, belong,
                             position, rotation, skin)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass
 
 
@@ -58,7 +58,7 @@ class ObjPrefab(SimplePhysicObj):
                  position: str, rotation: str, skin: int):
         SimplePhysicObj.__init__(self, name, prototype, belong,
                                  position, rotation, skin)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass
 
 
@@ -68,7 +68,7 @@ class Barricade(ObjPrefab):
                  position: str, rotation: str, skin: int):
         ObjPrefab.__init__(self, name, prototype, belong,
                            position, rotation, skin)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass
 
 
@@ -78,7 +78,7 @@ class Shell(SimplePhysicObj):
                  position: str, rotation: str, skin: int):
         SimplePhysicObj.__init__(self, name, prototype, belong,
                                  position, rotation, skin)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass
 
 
@@ -88,7 +88,7 @@ class Bullet(Shell):
                  position: str, rotation: str, skin: int):
         Shell.__init__(self, name, prototype, belong,
                        position, rotation, skin)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass
 
 
@@ -98,7 +98,7 @@ class MortarShell(Shell):
                  position: str, rotation: str, skin: int):
         Shell.__init__(self, name, prototype, belong,
                        position, rotation, skin)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass
 
 
@@ -108,7 +108,7 @@ class PlasmaBunch(Shell):
                  position: str, rotation: str, skin: int):
         Shell.__init__(self, name, prototype, belong,
                        position, rotation, skin)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass
 
 
@@ -118,7 +118,7 @@ class Rocket(Shell):
                  position: str, rotation: str, skin: int):
         Shell.__init__(self, name, prototype, belong,
                        position, rotation, skin)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass
 
 
@@ -128,7 +128,7 @@ class Mine(Rocket):
                  position: str, rotation: str, skin: int):
         Shell.__init__(self, name, prototype, belong,
                        position, rotation, skin)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass
 
 
@@ -138,7 +138,7 @@ class ComplexPhysicObj(PhysicObj):
                  position: str, rotation: str, skin: int):
         PhysicObj.__init__(self, name, prototype, belong,
                            position, rotation, skin)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass
 
 
@@ -163,7 +163,7 @@ class Boss04(ComplexPhysicObj):
                  position: str, rotation: str, skin: int):
         ComplexPhysicObj.__init__(self, name, prototype, belong,
                                   position, rotation, skin)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass
 
 
@@ -173,7 +173,7 @@ class Boss04Drone(ComplexPhysicObj):
                  position: str, rotation: str, skin: int):
         ComplexPhysicObj.__init__(self, name, prototype, belong,
                                   position, rotation, skin)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass
 
 
@@ -183,7 +183,7 @@ class Boss04Station(ComplexPhysicObj):
                  position: str, rotation: str, skin: int):
         ComplexPhysicObj.__init__(self, name, prototype, belong,
                                   position, rotation, skin)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass
 
 
@@ -193,7 +193,7 @@ class AnimatedComplexPhysicObj(ComplexPhysicObj):
                  position: str, rotation: str, skin: int):
         ComplexPhysicObj.__init__(self, name, prototype, belong,
                                   position, rotation, skin)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass
 
 
@@ -203,7 +203,7 @@ class Boss03(AnimatedComplexPhysicObj):
                  position: str, rotation: str, skin: int):
         AnimatedComplexPhysicObj.__init__(self, name, prototype, belong,
                                           position, rotation, skin)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass
 
 
@@ -213,5 +213,5 @@ class StaticAutoGun(ComplexPhysicObj):
                  position: str, rotation: str, skin: int):
         ComplexPhysicObj.__init__(self, name, prototype, belong,
                                   position, rotation, skin)
-        warn(f"Not implemented class {self.__name__}")
+        logger.warning(f"Not implemented class {self.__name__}")
         pass

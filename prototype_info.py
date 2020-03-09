@@ -1,8 +1,9 @@
-from warnings import warn
 from lxml import objectify
 
 from resource_manager import theResourceManager
 from em_parse import read_from_xml_node, parse_str_to_bool
+
+from logger import logger
 
 
 class PrototypeInfo(object):
@@ -36,7 +37,7 @@ class PrototypeInfo(object):
             self.bIsAbstract = parse_str_to_bool(read_from_xml_node(xmlNode, "Abstract"))
             self.parentPrototypeName = read_from_xml_node(xmlNode, "ParentPrototype")
         else:
-            warn(f"XML Node with unexpected tag {xmlNode.tag} given for PrototypeInfo loading")
+            logger.warning(f"XML Node with unexpected tag {xmlNode.tag} given for PrototypeInfo loading")
 
 
 class AffixGeneratorPrototypeInfo(PrototypeInfo):
@@ -60,7 +61,7 @@ class AffixGeneratorPrototypeInfo(PrototypeInfo):
     class ModificationInfo(object):
         def __init__(self):
             self.pass_id = 0
-            # raise NotImplementedError('Not implemmented ModificationInfo initiatilization') 
+            # raise NotImplementedError('Not implemmented ModificationInfo initiatilization')
 
 
 class somethingPrototypeInfo(PrototypeInfo):

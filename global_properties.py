@@ -1,11 +1,10 @@
-import logging
-from warnings import warn
-
 from em_parse import xml_to_objfy, read_from_xml_node, parse_str_to_bool
 from engine_config import EngineConfig
 from relationship import Relationship
 from resource_manager import ResourceManager
+from prototype_manager import PrototypeManager
 from affix import AffixManager
+from logger import logger
 
 theResourceManager = None
 
@@ -28,12 +27,45 @@ class Server(object):
         self.theAffixManager.LoadFromXML(self.theGlobalProperties.pathToAffixes)
 
     def Load(self, a2: int = 0, startupMode=0, xmlFile=0, xmlNode=0, isContiniousMap=0, saveType=0):
-        logging.info("Loading Server")
+        logger.info("Loading Server")
         self.saveType = saveType
         if not isContiniousMap:
-            logging.info("Loading Realtionship")
+            logger.info("Loading Realtionship")
             self.theRelationship = Relationship()
-            self.theRelationship.LoadFromXML(self.theGlobalProperties.pathToRelationship)
+            self.theRelationship.LoadFromXML(self.theGlobalProperties.pathToRelationship, copy_to_default=True)
+        logger.info("Skipping loading SoilProps")
+        logger.info("Skipping loading ExternalPaths")
+        logger.info("Skipping loading PlayerPassMap")
+        if not isContiniousMap:
+            logger.info("Skipping loading GameObjects")
+            self.thePrototypeManager = PrototypeManager()  # (CStr)
+            self.thePrototypeManager.LoadFromXMLFile(self.theGlobalProperties.temppath)
+            # logger.info("Initializing VehicleGeneratorInfoCache")
+            # self.theVehiclesGeneratorInfoCache = VehiclesGeneratorInfoCache()
+            # self.theVehiclesGeneratorInfoCache.EnsureInitialized()
+            # logger.info("Refreshing GameObjects")
+            # self.thePrototypeManager.RefreshFromXmlFile()  # (CStr)
+            # logger.info("Loading QuestStates")
+            # questStatesFileName = self.level.GetFullPathNameA(self.level, allowed_classes, self.level.questStatesFileName)
+            # self.theQuestStateManager = QuestStateManager()
+            # self.theQuestStateManager.LoadFromXML(a2, self, questStatesFileName)
+            # logger.info("QuestStates loaded")
+            # logger.info("Loading DynamicScene")
+            # self.theDynamicScene = DynamicScene()
+            # if xmlNode:
+            #     self.theDynamicScene.LoadSceneFromXML(xmlFile, xmlNode, allowed_classes)
+            # else:
+            #     allowedClasses = []
+            #     level_file_name = self.level.GetFullPathNameA(self.level, allowed_classes, self.level.dsSrvName)
+            #     self.theDynamicScene.LoadSceneFromXML(self.pDynamicScene, level_file_name, allowedClasses)
+            # logger.info("DynamicScene loaded")
+
+                
+
+
+            
+
+
 
     def LoadGlobalPropertiesFromXML(self, fileName):
         xmlFile = xml_to_objfy(fileName)
@@ -127,7 +159,7 @@ class GlobalProperties(object):
 
         self.gameTimeMult = float(read_from_xml_node(xmlNode["Mult"], "GameTimeMult"))
         if self.gameTimeMult <= 0.000099999997:
-            warn("GameTimeMult is too low! Set to 0.0001 or higher")
+            logger.warning("GameTimeMult is too low! Set to 0.0001 or higher")
         self.vehicleAiFiringRangeMult = read_from_xml_node(xmlNode["Mult"], "VehicleAIFiringRangeMult")
 
         self.maxBurstTime = int(read_from_xml_node(xmlNode["BurstParameters"], "MaxBurstTime"))
@@ -137,7 +169,7 @@ class GlobalProperties(object):
         self.probabilityToGenerateDynamicQuestInTown = \
             float(read_from_xml_node(xmlNode["DynamicQuest"], "ProbabilityToGenerateDynamicQuestInTown"))
         if self.probabilityToGenerateDynamicQuestInTown < 0.0 or self.probabilityToGenerateDynamicQuestInTown > 1.0:
-            warn("ProbabilityToGenerateDynamicQuestInTown value is invalid! Set between 0.0 and 1.0")
+            logger.warning("ProbabilityToGenerateDynamicQuestInTown value is invalid! Set between 0.0 and 1.0")
 
         self.pathToRelationship = read_from_xml_node(xmlNode["CommonPaths"], "Relationship")
         self.pathToGameObjects = read_from_xml_node(xmlNode["CommonPaths"], "GameObjects")
@@ -150,8 +182,9 @@ class GlobalProperties(object):
         self.distToTurnOffPhysics = float(read_from_xml_node(xmlNode["Physics"], "DistToTurnOffPhysics"))
         self.physicStepTime = float(read_from_xml_node(xmlNode["Physics"], "PhysicStepTime"))
         if self.distToTurnOffPhysics - 10.0 <= self.distToTurnOnPhysics:
-            warn("Differenece between distToTurnOffPhysics and distToTurnOnPhysics is too low! "
-                 "Set to be at least 10.0 appart")
+            logger.error(f"Differenece between distToTurnOffPhysics {self.distToTurnOffPhysics} and "
+                         f"distToTurnOnPhysics {self.distToTurnOnPhysics} is too low: ! "
+                         "Set to be at least 10.0 appart")
 
         self.barmenModelName = read_from_xml_node(xmlNode["Npc"], "BarmenModelName")
 
@@ -182,7 +215,7 @@ class GlobalProperties(object):
             float(read_from_xml_node(xmlNode["CameraController"], "ShakeDamageToDurationCoeff"))
         self.maxShakeDamage = float(read_from_xml_node(xmlNode["CameraController"], "MaxShakeDamage"))
         if self.maxShakeDamage <= 1.0:
-            warn("maxShakeDamage should be more than 1.0!")
+            logger.warning("maxShakeDamage should be more than 1.0!")
 
         self.distanceFromPlayerToMoveout = int(read_from_xml_node(xmlNode["Caravans"], "DistanceFromPlayerToMoveout"))
 
@@ -239,7 +272,7 @@ class GlobalProperties(object):
                 coeffs.LoadFromXML(xmlFile, diffLevel)
                 self.difficultyLevelCoeffs.append(coeffs)
             else:
-                warn(f"Unexpected tag {diffLevel.tag} in DifficultyLevels enumeration")
+                logger.warning(f"Unexpected tag {diffLevel.tag} in DifficultyLevels enumeration")
 
         self.property2PriceCoeff = float(read_from_xml_node(xmlNode["Price"], "Property2PriceCoeff"))
         if not self.difficultyLevelCoeffs:
@@ -257,11 +290,12 @@ class CoeffsForDifficultyLevel(object):
         self.damageCoeffForPlayerFromEnemies = float(read_from_xml_node(xmlNode, "EnemyWeaponCoeff"))
         self.enemiesShootingDelay = float(read_from_xml_node(xmlNode, "EnemyShootingDelay"))
         if self.damageCoeffForPlayerFromEnemies < 0.0:
-            warn("Invalid EnemyWeaponCoeff! Should be a positive float number!")
+            logger.warning("Invalid EnemyWeaponCoeff! Should be a positive float number!")
         if self.enemiesShootingDelay < 0.0 or self.enemiesShootingDelay > 3.0:
-            warn("Invalid EnemyShootingDelay! Should be a positive float number between 0.0 and 3.0")
+            logger.warning("Invalid EnemyShootingDelay! Should be a positive float number between 0.0 and 3.0")
 
 
 theKernel = Kernel()
 theServer = Server()
 theServer.InitOnce(theKernel)
+theServer.Load()

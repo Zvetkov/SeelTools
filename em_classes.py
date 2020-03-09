@@ -1,6 +1,6 @@
 import os
-from warnings import warn
 from lxml import objectify
+from logger import logger
 
 
 class GameObject(object):
@@ -460,7 +460,7 @@ class BarricadeClass(WorldGameObject):
                 self.auto_guns.append(child)
             else:
                 self.scheme_error_1 = child
-                warn(f"Scheme error: unexpected child in BarricadeClass: {self.name}")
+                logger.error(f"Scheme error: unexpected child in BarricadeClass: {self.name}")
             # ??? implement complex barricade class when needed
 
 
@@ -469,4 +469,4 @@ class BossClass(WorldGameObject):
                  dicts: dict):
         WorldGameObject.__init__(self, element)
         self.path_name_flying = element.attrib.get("PathNameForFlyingWithWings")
-        warn("Partially Implemented Boss Class")
+        logger.warning("Partially Implemented Boss Class")
