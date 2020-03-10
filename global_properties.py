@@ -5,6 +5,7 @@ from resource_manager import ResourceManager
 from prototype_manager import PrototypeManager
 from affix import AffixManager
 from logger import logger
+from prototype_info import thePrototypeInfoClassDict
 
 theResourceManager = None
 
@@ -38,8 +39,8 @@ class Server(object):
         logger.info("Skipping loading PlayerPassMap")
         if not isContiniousMap:
             logger.info("Skipping loading GameObjects")
-            self.thePrototypeManager = PrototypeManager()  # (CStr)
-            self.thePrototypeManager.LoadFromXMLFile(self.theGlobalProperties.temppath)
+            self.thePrototypeManager = PrototypeManager(self)
+            # self.thePrototypeManager.LoadFromXMLFile(self.theGlobalProperties.temppath)
             # logger.info("Initializing VehicleGeneratorInfoCache")
             # self.theVehiclesGeneratorInfoCache = VehiclesGeneratorInfoCache()
             # self.theVehiclesGeneratorInfoCache.EnsureInitialized()
@@ -60,13 +61,6 @@ class Server(object):
             #     self.theDynamicScene.LoadSceneFromXML(self.pDynamicScene, level_file_name, allowedClasses)
             # logger.info("DynamicScene loaded")
 
-                
-
-
-            
-
-
-
     def LoadGlobalPropertiesFromXML(self, fileName):
         xmlFile = xml_to_objfy(fileName)
         if xmlFile.tag == "Properties":
@@ -77,6 +71,11 @@ class Server(object):
 
     def LoadPrototypeNamesFromXML():
         raise NotImplementedError("LoadPrototypeNamesFromXML not implementet for Server")
+
+    def CreatePrototypeInfoByClassName(self, className: str):
+        classRefference = thePrototypeInfoClassDict.get(className)
+        if classRefference is not None:
+            classRefference(self)
 
 
 class GlobalProperties(object):

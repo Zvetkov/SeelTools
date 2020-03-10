@@ -1,6 +1,7 @@
 import os
 from lxml import etree, objectify
 from html import unescape
+from urllib.parse import unquote
 
 from em_classes import ClanClass
 from constants import WORKING_DIRECTORY
@@ -174,16 +175,17 @@ def child_from_xml_node(xml_node: objectify.ObjectifiedElement, child_name: str,
         return None
 
 
-def check_mono_xml_node(xml_node: objectify.ObjectifiedElement, expected_child_name: str):
+def check_mono_xml_node(xml_node: objectify.ObjectifiedElement, expected_child_name: str,
+                        ignore_comments: bool = False):
     children = xml_node.getchildren()
     if len(children) > 0:
         for child in children:
             if child.tag != expected_child_name:
-                if child.tag == "comment":
-                    comment = unescape(str(etree.tostring(child)))
-                    path = xml_node.base.strip(f'file:/{WORKING_DIRECTORY}')
-                    logger.debug(f"Comment {comment}\n"
-                                 f"in node with tag: {xml_node.tag} "
+                if child.tag == "comment" and not ignore_comments:
+                    comment = unescape(str(etree.tostring(child))).strip("b'<!-- ").strip(" -->'")
+                    path = unquote(xml_node.base).replace(f'file:/{WORKING_DIRECTORY}', '')
+                    logger.debug(f"Comment '{comment}' "
+                                 f"in tag: '{xml_node.tag}'' "
                                  f"in file: {path}.")
                 else:
                     logger.warning(f"Unexpected node with a name {child.tag} found "
