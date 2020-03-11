@@ -10,6 +10,8 @@ MAP_NAME = "r1m3"
 
 LOCALIZED_FORMS_QUANTITY = 2
 
+STATUS_SUCCESS = 1
+
 # CONFIG = parse_config(CONFIG_PATH)
 # CONFIG = {"pathToAffixes": "data/gamedata/Affixes.xml",
 #           "pathToDialogs": "data/if/diz/DialogsGlobal.xml",
@@ -25,21 +27,22 @@ LOCALIZED_FORMS_QUANTITY = 2
 
 GLOBAL_PROP_XML = os.path.join("data", "gamedata",
                                "globalproperties.xml")  # data\gamedata\globalproperties.xml
-RESOURCE_TYPES_XML = os.path.join("data", "gamedata",
-                                  "resourcetypes.xml")  # data\gamedata\resourcetypes.xml
-VEHICLE_PART_TYPES_XML = os.path.join("data", "gamedata",
-                                      "vehicleparttypes.xml")  # data\gamedata\vehicleparttypes.xml
-RELATIONSHIP_XML = os.path.join("data", "gamedata",
-                                "relationship.xml")  # data/gamedata/relationship.xml
-AFFIXES_XML = os.path.join("data", "gamedata",
-                           "affixes.xml")  # data/gamedata/affixes.xml
-QUESTS_XML = os.path.join("data", "gamedata",
-                          "quests.xml")  # data/gamedata/quests.xml
+# RESOURCE_TYPES_XML = os.path.join("data", "gamedata",
+#                                   "resourcetypes.xml")  # data\gamedata\resourcetypes.xml
+# VEHICLE_PART_TYPES_XML = os.path.join("data", "gamedata",
+#                                       "vehicleparttypes.xml")  # data\gamedata\vehicleparttypes.xml
+# RELATIONSHIP_XML = os.path.join("data", "gamedata",
+#                                 "relationship.xml")  # data/gamedata/relationship.xml
+# AFFIXES_XML = os.path.join("data", "gamedata",
+#                            "affixes.xml")  # data/gamedata/affixes.xml
+# QUESTS_XML = os.path.join("data", "gamedata",
+#                           "quests.xml")  # data/gamedata/quests.xml
 
 # gamedata/gameobjects
+GAME_OBJ_DEFS_XML = os.path.join("data", "gamedata", "gameobjdefs.xml")
 GAME_OBJECTS_PATH = os.path.join("data", "gamedata", "gameobjects")
-GAME_OBJECTS_XML = os.path.join("data", "gamedata", "gameobjects",
-                                "gameobjects.xml")  # \data\gamedata\gameobjects\gameobjects.xml
+# GAME_OBJECTS_XML = os.path.join("data", "gamedata", "gameobjects",
+#                                 "gameobjects.xml")  # \data\gamedata\gameobjects\gameobjects.xml
 TACTICS_XML = os.path.join("data", "gamedata", "gameobjects",
                            "tactics.xml")  # \data\gamedata\gameobjects\tactics.xml
 INFECTION_XML = os.path.join("data", "gamedata", "gameobjects",

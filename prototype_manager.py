@@ -9,42 +9,43 @@ from prototype_info import PrototypeInfo
 
 class PrototypeManager(object):
     def __init__(self, server):
-        self.Clear()
+        # self.Clear()
         self.theServer = server
         self.prototypes = []
+        self.prototypesMap = {}
         self.prototypeNamesToIds = {}  # int: int
         self.prototypeFullNamesLocalizedForms = {}  # unsgn_int:unsgn_int
         self.prototypeFullNames = {}  # str:str
         self.loadingLock = 0
 
-    def Clear(self):
-        pass
+    def InternalGetPrototypeInfo(self, prototypeName):
+        return self.prototypesMap.get(prototypeName)  # might be best to completely replace method with direct dict get
 
     def LoadFromXMLFile(self, fileName):
         self.loadingLock += 1
-        self.LoadGameObjectsFolderFromXML(fileName, self.ReadNewPrototype())
+        self.LoadGameObjectsFolderFromXML(fileName)
         self.loadingLock -= 1
         for prototype in self.prototypes:
             prototype.PostLoad()
 
-    def LoadGameObjectsFolderFromXML(self, fileName, actionReadNewPrototype):
+    def LoadGameObjectsFolderFromXML(self, fileName):
         xmlFileNode = xml_to_objfy(fileName)
         if xmlFileNode.tag != "Prototypes":
             raise AttributeError(f"Given file {xmlFileNode.base} should contain <Prototypes> tag!")
         directory = path.dirname(fileName)
-        self.LoadFromFolder(fileName, xmlFileNode, directory, actionReadNewPrototype)
+        self.LoadFromFolder(fileName, xmlFileNode, directory)
 
-    def LoadFromFolder(self, xmlFile, xmlNode, directory, actionReadNewPrototype):
+    def LoadFromFolder(self, xmlFile, xmlNode, directory):
         for prototype_node in xmlNode.iterchildren():
             is_folder_node = prototype_node.tag == "Folder"
             if not is_folder_node:
-                actionReadNewPrototype(directory, prototype_node)
+                self.ReadNewPrototype(directory, prototype_node)
             else:
                 file_attrib = read_from_xml_node(prototype_node, "File", do_not_warn=True)
                 if file_attrib is not None:
-                    self.LoadGameObjectsFolderFromXML(file_attrib, actionReadNewPrototype)
+                    self.LoadGameObjectsFolderFromXML(file_attrib)
                 else:
-                    self.LoadFromFolder(xmlFile, prototype_node, directory, actionReadNewPrototype)
+                    self.LoadFromFolder(xmlFile, prototype_node, directory)
 
     def ReadNewPrototype(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
         class_name = read_from_xml_node(xmlNode, "Class")
@@ -61,13 +62,14 @@ class PrototypeManager(object):
                 prototype_info.CopyFrom(parent_prot_info)
             prototypes_length = len(self.prototypes)
             prototype_info.prototypeId = prototypes_length
-            if prototype_info.LoadFromXML(xmlFile, xmlNode):
+            if prototype_info.LoadFromXML(prototype_info, xmlFile, xmlNode):
                 if self.prototypeNamesToIds.get(prototype_info.prototypeName) is not None:
                     logger.critical(f"Duplicate prototype in game objects: {prototype_info.prototypeName}")
                     raise AttributeError("Duplicate prototype, critical error!")
                 else:
                     self.prototypeNamesToIds[prototype_info.prototypeName] = prototype_info.prototypeId
                     self.prototypes.append(prototype_info)
+                    self.prototypesMap[prototype_info.prototypeName] = prototype_info
                     return 1
             else:
                 logger.error(f"Prototype {prototype_info.prototypeName} "

@@ -82,8 +82,8 @@ def xml_to_objfy(path_to_file: str):
         objfy = objectify.parse(f, parser_recovery)
     objectify_tree = objfy.getroot()
 
-    for obj in objectify_tree.iterchildren():
-        tag_object_tree(obj, objectify_tree.tag)
+    # for obj in objectify_tree.iterchildren():
+    #     tag_object_tree(obj, objectify_tree.tag)
     return objectify_tree
 
 
@@ -106,22 +106,22 @@ def obj_to_simple_dict(obj: objectify.ObjectifiedElement, key: str, value: str):
     return proto_dict
 
 
-def tag_object_tree(obj: objectify.ObjectifiedElement, parent: str = ''):
-    if obj.countchildren() > 0:
-        for obj_ch in obj.iterchildren():
-            tag_object_tree(obj_ch, obj.tag)
-    # towns.xml uses scheme similar but not exactly matching dynamicscene.xml
-    # This solution is a bit shit and it's shit because I don't yet know what the hell in
-    # this spagetti of xmls will be needed and what info is relevant for tool's functions.
-    # I defenitely will not forget to replace this with more elegant parser /s
-    if obj.tag == 'Object' and parent != 'Prototype':
-        obj.tag = f'{obj.attrib["Prototype"]}'
-    elif obj.tag == 'Folder':
-        obj.tag = f'Dir_{obj.attrib["Name"]}'
-    elif obj.tag == 'Prototype' and parent == 'Prototypes':
-        obj.tag = f'Prot_{obj.attrib["Class"]}'
-    # elif obj.tag == 'Type' and parent == 'ResourceTypes':
-    #     obj.tag = f'Type_{obj.attrib["Name"]}'
+# def tag_object_tree(obj: objectify.ObjectifiedElement, parent: str = ''):
+#     if obj.countchildren() > 0:
+#         for obj_ch in obj.iterchildren():
+#             tag_object_tree(obj_ch, obj.tag)
+#     # towns.xml uses scheme similar but not exactly matching dynamicscene.xml
+#     # This solution is a bit shit and it's shit because I don't yet know what the hell in
+#     # this spagetti of xmls will be needed and what info is relevant for tool's functions.
+#     # I defenitely will not forget to replace this with more elegant parser /s
+#     if obj.tag == 'Object' and parent != 'Prototype':
+#         obj.tag = f'{obj.attrib["Prototype"]}'
+#     elif obj.tag == 'Folder':
+#         obj.tag = f'Dir_{obj.attrib["Name"]}'
+#     elif obj.tag == 'Prototype' and parent == 'Prototypes':
+#         obj.tag = f'Prot_{obj.attrib["Class"]}'
+#     # elif obj.tag == 'Type' and parent == 'ResourceTypes':
+#     #     obj.tag = f'Type_{obj.attrib["Name"]}'
 
 
 def parse_config(xml_file):

@@ -237,4 +237,4 @@ class WndStation(object):
 
 theWndStation = WndStation()
 theWndStation.Create(theEngineConfig.ui_edit_strings)
-theWndStation.LoadStrings(theEngineConfig.affixes_strings_path)
+theWndStation.LoadStrings(theEngineConfig.affixes_strings)

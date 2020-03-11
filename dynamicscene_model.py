@@ -19,10 +19,10 @@ from em_classes import (GenericLocationClass, WorldGameObject,
                         LiveCaravanManagerClass, BarricadeClass, CableClass,
                         BossClass)
 
-from constants import (GLOBAL_PROP_XML, GAME_OBJECTS_XML, DYNAMIC_SCENE_XML,
-                       RESOURCE_TYPES_XML, OBJECT_NAMES_XML, OBJECT_DESCR_XML,
+from constants import (GLOBAL_PROP_XML, DYNAMIC_SCENE_XML,
+                       OBJECT_NAMES_XML, OBJECT_DESCR_XML,
                        MODEL_ICONS_XML, MODEL_NAMES_XML,
-                       CLANDIZ_XML, RELATIONSHIP_XML, BELONG_LOGO_XML, LOGOS_GAM,
+                       CLANDIZ_XML, BELONG_LOGO_XML, LOGOS_GAM,
                        DIALOGS_GLOBAL_XML, RADIO_SOUNDS_XML,
                        TOWNS_XML, VEHICLE_PARTS_XML, VEHICLES_XML, GUNS_XML_DICT,
                        PREFABS_XML, BREAKABLE_OBJ_XML, MISC_XML, BOSSES_XML,

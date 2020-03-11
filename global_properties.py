@@ -22,7 +22,7 @@ class Server(object):
     def InitOnce(self, theKernel):
         '''Called by CMiracle3d::LoadLevel'''
         self.engine_config = theKernel.engineConfig
-        self.LoadGlobalPropertiesFromXML(self.engine_config.global_properties_path)
+        self.LoadGlobalPropertiesFromXML(self.engine_config.global_properties)
         self.theResourceManager = ResourceManager(self, 0, 0)
         self.theAffixManager = AffixManager(self.theResourceManager)
         self.theAffixManager.LoadFromXML(self.theGlobalProperties.pathToAffixes)
@@ -40,7 +40,7 @@ class Server(object):
         if not isContiniousMap:
             logger.info("Skipping loading GameObjects")
             self.thePrototypeManager = PrototypeManager(self)
-            # self.thePrototypeManager.LoadFromXMLFile(self.theGlobalProperties.temppath)
+            self.thePrototypeManager.LoadFromXMLFile(self.theGlobalProperties.pathToGameObjects)
             # logger.info("Initializing VehicleGeneratorInfoCache")
             # self.theVehiclesGeneratorInfoCache = VehiclesGeneratorInfoCache()
             # self.theVehiclesGeneratorInfoCache.EnsureInitialized()
@@ -73,9 +73,10 @@ class Server(object):
         raise NotImplementedError("LoadPrototypeNamesFromXML not implementet for Server")
 
     def CreatePrototypeInfoByClassName(self, className: str):
-        classRefference = thePrototypeInfoClassDict.get(className)
-        if classRefference is not None:
-            classRefference(self)
+        class_refference = thePrototypeInfoClassDict.get(className)
+        if class_refference is not None:
+            class_refference(self)
+        return class_refference
 
 
 class GlobalProperties(object):
