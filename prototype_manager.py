@@ -4,6 +4,7 @@ from os import path
 from logger import logger
 
 from em_parse import xml_to_objfy, read_from_xml_node
+from constants import STATUS_SUCCESS
 from prototype_info import PrototypeInfo
 
 
@@ -43,16 +44,17 @@ class PrototypeManager(object):
             else:
                 file_attrib = read_from_xml_node(prototype_node, "File", do_not_warn=True)
                 if file_attrib is not None:
-                    self.LoadGameObjectsFolderFromXML(file_attrib)
+                    self.LoadGameObjectsFolderFromXML(f"{directory}/{file_attrib}")
                 else:
                     self.LoadFromFolder(xmlFile, prototype_node, directory)
 
     def ReadNewPrototype(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
         class_name = read_from_xml_node(xmlNode, "Class")
-        prototype_info = self.theServer.CreatePrototypeInfoByClassName(class_name)
+        logger.debug(f"Loading {class_name} prototype")
+        prototype_info = self.theServer.CreatePrototypeInfoByClassName(class_name)(self.theServer)
         if prototype_info:
             prototype_info.className = class_name
-            parent_prot_name = read_from_xml_node(xmlNode, "ParentPrototype")
+            parent_prot_name = read_from_xml_node(xmlNode, "ParentPrototype", do_not_warn=True)
             if parent_prot_name is not None:
                 parent_prot_info = self.InternalGetPrototypeInfo(parent_prot_name)
                 dummy = PrototypeInfo()
@@ -62,7 +64,7 @@ class PrototypeManager(object):
                 prototype_info.CopyFrom(parent_prot_info)
             prototypes_length = len(self.prototypes)
             prototype_info.prototypeId = prototypes_length
-            if prototype_info.LoadFromXML(prototype_info, xmlFile, xmlNode):
+            if prototype_info.LoadFromXML(xmlFile, xmlNode) == STATUS_SUCCESS:
                 if self.prototypeNamesToIds.get(prototype_info.prototypeName) is not None:
                     logger.critical(f"Duplicate prototype in game objects: {prototype_info.prototypeName}")
                     raise AttributeError("Duplicate prototype, critical error!")

@@ -1,6 +1,5 @@
 from id_manager import theIdManager
 from constants import STATUS_SUCCESS
-import prototype_info
 from logger import logger
 
 
@@ -71,7 +70,7 @@ class Obj(Object):
 class PhysicObj(Obj):
     def __init__(self, prototype_info_object: None):
         if prototype_info_object is not None:
-            Obj.__init__(self, prototype_info)
+            Obj.__init__(self, prototype_info_object)
             # self.intersectionObstacle = None  # 0 Ptr
             # self.body = 0
             # self.lookSphere = 0
@@ -106,8 +105,105 @@ class PhysicObj(Obj):
             # self.timeFromLastCollisionEffect = 1000.0
 
 
+class SimplePhysicObj(PhysicObj):
+    def __init__(self, prototype_info_object=None):
+        PhysicObj.__init__(self, prototype_info_object)
+        if prototype_info_object is not None:
+            self.collisionInfos = prototype_info_object.collisionInfos
+        self.scale = 1.0
+        self.physicBody = None  # ??? Some magic happens here, probably don't need this
+        # self.deadTimerActive = 0
+        # self.deadTimer = 0.0
+        # self.testVisibility = 0
+        # self.Construct(self)
+
+    def Construct(self):
+        if self.physicBody is not None:
+            logger.warn("Not implemented Construct method for SimplePhysicObject class")
+
+
 class VehicleRecollection(Obj):
-    def __init__(self, prototype_info: prototype_info.VehicleRecollectionPrototypeInfo = None):
-        Obj.__init__(self, prototype_info)
+    def __init__(self, prototype_info_object=None):
+        Obj.__init__(self, prototype_info_object)
         self.recollectionItems = []
         self.vehicleId = -1
+
+
+class DummyObject(SimplePhysicObj):
+    def __init__(self, prototype_info_object=None):
+        SimplePhysicObj.__init__(self, prototype_info_object)
+        # if prototype_info_object.disablePhysics:
+        #     PhysicObj.DisablePhysics(self)
+        # if prototype_info_object.disableGeometry:
+        #     PhysicObj.DisableGeometry(self)
+        if self.physicBody is not None:
+            logger.warn("Not implemented PhysicBody check related to modelName")
+
+
+class VehicleRole(Obj):
+    def __init__(self, prototype_info_object):
+        Obj.__init__(self, prototype_info_object)
+        self.targetVehicleId = -1
+        self.targetTeamId = -1
+        self.targetObjId = -1
+
+
+class VehicleRoleBarrier(VehicleRole):
+    def __init__(self):
+        VehicleRole.__init__(self)
+
+
+class VehicleRoleCoward(VehicleRole):
+    def __init__(self):
+        VehicleRole.__init__(self)
+
+
+class VehicleRoleOppressor(VehicleRole):
+    def __init__(self):
+        VehicleRole.__init__(self)
+
+
+class VehicleRoleMeat(VehicleRole):
+    def __init__(self):
+        VehicleRole.__init__(self)
+        self.chaseTactics = 0
+        self.needCreateChaseTactics = 0
+
+
+class VehicleRoleCheater(VehicleRole):
+    def __init__(self):
+        VehicleRole.__init__(self)
+        self.chaseTactics = 0
+        self.needCreateChaseTactics = 0
+
+
+class VehicleRoleSniper(VehicleRole):
+    def __init__(self):
+        VehicleRole.__init__(self)
+        self.sniperState = 0
+        self.deniedHeight = 10000.0
+
+
+class VehicleRolePendulum(VehicleRole):
+    def __init__(self):
+        VehicleRole.__init__(self)
+        self.direction_x = 1.0
+        self.direction_y = 0.0
+        self.angle = 0.0
+
+
+class TeamTacticWithRoles(Obj):
+    def __init__(self, prototype_info_object):
+        Obj.__init__(self, prototype_info_object)
+
+
+class NPCMotionController(Obj):
+    def __init__(self, prototype_info_object):
+        Obj.__init__(self, prototype_info_object)
+        self.elapsedStateTime = 0.0
+        self.timeForState = 0.0
+        self.vehicleUnderControlId = -1
+        self.style = 0
+        self.lastDesiredPosition = []
+        self.characteristicDist = 10.0
+        self.characteristicPeriod = 5.0

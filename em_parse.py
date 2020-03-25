@@ -196,6 +196,8 @@ def check_mono_xml_node(xml_node: objectify.ObjectifiedElement, expected_child_n
 
 
 def parse_str_to_bool(string: str):
+    if string is None:
+        return False
     if string.lower() == "true":
         return True
     elif string.lower() == "false":
