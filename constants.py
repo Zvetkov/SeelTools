@@ -12,6 +12,8 @@ LOCALIZED_FORMS_QUANTITY = 2
 
 STATUS_SUCCESS = 1
 
+DEFAULT_TURNING_SPEED = 180
+
 # CONFIG = parse_config(CONFIG_PATH)
 # CONFIG = {"pathToAffixes": "data/gamedata/Affixes.xml",
 #           "pathToDialogs": "data/if/diz/DialogsGlobal.xml",

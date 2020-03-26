@@ -5,7 +5,7 @@ from logger import logger
 
 from em_parse import xml_to_objfy, read_from_xml_node
 from constants import STATUS_SUCCESS
-from prototype_info import PrototypeInfo
+from prototype_info import PrototypeInfo, thePrototypeInfoClassDict
 
 
 class PrototypeManager(object):
@@ -22,12 +22,16 @@ class PrototypeManager(object):
     def InternalGetPrototypeInfo(self, prototypeName):
         return self.prototypesMap.get(prototypeName)  # might be best to completely replace method with direct dict get
 
+    def IsPrototypeOf(prototype_info: PrototypeInfo, class_name):
+        logger.info(f"Checking if {prototype_info.className} is of {class_name}")
+        return type(prototype_info) == thePrototypeInfoClassDict[class_name]
+
     def LoadFromXMLFile(self, fileName):
         self.loadingLock += 1
         self.LoadGameObjectsFolderFromXML(fileName)
         self.loadingLock -= 1
         for prototype in self.prototypes:
-            prototype.PostLoad()
+            prototype.PostLoad(self)
 
     def LoadGameObjectsFolderFromXML(self, fileName):
         xmlFileNode = xml_to_objfy(fileName)

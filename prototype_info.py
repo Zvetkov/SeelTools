@@ -2,9 +2,11 @@ from lxml import objectify
 
 from logger import logger
 
-from em_parse import read_from_xml_node, parse_str_to_bool, child_from_xml_node
-from constants import STATUS_SUCCESS
+from em_parse import read_from_xml_node, parse_str_to_bool, child_from_xml_node, check_mono_xml_node
+from object_classes import Vehicle
+from constants import STATUS_SUCCESS, DEFAULT_TURNING_SPEED
 from object_classes import *
+from prototype_manager import PrototypeManager
 
 
 class PrototypeInfo(object):
@@ -40,12 +42,212 @@ class PrototypeInfo(object):
             self.applyAffixes = parse_str_to_bool(read_from_xml_node(xmlNode, "ApplyAffixes", do_not_warn=True))
             price = read_from_xml_node(xmlNode, "Price", do_not_warn=True)
             if price is not None:
-                self.price = read_from_xml_node(xmlNode, "Price")
+                self.price = price
             self.isAbstract = parse_str_to_bool(read_from_xml_node(xmlNode, "Abstract", do_not_warn=True))
-            self.parentPrototypeName = read_from_xml_node(xmlNode, "ParentPrototype", do_not_warn=True)
+            self.parentPrototypeName = read_from_xml_node(xmlNode, "ParentPrototype", do_not_warn=True)  # ??? maybe should fallback to "" instead None
             return STATUS_SUCCESS
         else:
             logger.warning(f"XML Node with unexpected tag {xmlNode.tag} given for PrototypeInfo loading")
+
+
+class PhysicBodyPrototypeInfo(PrototypeInfo):
+    def __init__(self, server):
+        PrototypeInfo.__init__(self, server)
+        self.engineModelName = ""
+        self.massValue = 1.0
+        self.collisionInfos = []
+        self.collisionTrimeshAllowed = False
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            self.engineModelName = read_from_xml_node(xmlNode, "ModelFile")
+            if self.engineModelName is None:
+                logger.error(f"No model file is provided for prototype {self.prototypeName}")
+            mass = read_from_xml_node(xmlNode, "Mass", do_not_warn=True)
+            if mass is not None:
+                self.massValue = float(mass)
+            if self.massValue < 0.001:
+                logger.error(f"Mass is too low for prototype {self.prototypeName}")
+            return STATUS_SUCCESS
+
+
+class SimplePhysicBodyPrototypeInfo(PhysicBodyPrototypeInfo):
+    def __init__(self, server):
+        PhysicBodyPrototypeInfo.__init__(self, server)
+
+
+class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
+    def __init__(self, server):
+        PhysicBodyPrototypeInfo.__init__(self, server)
+        self.weaponPrototypeId = -1
+        self.durability = 0.0
+        self.loadPoints = []
+        self.blowEffectName = "ET_PS_HARD_BLOW"
+        self.canBeUsedInAutogenerating = True
+        self.repairCoef = 1.0
+        self.modelMeshes = []
+        self.boundsForMeshes = []
+        self.verts = []
+        self.inds = []
+        self.numsTris = []
+        self.vertsStride = []
+        self.groupHealthes = []
+        self.durabilityCoeffsForDamageTypes = [0, 0, 0]
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = PhysicBodyPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            self.blowEffectName = read_from_xml_node(xmlNode, "BlowEffect")
+            durability = read_from_xml_node(xmlNode, "Durability", do_not_warn=True)
+            if durability is not None:
+                self.durability = float(durability)
+            strDurabilityCoeffs = read_from_xml_node(xmlNode, "DurCoeffsForDamageTypes", do_not_warn=True)
+            if strDurabilityCoeffs is not None:
+                self.durabilityCoeffsForDamageTypes = [float(coeff) for coeff in strDurabilityCoeffs.split()]
+                for coeff in self.durabilityCoeffsForDamageTypes:
+                    if coeff < -25.1 or coeff > 25.0:
+                        logger.error(f"Invalif DurCoeffsForDamageTypes:{coeff} for {self.prototypeName}, "
+                                     "should be between -25.0 and 25.0")
+
+            loadPoints = read_from_xml_node(xmlNode, "LoadPoints", do_not_warn=True)
+            if loadPoints is not None and loadPoints != "":
+                self.loadPoints = loadPoints.split()
+            price = read_from_xml_node(xmlNode, "Price", do_not_warn=True)
+            if price is not None:
+                self.price = int(price)
+
+            repairCoef = read_from_xml_node(xmlNode, "RepairCoef", do_not_warn=True)
+            if repairCoef is not None:
+                self.repairCoef = float(repairCoef)
+
+            self.canBeUsedInAutogenerating = parse_str_to_bool(read_from_xml_node(xmlNode, "CanBeUsedInAutogenerating",
+                                                                                  do_not_warn=True))
+            return STATUS_SUCCESS
+
+
+class GunPrototypeInfo(VehiclePartPrototypeInfo):
+    def __init__(self, server):
+        VehiclePartPrototypeInfo.__init__(self, server)
+        self.barrelModelName = ""
+        self.withCharging = True
+        self.withShellsPoolLimit = True
+        self.shellPrototypeId = -1
+        self.damage = 1.0
+        self.damageType = 0
+        self.firingRate = 1.0
+        self.firingRange = 1.0
+        self.lowStopAngle = 0.0
+        self.highStopAngle = 0.0
+        self.ignoreStopAnglesWhenFire = False
+        self.decalId = -1
+        self.recoilForce = 0.0
+        self.turningSpeed = DEFAULT_TURNING_SPEED
+        self.chargeSize = 20
+        self.reChargingTime = 1.0
+        self.reChargingTimePerShell = 0.0
+        self.shellsPoolSize = 12
+        self.blastWavePrototypeId = -1
+        self.firingType = 0
+        self.fireLpMatrices = []
+        self.explosionTypeName = "BIG"
+        self.shellPrototypeName = ""
+        self.blastWavePrototypeName = ""
+
+    def LoadFromXML(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
+        result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            self.shellPrototypeName = read_from_xml_node(xmlNode, "BulletPrototype")
+            self.blastWavePrototypeName = read_from_xml_node(xmlNode, "BlastWavePrototype")
+            damage = read_from_xml_node(xmlNode, "Damage", do_not_warn=True)
+            if damage is not None:
+                self.damage = float(damage)
+
+            firingRate = read_from_xml_node(xmlNode, "FiringRate", do_not_warn=True)
+            if firingRate is not None:
+                self.firingRate = float(firingRate)
+
+            firingRange = read_from_xml_node(xmlNode, "FiringRange", do_not_warn=True)
+            if firingRange is not None:
+                self.firingRange = float(firingRange)
+
+            self.explosionTypeName = read_from_xml_node(xmlNode, "ExplosionType")
+
+            recoilForce = read_from_xml_node(xmlNode, "RecoilForce", do_not_warn=True)
+            if recoilForce is not None:
+                self.recoilForce = float(recoilForce)
+
+            decalName = read_from_xml_node(xmlNode, "Decal")
+            self.decalId = f"Placeholder for {decalName}!"  # ai::DynamicScene::AddDecalName(ai::gDynamicScene, &decalName)
+
+            firingType = read_from_xml_node(xmlNode, "FiringType")
+            self.firingType = self.Str2FiringType(firingType)
+            if self.firingType == 13:
+                logger.warning(f"Unknown firing type: {self.firingType}!")
+
+            damageTypeName = read_from_xml_node(xmlNode, "DamageType")
+            if damageTypeName is not None:
+                self.damageType = self.Str2DamageType(damageTypeName)
+            if self.damageType == 4:
+                logger.warning(f"Unknown damage type: {self.damageType}")
+            pass
+
+    def Str2FiringType(firing_type_name: str):
+        pass
+
+    def Str2DamageType(damage_type_name: str):
+        pass
+
+
+class GadgetPrototypeInfo(PrototypeInfo):
+    def __init__(self, server):
+        PrototypeInfo.__init__(self, server)
+        self.modifications = []
+        self.modelName = ""
+        self.skinNum = 0
+        self.isUpdating = False
+
+    def LoadFromXML(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
+        result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            modifications = read_from_xml_node(xmlNode, "Modifications").split(";")
+            for mod in modifications:
+                pass
+
+    class ModificationInfo(object):
+        def __init__(self, prot_info, tokens=None, other_mod=None):  # other ModificationInfo object can be passed to create copy
+            if other_mod is None and tokens is not None:
+                self.applierInfo_applierType = 0
+                self.applierInfo_targetResourceId = -1
+                self.applierInfo_targetFiringType = 0
+                self.propertyName = ""
+                self.value = {"id": 0,
+                              "w": 0,
+                              "y": 0,
+                              "NameFromNum": 0,
+                              "NumFromName": 0}
+                tokens = tokens.split(";")
+                for token in tokens:
+                    token_parts = token.split()
+                    if "VEHICLE" in token:
+                        self.applierInfo_applierType = 0
+                    elif prot_info.theServer.theResourceManager.GetResourceId(token_parts[0]) == -1:
+                        self.applierInfo_applierType = 2
+                    
+                
+                
+                self.modificationType = 0
+
+
+            elif other_mod is not None and tokens is None:
+                self.applierInfo_applierType = other_mod.applierInfo_applierType
+                self.applierInfo_targetResourceId = other_mod.applierInfo_targetResourceId
+                self.applierInfo_targetFiringType = other_mod.applierInfo_targetFiringType
+                self.propertyName = other_mod.propertyName
+                self.numForName = int(other_mod.modificationType)
+                self.value = other_mod.value  # ??? some AIParam magic in here
+
+
 
 
 class AffixGeneratorPrototypeInfo(PrototypeInfo):
@@ -109,7 +311,7 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
             mass = read_from_xml_node(xmlNode, "Mass", do_not_warn=True)
             if mass is not None:
                 self.massValue = float(mass)
-            self.engineModelName = read_from_xml_node(xmlNode, "ModelFile", do_not_warn=True)
+            self.engineModelName = read_from_xml_node(xmlNode, "ModelFile", do_not_warn=True)  # ??? maybe should fallback to "" instead None
             self.collisionTrimeshAllowed = parse_str_to_bool(read_from_xml_node(xmlNode,
                                                                                 "CollisionTrimeshAllowed",
                                                                                 do_not_warn=True))
@@ -269,7 +471,7 @@ class TeamPrototypeInfo(PrototypeInfo):
                 distBetweenVehicles = read_from_xml_node(formation, "DistBetweenVehicles")
                 if distBetweenVehicles is not None:
                     self.overridesDistBetweenVehicles = True
-                    self.formationDistBetweenVehicles = distBetweenVehicles
+                    self.formationDistBetweenVehicles = float(distBetweenVehicles)
             return STATUS_SUCCESS
 
 
@@ -347,7 +549,7 @@ class VehiclesGeneratorPrototypeInfo(PrototypeInfo):
                 if token_length == 2:
                     self.desiredCountLow = int(tokensDesiredCount[0])
                     self.desiredCountHigh = int(tokensDesiredCount[1])
-                if token_length == 1:
+                elif token_length == 1:
                     self.desiredCountLow = int(tokensDesiredCount[0])
                     self.desiredCountHigh = self.desiredCountLow
                 else:
@@ -360,8 +562,47 @@ class VehiclesGeneratorPrototypeInfo(PrototypeInfo):
                 if self.desiredCountHigh > 5:
                     logger.error(f"VehicleGenerator {self.prototypeName} attrib DesiredCount high value: "
                                  f"{self.desiredCountHigh} is higher than permitted MAX_VEHICLES_IN_TEAM: 5")
+
+                if len(xmlNode.getchildren()) > 1:
+                    check_mono_xml_node(xmlNode, "Description")
+                    for description_entry in xmlNode.iterchildren():
+                        pass
+
             return STATUS_SUCCESS
 
+        class VehicleDescription(object):
+            def __init__(self, xmlFile, xmlNode):
+                self.vehiclePrototypeIds = []
+                self.waresPrototypesIds = []
+                self.vehiclePrototypeNames = []
+                self.waresPrototypesNames = []
+                self.gunAffixGeneratorPrototypeName = ""
+                self.LoadFromXML(xmlFile, xmlNode)
+
+            def LoadFromXML(self, xmlFile, xmlNode):
+                self.partOfSchwartz = -1.0
+                partOfSchwartz = read_from_xml_node(xmlNode, "PartOfSchwartz", do_not_warn=True)
+                if partOfSchwartz is not None:
+                    self.partOfSchwartz = float(partOfSchwartz)
+                self.tuningBySchwartz = self.partOfSchwartz > 0.0
+
+                vehiclesPrototypes = read_from_xml_node(xmlNode, "VehiclesPrototypes")
+                if vehiclesPrototypes is not None:
+                    self.vehiclePrototypeNames = vehiclesPrototypes.split()
+
+                waresPrototypesNames = read_from_xml_node(xmlNode, "WaresPrototypes")
+                if waresPrototypesNames is not None:
+                    self.waresPrototypesNames = waresPrototypesNames.split()
+
+                self.gunAffixGeneratorPrototypeName = read_from_xml_node(xmlNode, "GunAffixGeneratorPrototype")
+
+            def PostLoad(self, prototype_manager: PrototypeManager):
+                for vehicle_prot_name in self.vehiclePrototypeNames:
+                    vehicleProt = prototype_manager.prototypesMap.get(vehicle_prot_name)
+                    if vehicleProt is None:
+                        logger.error(f"Unknown vehicle prototype name: {vehicle_prot_name}")
+                    if prototype_manager.IsPrototypeOf(vehicleProt, "Vehicle"):
+                        pass  # ???
 
 
 # dict mapping Object Classes to PrototypeInfo Classes
@@ -403,7 +644,7 @@ thePrototypeInfoClassDict = {
     # "DynamicQuestReach": DynamicQuestReachPrototypeInfo,
     # "EngineOilLocation": EngineOilLocationPrototypeInfo,
     # "Formation": FormationPrototypeInfo,
-    # "Gadget": GadgetPrototypeInfo,
+    "Gadget": GadgetPrototypeInfo,
     # "GeomObj": GeomObjPrototypeInfo,
     "InfectionLair": InfectionLairPrototypeInfo,
     "InfectionTeam": InfectionTeamPrototypeInfo,
@@ -446,8 +687,8 @@ thePrototypeInfoClassDict = {
     # "Trigger": TriggerPrototypeInfo,
     # "TurboAccelerationPusher": TurboAccelerationPusherPrototypeInfo,
     # "VagabondTeam": VagabondTeamPrototypeInfo,
-    # "VehiclePart": VehiclePartPrototypeInfo,
-    # "Vehicle": VehiclePrototypeInfo,
+    "VehiclePart": VehiclePartPrototypeInfo,
+    "Vehicle": VehiclePrototypeInfo,
     "VehicleRecollection": VehicleRecollectionPrototypeInfo,
     "VehicleRoleBarrier": VehicleRoleBarrierPrototypeInfo,
     "VehicleRoleCheater": VehicleRoleCheaterPrototypeInfo,
