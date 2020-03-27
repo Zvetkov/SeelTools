@@ -1,3 +1,5 @@
+from math import sqrt
+
 from id_manager import theIdManager
 from constants import STATUS_SUCCESS
 from logger import logger
@@ -112,7 +114,7 @@ class CollisionInfo(object):
 
 
 class PhysicBody(Obj):
-    def __init__(self, prototype_info_object = None):
+    def __init__(self, prototype_info_object=None):
         Obj.__init__(self, prototype_info_object)
         self.mass = 0.0
         self.pGeoms = []
@@ -140,6 +142,41 @@ class PhysicBody(Obj):
             self.modelname = prototype_info_object.engineModelName
             self.collisionInfos = prototype_info_object.collisionInfos
             self.collisionTrimeshAllowed = prototype_info_object.collisionTrimeshAllowed
+
+
+class VehiclePart(PhysicBody):
+    def __init__(self, prototype_info_object=None):
+        PhysicBody.__init__(self, prototype_info_object)
+        self.decals = []
+        self.price = {"value": prototype_info_object.price}
+        self.partName = ""
+        self.blowEffectName = ""
+        self.suppressedLPs = []
+        self.modelParts = []
+        self.loadDecalsData = []
+        prototype_info_object.className = "VehiclePart"
+        self.durabilityCoeffsForDamageTypes = prototype_info_object.durabilityCoeffsForDamageTypes
+        self.lastHitPos = 0
+        self.passToAnotherMapData = 0
+        self.ownerCompoundPart = 0
+        collision = prototype_info_object.collisionInfos
+        size = collision[8]
+        size_4 = collision[9]
+        size_8 = collision[10]
+        if sqrt(size**2 + size_4**2 + size_8**2) < 0.001:
+            size = 0.1
+            size_4 = 0.1
+            size_8 = 0.1
+        PhysicBody.ChangePhysicBodyByCollisionInfo(self, self.collisionInfos)
+        MassSetBoxTotal(self.mass, size_4, prototype_info_object.massValue, size, size_4, size_8)
+        self.splashEffect = 0
+        self.makeSplash = 0
+        pass  # GroupHealth next
+        
+
+
+
+
 
 
 class Gadget(Obj):

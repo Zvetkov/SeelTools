@@ -12,7 +12,7 @@ LOCALIZED_FORMS_QUANTITY = 2
 
 STATUS_SUCCESS = 1
 
-DEFAULT_TURNING_SPEED = 180
+DEFAULT_TURNING_SPEED = 180.0
 
 # CONFIG = parse_config(CONFIG_PATH)
 # CONFIG = {"pathToAffixes": "data/gamedata/Affixes.xml",
@@ -271,7 +271,33 @@ FIRING_TYPES = {"MACHINE_GUN": 0x0,
                 "TURBO": 0xA,
                 "OIL": 0xB,
                 "SMOKE": 0xC,
-                "NUM_FIRING_TYPES": 0xD}
+                "NUM_TYPES": 0xD}
+
+FiringTypesStruct = {"MachineGun": 0,
+                     "Cannon": 1,
+                     "ShotGun": 2,
+                     "Laser": 3,
+                     "Plasma": 4,
+                     "Rocket": 5,
+                     "Artillery": 6,
+                     "Thunderbolt": 7,
+                     "Mine": 8,
+                     "Nail": 9,
+                     "Turbo": 10,
+                     "Oil": 11,
+                     "Type_Smoke": 12}
+
+DAMAGE_TYPE = {"PIERCING": 0x0,
+               "BLAST": 0x1,
+               "ENERGY": 0x2,
+               "WATER": 0x3,
+               "NUM_TYPES": 0x4}
+
+DamageTypeStruct = {"PIERCING": 0,
+                    "BLAST": 1,
+                    "ENERGY": 2,
+                    "WATER": 3,
+                    "NUM_TYPES": 4}
 
 LOCATION_TYPE = {"GENERIC": 0x0,
                  "ENTER": 0x1,

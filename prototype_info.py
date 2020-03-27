@@ -1,12 +1,11 @@
+from math import pi
 from lxml import objectify
 
 from logger import logger
 
 from em_parse import read_from_xml_node, parse_str_to_bool, child_from_xml_node, check_mono_xml_node
-from object_classes import Vehicle
-from constants import STATUS_SUCCESS, DEFAULT_TURNING_SPEED
+from constants import STATUS_SUCCESS, DEFAULT_TURNING_SPEED, FiringTypesStruct, DamageTypeStruct
 from object_classes import *
-from prototype_manager import PrototypeManager
 
 
 class PrototypeInfo(object):
@@ -35,7 +34,7 @@ class PrototypeInfo(object):
             if strResType is not None:
                 self.resourceId = self.theServer.theResourceManager.GetResourceId(strResType)
             if self.resourceId == -1:
-                logger.warn(f"Invalid ResourceType: {strResType} for prototype {self.prototypeName}")
+                logger.info(f"Invalid ResourceType: {strResType} for prototype {self.prototypeName}")
             self.visibleInEncyclopedia = parse_str_to_bool(read_from_xml_node(xmlNode,
                                                                               "VisibleInEncyclopedia",
                                                                               do_not_warn=True))
@@ -182,21 +181,61 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
 
             firingType = read_from_xml_node(xmlNode, "FiringType")
             self.firingType = self.Str2FiringType(firingType)
-            if self.firingType == 13:
+            if self.firingType is None:
                 logger.warning(f"Unknown firing type: {self.firingType}!")
 
             damageTypeName = read_from_xml_node(xmlNode, "DamageType")
             if damageTypeName is not None:
                 self.damageType = self.Str2DamageType(damageTypeName)
-            if self.damageType == 4:
+            if self.damageType is None:
                 logger.warning(f"Unknown damage type: {self.damageType}")
-            pass
+
+            self.withCharging = parse_str_to_bool(read_from_xml_node(xmlNode, "WithCharging"))
+
+            chargeSize = read_from_xml_node(xmlNode, "ChargeSize")
+            if chargeSize is not None:
+                chargeSize = int(chargeSize)
+                if chargeSize >= 0:  # ??? whaaat, why should it ever be less than 0?
+                    self.chargeSize = chargeSize
+
+            reChargingTime = read_from_xml_node(xmlNode, "RechargingTime")
+            if reChargingTime is not None:
+                self.reChargingTime = float(reChargingTime)
+
+            self.shellsPoolSize = 0
+            shellsPoolSize = read_from_xml_node(xmlNode, "ShellsPoolSize")
+            if shellsPoolSize is not None:
+                shellsPoolSize = int(shellsPoolSize)
+                if shellsPoolSize > 0:
+                    self.shellsPoolSize = shellsPoolSize
+            if shellsPoolSize <= 0:
+                self.withShellsPoolLimit = 0
+                self.shellsPoolSize = 12
+
+            self.withShellsPoolLimit = parse_str_to_bool(read_from_xml_node(xmlNode, "WithShellsPoolLimit"))
+
+            turningSpeed = read_from_xml_node(xmlNode, "TurningSpeed")
+            if turningSpeed is not None:
+                self.turningSpeed = float(turningSpeed)
+            self.turningSpeed *= pi / 180  # convert to rads
+            self.engineModelName += "Gun"  # ??? is this really what's happening?
+            self.ignoreStopAnglesWhenFire = parse_str_to_bool(read_from_xml_node(xmlNode, "IgnoreStopAnglesWhenFire"))
+            return STATUS_SUCCESS
 
     def Str2FiringType(firing_type_name: str):
-        pass
+        return FiringTypesStruct.get(firing_type_name)
 
     def Str2DamageType(damage_type_name: str):
-        pass
+        return DamageTypeStruct.get(damage_type_name)
+
+    def PostLoad(self, prototype_manager):
+        self.explosionType = prototype_manager.theServer.theDynamicScene.GetExplosionType(self.explosionTypeName)
+        self.shellPrototypeId = prototype_manager.GetPrototypeId(self.shellPrototypeName)
+        if self.shellPrototypeId is None:
+            logger.error(f"Shell prototype {self.shellPrototypeId} is invalid for {self.prototypeName}")
+        self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName)
+        if self.blastWavePrototypeId is None:
+            logger.error(f"Unknown blastwave prototype {self.blastWavePrototypeName} for {self.prototypeName}")
 
 
 class GadgetPrototypeInfo(PrototypeInfo):
@@ -596,7 +635,7 @@ class VehiclesGeneratorPrototypeInfo(PrototypeInfo):
 
                 self.gunAffixGeneratorPrototypeName = read_from_xml_node(xmlNode, "GunAffixGeneratorPrototype")
 
-            def PostLoad(self, prototype_manager: PrototypeManager):
+            def PostLoad(self, prototype_manager):
                 for vehicle_prot_name in self.vehiclePrototypeNames:
                     vehicleProt = prototype_manager.prototypesMap.get(vehicle_prot_name)
                     if vehicleProt is None:
@@ -688,7 +727,7 @@ thePrototypeInfoClassDict = {
     # "TurboAccelerationPusher": TurboAccelerationPusherPrototypeInfo,
     # "VagabondTeam": VagabondTeamPrototypeInfo,
     "VehiclePart": VehiclePartPrototypeInfo,
-    "Vehicle": VehiclePrototypeInfo,
+    # "Vehicle": VehiclePrototypeInfo,
     "VehicleRecollection": VehicleRecollectionPrototypeInfo,
     "VehicleRoleBarrier": VehicleRoleBarrierPrototypeInfo,
     "VehicleRoleCheater": VehicleRoleCheaterPrototypeInfo,
