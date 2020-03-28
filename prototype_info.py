@@ -4,7 +4,8 @@ from lxml import objectify
 from logger import logger
 
 from em_parse import read_from_xml_node, parse_str_to_bool, child_from_xml_node, check_mono_xml_node
-from constants import STATUS_SUCCESS, DEFAULT_TURNING_SPEED, FiringTypesStruct, DamageTypeStruct
+from constants import (STATUS_SUCCESS, DEFAULT_TURNING_SPEED, FiringTypesStruct, DamageTypeStruct,
+                       TEAM_DEFAULT_FORMATION_PROTOTYPE)
 from object_classes import *
 
 
@@ -61,9 +62,10 @@ class PhysicBodyPrototypeInfo(PrototypeInfo):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             self.engineModelName = read_from_xml_node(xmlNode, "ModelFile")
-            if self.engineModelName is None:
+            if self.engineModelName is None and self.prototypeName == "CompoundVehiclePart":
                 logger.error(f"No model file is provided for prototype {self.prototypeName}")
             mass = read_from_xml_node(xmlNode, "Mass", do_not_warn=True)
+            self.collisionTrimeshAllowed = parse_str_to_bool(read_from_xml_node(xmlNode, "CollisionTrimeshAllowed"))
             if mass is not None:
                 self.massValue = float(mass)
             if self.massValue < 0.001:
@@ -91,7 +93,7 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
         self.inds = []
         self.numsTris = []
         self.vertsStride = []
-        self.groupHealthes = []
+        self.groupHealth = []  # groupHealthes in original
         self.durabilityCoeffsForDamageTypes = [0, 0, 0]
 
     def LoadFromXML(self, xmlFile, xmlNode):
@@ -272,12 +274,7 @@ class GadgetPrototypeInfo(PrototypeInfo):
                         self.applierInfo_applierType = 0
                     elif prot_info.theServer.theResourceManager.GetResourceId(token_parts[0]) == -1:
                         self.applierInfo_applierType = 2
-                    
-                
-                
                 self.modificationType = 0
-
-
             elif other_mod is not None and tokens is None:
                 self.applierInfo_applierType = other_mod.applierInfo_applierType
                 self.applierInfo_targetResourceId = other_mod.applierInfo_targetResourceId
@@ -285,8 +282,45 @@ class GadgetPrototypeInfo(PrototypeInfo):
                 self.propertyName = other_mod.propertyName
                 self.numForName = int(other_mod.modificationType)
                 self.value = other_mod.value  # ??? some AIParam magic in here
+            logger.warn("Is ModificationInfo init partially implemented?")
 
 
+class WanderersManagerPrototypeInfo(PrototypeInfo):
+    def __init__(self, server):
+        PrototypeInfo.__init__(self, server)
+
+
+class WanderersGeneratorPrototypeInfo(PrototypeInfo):
+    def __init__(self, server):
+        PrototypeInfo.__init__(self, server)
+        self.vehicleDescriptions = []
+        self.desiredCountLow = -1
+        self.desiredCountHigh = -1
+
+    def LoadFromXML(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
+        result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            desiredCount = read_from_xml_node(xmlNode, "DesiredCount")
+            if desiredCount is not None:
+                tokensDesiredCount = desiredCount.split("-")
+                token_length = len(tokensDesiredCount)
+                if token_length == 2:
+                    self.desiredCountLow = int(tokensDesiredCount[0])
+                    self.desiredCountHigh = int(tokensDesiredCount[1])
+                elif token_length == 1:
+                    self.desiredCountLow = int(tokensDesiredCount[0])
+                    self.desiredCountHigh = self.desiredCountLow
+                else:
+                    logger.error(f"WanderersGenerator {self.prototypeName} attrib DesiredCount range "
+                                 f"should contain one or two numbers but contains {len(tokensDesiredCount)}")
+                if self.desiredCountLow > self.desiredCountHigh:
+                    logger.error(f"WanderersGenerator {self.prototypeName} attrib DesiredCount range invalid: "
+                                 f"{self.desiredCountLow}-{self.desiredCountHigh}, "
+                                 "should be from lesser to higher number")
+                if self.desiredCountHigh > 5:
+                    logger.error(f"WanderersGenerator {self.prototypeName} attrib DesiredCount high value: "
+                                 f"{self.desiredCountHigh} is higher than permitted MAX_VEHICLES_IN_TEAM: 5")
+        logger.warn("Partially implemented WanderersGeneratorPrototypeInfo LoadFromXML!")
 
 
 class AffixGeneratorPrototypeInfo(PrototypeInfo):
@@ -503,7 +537,7 @@ class TeamPrototypeInfo(PrototypeInfo):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             self.decisionMatrixName = read_from_xml_node(xmlNode, "DecisionMatrix")
-            self.removeWhenChildrenDead = parse_str_to_bool(read_from_xml_node(xmlNode, "RemoveWhenChildrenDead"))
+            self.removeWhenChildrenDead = parse_str_to_bool(read_from_xml_node(xmlNode, "RemoveWhenChildrenDead", do_not_warn=True))
             formation = child_from_xml_node(xmlNode, "Formation", do_not_warn=True)
             if formation is not None:
                 self.formationPrototypeName = read_from_xml_node(formation, "Prototype")
@@ -511,6 +545,41 @@ class TeamPrototypeInfo(PrototypeInfo):
                 if distBetweenVehicles is not None:
                     self.overridesDistBetweenVehicles = True
                     self.formationDistBetweenVehicles = float(distBetweenVehicles)
+            return STATUS_SUCCESS
+
+
+class CaravanTeamPrototypeInfo(TeamPrototypeInfo):
+    def __init__(self, server):
+        TeamPrototypeInfo.__init__(self, server)
+        self.tradersGeneratorPrototypeName = ""
+        self.guardsGeneratorPrototypeName = ""
+        self.waresPrototypes = []
+        self.formationPrototypeName = "caravanFormation"
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = TeamPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            self.tradersGeneratorPrototypeName = read_from_xml_node(xmlNode, "TradersVehiclesGeneratorName")
+            self.guardsGeneratorPrototypeName = read_from_xml_node(xmlNode, "GuardVehiclesGeneratorName")
+            self.waresPrototypes = read_from_xml_node(xmlNode, "WaresPrototypes").split()
+            if self.tradersGeneratorPrototypeName is not None:
+                if self.waresPrototypes is None:
+                    logger.error(f"No wares for caravan with traders: {self.prototypeName}")
+            return STATUS_SUCCESS
+
+
+class VagabondTeamPrototypeInfo(TeamPrototypeInfo):
+    def __init__(self, server):
+        TeamPrototypeInfo.__init__(self, server)
+        self.vehiclesGeneratorPrototype = ""
+        self.waresPrototypes = []
+        self.removeWhenChildrenDead = True
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = TeamPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            self.vehiclesGeneratorPrototype = read_from_xml_node(xmlNode, "VehicleGeneratorPrototype")
+            self.waresPrototypes = read_from_xml_node(xmlNode, "WaresPrototypes").split()
             return STATUS_SUCCESS
 
 
@@ -605,11 +674,31 @@ class VehiclesGeneratorPrototypeInfo(PrototypeInfo):
                 if len(xmlNode.getchildren()) > 1:
                     check_mono_xml_node(xmlNode, "Description")
                     for description_entry in xmlNode.iterchildren():
-                        pass
+                        veh_description = self.VehicleDescription(xmlFile, description_entry)
+                        self.vehicleDescriptions.append(veh_description)
+                self.partOfSchwartzForCabin = 0.25
+                self.partOfSchwartzForBasket = 0.25
+                self.partOfSchwartzForGuns = 0.5
+                self.partOfSchwartzForWares = 0.0
 
+                partOfSchwartzForCabin = read_from_xml_node(xmlNode, "partOfSchwartzForCabin", do_not_warn=True)
+                if partOfSchwartzForCabin is not None:
+                    self.partOfSchwartzForCabin = float(partOfSchwartzForCabin)
+
+                partOfSchwartzForBasket = read_from_xml_node(xmlNode, "partOfSchwartzForBasket", do_not_warn=True)
+                if partOfSchwartzForBasket is not None:
+                    self.partOfSchwartzForBasket = float(partOfSchwartzForBasket)
+
+                partOfSchwartzForGuns = read_from_xml_node(xmlNode, "partOfSchwartzForGuns", do_not_warn=True)
+                if partOfSchwartzForGuns is not None:
+                    self.partOfSchwartzForGuns = float(partOfSchwartzForGuns)
+
+                partOfSchwartzForWares = read_from_xml_node(xmlNode, "partOfSchwartzForWares", do_not_warn=True)
+                if partOfSchwartzForWares is not None:
+                    self.partOfSchwartzForWares = float(partOfSchwartzForWares)
             return STATUS_SUCCESS
 
-        class VehicleDescription(object):
+    class VehicleDescription(object):
             def __init__(self, xmlFile, xmlNode):
                 self.vehiclePrototypeIds = []
                 self.waresPrototypesIds = []
@@ -642,6 +731,42 @@ class VehiclesGeneratorPrototypeInfo(PrototypeInfo):
                         logger.error(f"Unknown vehicle prototype name: {vehicle_prot_name}")
                     if prototype_manager.IsPrototypeOf(vehicleProt, "Vehicle"):
                         pass  # ???
+                logger.warning("Not fully implemented PostLoad for VehiclesGeneratorPrototypeInfo VehicleDescription")
+
+
+class SettlementPrototypeInfo(SimplePhysicObjPrototypeInfo):
+    def __init__(self, server):
+        SimplePhysicObjPrototypeInfo.__init__(self, server)
+        self.zoneInfos = []
+        self.vehiclesPrototypeId = -1
+        self.vehiclesPrototypeName = ""
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            zone_info = self.AuxZoneInfo()
+            zone_info.action = read_from_xml_node(xmlNode, "action", do_not_warn=True)
+            offset = read_from_xml_node(xmlNode, "offset", do_not_warn=True)
+            if offset is not None:
+                offset = offset.split()
+                zone_info.offset["x"] = offset[0]
+                zone_info.offset["y"] = offset[1]
+                zone_info.offset["z"] = offset[2]
+            zone = read_from_xml_node(xmlNode, "zone", do_not_warn=True)
+            if zone is not None:
+                radius = read_from_xml_node(xmlNode["zone"], "radius", do_not_warn=True)
+                zone_info.radius = float(radius)
+            self.zoneInfos.append[zone_info]
+            self.vehiclesPrototypeName = read_from_xml_node(xmlNode, "Vehicles")
+            return STATUS_SUCCESS
+
+    class AuxZoneInfo(object):
+        def __init__(self):
+            self.action = ""
+            self.offset = {"x": 0.0,
+                           "y": 0.0,
+                           "z": 0.0}
+            self.radius = 10.0
 
 
 # dict mapping Object Classes to PrototypeInfo Classes
@@ -668,7 +793,7 @@ thePrototypeInfoClassDict = {
     # "BulletLauncher": BulletLauncherPrototypeInfo,
     # "Bullet": BulletPrototypeInfo,
     # "Cabin": CabinPrototypeInfo,
-    # "CaravanTeam": CaravanTeamPrototypeInfo,
+    "CaravanTeam": CaravanTeamPrototypeInfo,
     # "Chassis": ChassisPrototypeInfo,
     # "Chest": ChestPrototypeInfo,
     # "CinematicMover": CinematicMoverPrototypeInfo,
@@ -718,14 +843,14 @@ thePrototypeInfoClassDict = {
     # "SmokeScreenLocation": SmokeScreenLocationPrototypeInfo,
     # "StaticAutoGun": StaticAutoGunPrototypeInfo,
     # "Submarine": SubmarinePrototypeInfo,
-    # "Team": TeamPrototypeInfo,
+    "Team": TeamPrototypeInfo,
     "TeamTacticWithRoles": TeamTacticWithRolesPrototypeInfo,
     # "ThunderboltLauncher": ThunderboltLauncherPrototypeInfo,
     # "Thunderbolt": ThunderboltPrototypeInfo,
     # "Town": TownPrototypeInfo,
     # "Trigger": TriggerPrototypeInfo,
     # "TurboAccelerationPusher": TurboAccelerationPusherPrototypeInfo,
-    # "VagabondTeam": VagabondTeamPrototypeInfo,
+    "VagabondTeam": VagabondTeamPrototypeInfo,
     "VehiclePart": VehiclePartPrototypeInfo,
     # "Vehicle": VehiclePrototypeInfo,
     "VehicleRecollection": VehicleRecollectionPrototypeInfo,
@@ -738,8 +863,8 @@ thePrototypeInfoClassDict = {
     "VehicleRoleSniper": VehicleRoleSniperPrototypeInfo,
     # "VehicleSplinter": VehicleSplinterPrototypeInfo,
     "VehiclesGenerator": VehiclesGeneratorPrototypeInfo,
-    # "WanderersGenerator": WanderersGeneratorPrototypeInfo,
-    # "WanderersManager": WanderersManagerPrototypeInfo,
+    "WanderersGenerator": WanderersGeneratorPrototypeInfo,
+    "WanderersManager": WanderersManagerPrototypeInfo,
     # "Ware": WarePrototypeInfo,
     # "Wheel": WheelPrototypeInfo,
     # "Workshop": WorkshopPrototypeInfo

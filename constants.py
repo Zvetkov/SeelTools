@@ -309,3 +309,5 @@ LOCATION_TYPE = {"GENERIC": 0x0,
 
 NPC_TYPE = {"NPC_BARMAN": 0x0,
             "NPC_CLIENT": 0x1}
+
+TEAM_DEFAULT_FORMATION_PROTOTYPE = "caravanFormation"

@@ -1,7 +1,9 @@
-from math import sqrt
+from math import sqrt, cos, pi
 
 from id_manager import theIdManager
 from constants import STATUS_SUCCESS
+from global_functions import MassSetBoxTotal
+
 from logger import logger
 
 
@@ -143,6 +145,22 @@ class PhysicBody(Obj):
             self.collisionInfos = prototype_info_object.collisionInfos
             self.collisionTrimeshAllowed = prototype_info_object.collisionTrimeshAllowed
 
+    def ChangePhysicBodyByCollisionInfo(self, collisionInfos: list):
+        self.pGeoms = [0 for geom in self.pGeoms]
+        for collision_info in collisionInfos:
+            if collision_info == 1:
+                self.pGeoms.append("Box")
+            elif collision_info == 2:
+                self.pGeoms.append("Sphere")
+            elif collision_info == 3:
+                self.pGeoms.append("Cylinder")
+            elif collision_info == 4:
+                self.pGeoms.append("Ray")
+            elif collision_info == 5:
+                self.pGeoms.append("TriMesh")
+            else:
+                logger.error(f"Invalid geom type: {collision_info}")
+
 
 class VehiclePart(PhysicBody):
     def __init__(self, prototype_info_object=None):
@@ -171,12 +189,19 @@ class VehiclePart(PhysicBody):
         MassSetBoxTotal(self.mass, size_4, prototype_info_object.massValue, size, size_4, size_8)
         self.splashEffect = 0
         self.makeSplash = 0
-        pass  # GroupHealth next
-        
+        groupHealth = prototype_info_object.groupHealth  # groupHealthes in original
+        for health in groupHealth:
+            model_part = self.modelParts()
+            model_part.health = health
+            model_part.maxHealth = health
+            model_part.jadedEffect = 0
+            self.modelParts.append(model_part)
 
-
-
-
+        class ModelPart(object):
+            def __init__(self):
+                self.maxHealth = 0.0
+                self.health = 0.0
+                self.jadedEffect = 0
 
 
 class Gadget(Obj):
@@ -239,6 +264,76 @@ class SimplePhysicObj(PhysicObj):
             logger.warn("Not implemented Construct method for SimplePhysicObject class")
 
 
+class Settlement(SimplePhysicObj):
+    def __init__(self, prototype_info_object=None):
+        Settlement.__init__(self, prototype_info_object)
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        pass
+
+
+class InfectionLair(Settlement):
+    def __init__(self, prototype_info_object=None):
+        Settlement.__init__(self, prototype_info_object)
+
+
+class InfectionZone(Obj):
+    def __init__(self, prototype_info_object=None):
+        Obj.__init__(self, prototype_info_object)
+        self.infectionPolygon = []
+        self.dropOutPoints = []
+        self.infectionTeamPrototypeName = ""
+        self.infectionLairName = ""
+        self.minDistToPlayer = prototype_info_object.minDistToPlayer
+        self.criticalTeamDist = prototype_info_object.criticalTeamDist
+        self.criticalTeamTime = prototype_info_object.criticalTeamTime
+        self.blindTeamDist = prototype_info_object.blindTeamDist
+        self.hadPlayerInside = False
+        self.infectionTeamId = -1
+        self.infectionLairId = -1
+        self.baseTimeoutForRespawn = 30.0
+        self.timeoutForRespawn = 30.0
+        self.dropOutCos = 0.0
+        self.timeForRespawn = 0.0
+        self.dropOutTimeOut = 0.0
+        self.lastFramePlayerInsideWithoutEnemies = 0.0
+        self.dropOutCos = cos((prototype_info_object.dropOutSegmentAngle / 2) * pi / 180)
+
+
+class Team(Obj):
+    def __init__(self, prototype_info_object=None):
+        Obj.__init__(self, prototype_info_object)
+        self.removeWhenChildrenDead = prototype_info_object.removeWhenChildrenDead
+        self.ai = [0]
+        self.vehicles = []
+        self.steeringForceMap = []
+        self.teamTacticName = ""
+        self.useStandardUpdatingBehavior = True
+        self.ai = self.decisionMatrixNum  # ai::AI::SetDecisionMatrix(this_team->m_AI, prototypeInfo->m_decisionMatrixNum) ???
+        self.formation = 0
+        self.combatMastermind = 0
+        self.pPath = 0
+        self.frozen = False
+        self.mustMoveToTarget = False
+        self.maxTeamSpeed = 13.888889
+        self.needAdjustBehaviour = True
+        self.teamTacticId = -1
+        self.teamTacticShouldBeAssigned = True
+
+
+class InfectionTeam(Team):
+    def __init__(self, prototype_info_object=None):
+        Team.__init__(self, prototype_info_object)
+        self.generated = False
+        self.removeWhenChildrenDead = False
+        self.criticalTeamDist = 1000000.0
+        self.criticalTeamTime = 0.0
+        self.timeBeyondCriticalDist = 0.0
+        self.blindTeamDist = 1000000.0
+        self.blindTeamTime = 0.0
+        self.timeBeyondBlindDist = 0.0
+
+
 class ComplexPhysicObj(PhysicObj):
     def __init__(self, prototype_info_object=None):
         PhysicObj.__init__(self, prototype_info_object)
@@ -253,11 +348,73 @@ class Vehicle(ComplexPhysicObj):
         self.AI = []
         self.gadgets = []
 
+
 class VehicleRecollection(Obj):
     def __init__(self, prototype_info_object=None):
         Obj.__init__(self, prototype_info_object)
         self.recollectionItems = []
         self.vehicleId = -1
+
+
+class WanderersManager(Obj):
+    def __init__(self, prototype_info_object=None):
+        Obj.__init__(self, prototype_info_object)
+        self.wayPointIndexMap = []
+        self.wayPoints = []
+        self.precisePaths = []
+        self.caravanInfos = []
+        self.vagabondPrototypeIds = []
+        self.rebornTimeout = 10.0
+        self.wandererStates = []
+        self.waitingVagabonds = []
+        self.guardVehiclesIds = []
+        self.transitionIndices = []
+        self.timeBeforeReborn = 0.0
+
+    class WandererState(object):
+        def __init__(self):
+            self.timeout = 0.0
+            self.precisePath = []
+
+    class CaravanInfo(object):
+        def __init__(self):
+            self.prototypeName = ""
+            self.wayPointIndices = []
+
+
+class CaravanTeam(Team):
+    def __init__(self, prototype_info_object=None):
+        Team.__init__(self, prototype_info_object)
+        self.guardVehiclesIds = []
+        self.removeWhenChildrenDead = False
+        self.useStandardUpdatingBehavior = False
+        self.waitingForPlayerToMoveout = False
+        self.guardTeamId = -1
+        self.curAttackerId = -1
+
+
+class VagabondTeam(Team):
+    def __init__(self, prototype_info_object=None):
+        Team.__init__(self, prototype_info_object)
+        self.vehiclesGeneratorPrototypeId = "PLACEHOLDER_PROTOTYPE_ID"  # should be replaced with proper Id for PrototypeManager
+        if self.vehiclesGeneratorPrototypeId == -1:
+            logger.error(f"Unknown VehiclesGenerator {self.vehiclesGeneratorPrototype}")
+
+
+class VehiclesGenerator(object):
+    def __init__(self, prototype_info_object=None):
+        self.vehicleDescription = {"vehiclePrototypeIds": [],
+                                   "vehiclePrototypeNames": [],
+                                   "gunAffixGeneratorPrototypeName": [],
+                                   "tuningBySchwartz": True,
+                                   "gunAffixGeneratorPrototypeId": -1}
+        self.desiredCountLow = -1
+        self.desiredCountHigh = -1
+
+
+class WanderersGenerator(object):
+    def __init__(self, prototype_info_object=None):
+        self.not_implemented = "DummyClass"
 
 
 class DummyObject(SimplePhysicObj):

@@ -3,7 +3,7 @@ from os import path
 
 from logger import logger
 
-from em_parse import xml_to_objfy, read_from_xml_node
+from em_parse import xml_to_objfy, read_from_xml_node, log_comment
 from constants import STATUS_SUCCESS
 from prototype_info import PrototypeInfo, thePrototypeInfoClassDict
 
@@ -43,14 +43,17 @@ class PrototypeManager(object):
     def LoadFromFolder(self, xmlFile, xmlNode, directory):
         for prototype_node in xmlNode.iterchildren():
             is_folder_node = prototype_node.tag == "Folder"
-            if not is_folder_node:
-                self.ReadNewPrototype(directory, prototype_node)
-            else:
-                file_attrib = read_from_xml_node(prototype_node, "File", do_not_warn=True)
-                if file_attrib is not None:
-                    self.LoadGameObjectsFolderFromXML(f"{directory}/{file_attrib}")
+            if prototype_node.tag != "comment":
+                if not is_folder_node:
+                    self.ReadNewPrototype(directory, prototype_node)
                 else:
-                    self.LoadFromFolder(xmlFile, prototype_node, directory)
+                    file_attrib = read_from_xml_node(prototype_node, "File", do_not_warn=True)
+                    if file_attrib is not None:
+                        self.LoadGameObjectsFolderFromXML(f"{directory}/{file_attrib}")
+                    else:
+                        self.LoadFromFolder(xmlFile, prototype_node, directory)
+            else:
+                log_comment(prototype_node, xmlNode)
 
     def ReadNewPrototype(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
         class_name = read_from_xml_node(xmlNode, "Class")

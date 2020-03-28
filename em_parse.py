@@ -195,6 +195,15 @@ def check_mono_xml_node(xml_node: objectify.ObjectifiedElement, expected_child_n
                      f"nodes with a name {expected_child_name} in {xml_node.base}")
 
 
+def log_comment(comment_node: objectify.ObjectifiedElement, parent_node: objectify.ObjectifiedElement):
+    comment = unescape(str(etree.tostring(comment_node))).strip("b'<!-- ").strip(" -->'")
+    path = unquote(parent_node.base).replace(f'file:/{WORKING_DIRECTORY}', '')
+    logger.debug(f"Comment '{comment}' "
+                 f"in tag: '{parent_node.tag}'' "
+                 f"in file: {path}.")
+
+
+
 def parse_str_to_bool(string: str):
     if string is None:
         return False
