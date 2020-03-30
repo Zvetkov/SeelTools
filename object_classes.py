@@ -1,7 +1,7 @@
 from math import sqrt, cos, pi
 
 from id_manager import theIdManager
-from constants import STATUS_SUCCESS
+from constants import STATUS_SUCCESS, INITIAL_OBJECTS_DIRECTION
 from global_functions import MassSetBoxTotal
 
 from logger import logger
@@ -13,10 +13,11 @@ class Object(object):
         self.refCount = 0
         obj_id = theIdManager.GetUniqueId()
         self.name = f"Object{obj_id}"
-        self.parent = 0
+        self.parent = None
 
         self.numChildren = 0
         self.children = []  # will try to use this instead of indexes of siblings and children ???
+        self.children_map = {}
 
         self.scriptHandle = 0
         self.persistant = 1
@@ -31,14 +32,19 @@ class Object(object):
     def AddChild(self, class_object):
         self.children.append(class_object)
         class_object.parent = self
+        self.children_map[class_object.name] = class_object
         self.numChildren += 1
         # self.isChildDirty = 1  # ??? whytf do we need this?
         return STATUS_SUCCESS
 
+    def GetChildByName(self, name: str):
+        return self.children_map.get(name)
+
+
 
 class Obj(Object):
     '''Base class containing prototype info'''
-    def __init__(self, prototype_info_object: None):
+    def __init__(self, prototype_info_object=None):
         Object.__init__(self)
         self.allChildren = []
         self.isNil = 1
@@ -77,16 +83,16 @@ class CollisionInfo(object):
             self.trimeshVertices = 0
             self.trimeshIndices = 0
             self.geomType = info.geomType  # ??? WUT?
-            self.relTranslation_x = info.relTranslation_x
-            self.relTranslation_y = info.relTranslation_y
-            self.relTranslation_z = info.relTranslation_z
-            self.relRotation_x = info.relRotation_x
-            self.relRotation_y = info.relRotation_y
-            self.relRotation_z = info.relRotation_z
-            self.relRotation_w = info.relRotation_w
-            self.size_x = info.size_x
-            self.size_y = info.size_y
-            self.size_z = info.size_z
+            self.relTranslation = {"x": info.relTranslation["x"],
+                                   "y": info.relTranslation["y"],
+                                   "z": info.relTranslation["z"]}
+            self.relRotation = {"x": info.relRotation["x"],
+                                "y": info.relRotation["y"],
+                                "z": info.relRotation["z"],
+                                "w": info.relRotation["w"]}
+            self.size = {"x": info.size["x"],
+                         "y": info.size["y"],
+                         "z": info.size["z"]}
             self.radius = info.radius
             if info.trimeshVertices != 0:
                 if self.geomType is not None:
@@ -102,15 +108,16 @@ class CollisionInfo(object):
     def Init(self):
         self.geomType = 0
         self.relRotation_y = 0
-        self.relTranslation_x = 0.0
-        self.relTranslation_y = 0.0
-        self.relRotation_x = 0.0
-        self.relRotation_y = 0.0
-        self.relRotation_z = 0.0
-        self.relRotation_w = 1.0
-        self.size_x = 0.0
-        self.size_y = 0.0
-        self.radius = 0.0
+        self.relTranslation = {"x": 0.0,
+                               "y": 0.0,
+                               "z": 0.0}  # ??? z not actually initialized here
+        self.relRotation = {"x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0,
+                            "w": 1.0}
+        self.size = {"x": 0.0,
+                     "y": 0.0,
+                     "z": 0.0}
         self.numTrimeshVertices = 0
         self.numTrimeshIndices = 0
 
@@ -204,14 +211,130 @@ class VehiclePart(PhysicBody):
                 self.jadedEffect = 0
 
 
+class Trigger(Obj):
+    def __init__(self, prototype_info_object=None):
+        Obj.__init__(self, prototype_info_object)
+        self.variables = []
+        self.flyPathForCinematicFly = ""
+        self.triggerScriptFuncName = ""
+        self.objId = []
+        self.eventInfos = []
+        self.callEvent = {"eventId": 0,
+                          "objName": "",
+                          "callObjId": -1}
+        self.state = 0
+        self.timeOutForTimePeriod = 1.0
+        self.framesForFramesPassed = 0
+        self.idForCinemaMsg = -1
+        self.count = 0
+        self.scriptPresent = False
+        self.stateKeep = False
+        self.canUpdate = False
+
+
+class CinematicMover(Obj):
+    def __init__(self, prototype_info_object=None):
+        Obj.__init__(self, prototype_info_object)
+        self.flyPathName = ""
+        self.currentFlyPath = 0
+        self.currentFlyTime = 0.0
+        self.controlledObjId = -1
+
+
+class GameTime(object):
+    def __init__(self):
+        self.milliSeconds = 0
+        self.milliSeconds0 = 0
+
+    def init_short(self, milliSeconds):
+        self.milliSeconds = milliSeconds
+        self.milliSeconds0 = milliSeconds
+
+    def init_long(self, hour: int, minute: int, day: int, month: int, year: int):
+        if month > 12:
+            month = 12
+        if day > 30:
+            day = 30
+        if hour > 23:
+            hour = 23
+        if minute > 59:
+            minute = 59
+        milliSeconds = 60000 * (minute + 60 * (hour + 24 * (day + 31 * (month + 12 * year))))
+        self.milliSeconds = milliSeconds
+        self.milliSeconds0 = milliSeconds
+
+
+class DynamicQuest(Obj):
+    def __init__(self, prototype_info_object=None):
+        Obj.__init__(self, prototype_info_object)
+        if self.takeGameTime:
+            GameTime(self.takeGameTime)  # Loaded in runtime
+        self.hirerName = ""
+        self.targetName = ""
+        self.hirerObjId = -1
+        self.targetObjId = -1
+        self.questStatus = 0
+        self.reward = 0
+        self.fadingMsgIdOnComplete = 2
+        self.showMessageForAddMoney = True
+
+
+class DynamicQuestDestroy(DynamicQuest):
+    def __init__(self, prototype_info_object=None):
+        DynamicQuest.__init__(self, prototype_info_object)
+
+
+class DynamicQuestPeace(DynamicQuest):
+    def __init__(self, prototype_info_object=None):
+        DynamicQuest.__init__(self, prototype_info_object)
+
+
+class DynamicQuestReach(DynamicQuest):
+    def __init__(self, prototype_info_object=None):
+        DynamicQuest.__init__(self, prototype_info_object)
+
+
+class DynamicQuestConvoy(DynamicQuest):
+    def __init__(self, prototype_info_object=None):
+        DynamicQuest.__init__(self, prototype_info_object)
+        self.caravanId = -1
+        self.targetLocationId = -1
+        self.timePlayerIsTooFar = 0.0
+
+
+class DynamicQuestHunt(DynamicQuest):
+    def __init__(self, prototype_info_object=None):
+        DynamicQuest.__init__(self, prototype_info_object)
+        self.fragsAtStart = 0
+        self.showMessageForAddMoney = False
+        self.timePassed = -1.0
+        self.fadingMsgIdOnComplete = 1
+
+
 class Gadget(Obj):
-    def __init__(self, prototype_info_object: None):
+    def __init__(self, prototype_info_object=None):
         Obj.__init__(self, prototype_info_object)
         self.slotNum = -1
 
 
+class SgNodeObj(Obj):
+    def __init__(self, prototype_info_object=None):
+        Obj.__init__(self, prototype_info_object)
+        self.node = 0
+        self.modelName = prototype_info_object.engineModelName
+        self.position = []
+        self.rotation = [0.0, 0.0, 0.0, 1.0]
+        self.scale = 1.0
+        self.needToRelink = 0
+
+
+class LightObj(SgNodeObj):
+    def __init__(self, prototype_info_object=None):
+        SgNodeObj.__init__(self, prototype_info_object)
+
+
 class PhysicObj(Obj):
-    def __init__(self, prototype_info_object: None):
+    def __init__(self, prototype_info_object=None):
         Obj.__init__(self, prototype_info_object)
         # self.intersectionObstacle = None  # 0 Ptr
         # self.body = 0
@@ -266,7 +389,7 @@ class SimplePhysicObj(PhysicObj):
 
 class Settlement(SimplePhysicObj):
     def __init__(self, prototype_info_object=None):
-        Settlement.__init__(self, prototype_info_object)
+        SimplePhysicObj.__init__(self, prototype_info_object)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         pass
@@ -332,6 +455,25 @@ class InfectionTeam(Team):
         self.blindTeamDist = 1000000.0
         self.blindTeamTime = 0.0
         self.timeBeyondBlindDist = 0.0
+
+
+class Location(SimplePhysicObj):
+    def __init__(self, prototype_info_object=None):
+        SimplePhysicObj.__init__(self, prototype_info_object)
+        self.idsWasInside = []
+        self.targetClasses = []
+        self.toleranceSet = []
+        self.passageAddress = ""
+        self.correspondingPassageLocationName = ""
+        self.npcs = []
+        self.locationType = 0
+        self.isActive = True
+        self.lookingTimeOut = 1.0
+        self.passageActive = True
+        self.toleranceSet.append("eTolerance")
+        self.targetClasses.append("Vehicle")
+        self.targetClasses.append("Boss02")
+        self.numFramesPassed = 0
 
 
 class ComplexPhysicObj(PhysicObj):
@@ -417,6 +559,26 @@ class WanderersGenerator(object):
         self.not_implemented = "DummyClass"
 
 
+class AffixGenerator(object):
+    def __init__(self, prototype_info_object=None):
+        self.not_implemented = "DummyClass"
+
+
+class Formation(Obj):
+    def __init__(self, prototype_info_object=None):
+        Obj.__init__(self, prototype_info_object)
+        self.distBetweenVehicles = 30.0
+        self.maxVehicles = prototype_info_object.maxVehicles
+        self.linearVelocity = prototype_info_object.linearVelocity
+        self.angularVelocity = prototype_info_object.angularVelocity
+        self.position = [0, 0, 0]
+        self.direction = INITIAL_OBJECTS_DIRECTION
+        self.positions = []
+        self.pPath = 0
+        self.numPathPoint = -1
+        self.vehicles = []
+
+
 class DummyObject(SimplePhysicObj):
     def __init__(self, prototype_info_object=None):
         SimplePhysicObj.__init__(self, prototype_info_object)
@@ -426,6 +588,20 @@ class DummyObject(SimplePhysicObj):
         #     PhysicObj.DisableGeometry(self)
         if self.physicBody is not None:
             logger.warn("Not implemented PhysicBody check related to modelName")
+
+
+class Player(Obj):
+    def __init__(self, prototype_info_object=None):
+        Obj.__init__(self, prototype_info_object)
+        self.modelName = prototype_info_object.modelName
+        self.skinNumber = prototype_info_object.skinNumber
+        self.cfgNumber = prototype_info_object.cfgNumber
+
+
+class RadioManager(Obj):
+    def __init__(self, prototype_info_object=None):
+        Obj.__init__(self, prototype_info_object)
+        self.radioEnabled = True
 
 
 class VehicleRole(Obj):

@@ -311,3 +311,47 @@ NPC_TYPE = {"NPC_BARMAN": 0x0,
             "NPC_CLIENT": 0x1}
 
 TEAM_DEFAULT_FORMATION_PROTOTYPE = "caravanFormation"
+INITIAL_OBJECTS_DIRECTION = [0.0, 0.0, 1.0]
+
+ACTION_TYPE = {"AT_STAND1": 0x0,
+               "AT_STAND2": 0x1,
+               "AT_MOVE1": 0x2,
+               "AT_MOVE2": 0x3,
+               "AT_ATTACK1": 0x4,
+               "AT_ATTACK2": 0x5,
+               "AT_PAIN1": 0x6,
+               "AT_PAIN2": 0x7,
+               "AT_DEATH1": 0x8,
+               "AT_DEATH2": 0x9,
+               "AT_BLOCK1": 0xA,
+               "AT_BLOCK2": 0xB,
+               "AT_RESERVED1": 0xC,
+               "AT_RESERVED2": 0xD,
+               "AT_RESERVED3": 0xE,
+               "AT_RESERVED4": 0xF,
+               "AT_SND_SELECT": 0x10,
+               "AT_SND_SELECT2": 0x11,
+               "AT_SND_SELECT3": 0x12,
+               "AT_SND_SELECT4": 0x13,
+               "AT_SND_ATTACK": 0x14,
+               "AT_SND_ATTACK2": 0x15,
+               "AT_SND_ATTACK3": 0x16,
+               "AT_SND_ATTACK4": 0x17,
+               "AT_SND_WALK": 0x18,
+               "AT_SND_WALK2": 0x19,
+               "AT_SND_WALK3": 0x1A,
+               "AT_SND_WALK4": 0x1B,
+               "AT_SND_MOVE1A": 0x1C,
+               "AT_SND_MOVE2A": 0x1D,
+               "AT_SND_UNREACH": 0x1E,
+               "AT_ALL_FRAMES": 0x1F,
+               "AT_NUMTYPES": 0x20}
+
+ZERO_VECTOR = {"x": 0.0,
+               "y": 0.0,
+               "z": 0.0}
+
+IDENTITY_QUATERNION = {"x": 0.0,
+                       "y": 0.0,
+                       "z": 0.0,
+                       "w": 1.0}

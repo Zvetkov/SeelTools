@@ -1,3 +1,5 @@
+from constants import ACTION_TYPE
+
 class dMass(object):
     def __init__(self):
         self.SetZero()
@@ -22,3 +24,11 @@ def MassSetBoxTotal(m: dMass, a2: int, total_mass: float, lx: float, ly: float, 
     m.i.append((lz**2 + ly**2) * total_mass) * 0.083333336  # =1/12 ???
     m.i.append((lx**2 + lz**2) * total_mass) * 0.083333336
     m.i.append((lx**2 + ly**2) * total_mass) * 0.083333336
+
+
+def GetActionByName(actionName):
+    action_id = ACTION_TYPE.get(actionName)
+    if action_id is not None:
+        return action_id
+    else:
+        return 0
