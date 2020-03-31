@@ -1,7 +1,8 @@
 from math import sqrt, cos, pi
+from copy import deepcopy
 
 from id_manager import theIdManager
-from constants import STATUS_SUCCESS, INITIAL_OBJECTS_DIRECTION
+from constants import STATUS_SUCCESS, ZERO_VECTOR, INITIAL_OBJECTS_DIRECTION, BUILDING_TYPE, IDENTITY_QUATERNION
 from global_functions import MassSetBoxTotal
 
 from logger import logger
@@ -209,6 +210,29 @@ class VehiclePart(PhysicBody):
                 self.maxHealth = 0.0
                 self.health = 0.0
                 self.jadedEffect = 0
+
+
+class Chassis(VehiclePart):
+    def __init__(self, prototype_info_object=None):
+        VehiclePart.__init__(self, prototype_info_object)
+        self.health = prototype_info_object.maxHealth
+        self.fuel = prototype_info_object.maxFuel
+
+
+class Cabin(VehiclePart):
+    def __init__(self, prototype_info_object=None):
+        VehiclePart.__init__(self, prototype_info_object)
+        self.maxPower = prototype_info_object.maxPower
+        self.maxTorque = prototype_info_object.maxTorque
+        self.maxSpeed = prototype_info_object.maxSpeed
+        self.fuelConsumption = prototype_info_object.fuelConsumption
+        self.control = 50.0
+        self.maxGadgets = 3
+
+
+class Basket(VehiclePart):
+    def __init__(self, prototype_info_object=None):
+        VehiclePart.__init__(self, prototype_info_object)
 
 
 class Trigger(Obj):
@@ -483,6 +507,11 @@ class ComplexPhysicObj(PhysicObj):
             self.vehicleParts = []
 
 
+class AnimatedComplexPhysicObj(ComplexPhysicObj):
+    def __init__(self, prototype_info_object=None):
+        ComplexPhysicObj.__init__(self, prototype_info_object)
+
+
 class Vehicle(ComplexPhysicObj):
     def __init__(self, prototype_info_object=None):
         ComplexPhysicObj.__init__(self, prototype_info_object)
@@ -554,16 +583,6 @@ class VehiclesGenerator(object):
         self.desiredCountHigh = -1
 
 
-class WanderersGenerator(object):
-    def __init__(self, prototype_info_object=None):
-        self.not_implemented = "DummyClass"
-
-
-class AffixGenerator(object):
-    def __init__(self, prototype_info_object=None):
-        self.not_implemented = "DummyClass"
-
-
 class Formation(Obj):
     def __init__(self, prototype_info_object=None):
         Obj.__init__(self, prototype_info_object)
@@ -571,8 +590,8 @@ class Formation(Obj):
         self.maxVehicles = prototype_info_object.maxVehicles
         self.linearVelocity = prototype_info_object.linearVelocity
         self.angularVelocity = prototype_info_object.angularVelocity
-        self.position = [0, 0, 0]
-        self.direction = INITIAL_OBJECTS_DIRECTION
+        self.position = deepcopy(ZERO_VECTOR)
+        self.direction = deepcopy(INITIAL_OBJECTS_DIRECTION)
         self.positions = []
         self.pPath = 0
         self.numPathPoint = -1
@@ -671,3 +690,548 @@ class NPCMotionController(Obj):
         self.lastDesiredPosition = []
         self.characteristicDist = 10.0
         self.characteristicPeriod = 5.0
+
+
+class BossMetalArm(SimplePhysicObj):
+    def __init__(self, prototype_info_object):
+        SimplePhysicObj.__init__(self, prototype_info_object)
+        self.turningSpeed = prototype_info_object.turningSpeed
+        self.loadObjId = -1
+        self.attackState = 0
+        self.dirForCharging = deepcopy(ZERO_VECTOR)
+        self.curAttackAction = -1
+        self.numExplodedLoads = 0
+        self.curLoadExploded = False
+        # self.DisablePhysics()
+
+
+class BossMetalArmLoad(DummyObject):
+    def __init__(self, prototype_info_object):
+        DummyObject.__init__(self, prototype_info_object)
+        self.health = prototype_info_object.maxHealth
+        self.collisionMode = 0
+
+
+class Boss02(ComplexPhysicObj):
+    def __init__(self, prototype_info_object):
+        ComplexPhysicObj.__init__(self, prototype_info_object)
+        self.stateInfos = prototype_info_object.stateInfos
+        self.numState = -2
+        self.moveState = 0
+        self.containerId = -1
+        # self.DisablePhysics()
+
+
+class BossArm(VehiclePart):
+    def __init__(self, prototype_info_object):
+        VehiclePart.__init__(self, prototype_info_object)
+        self.turningSpeed = prototype_info_object.turningSpeed
+        self.loadProrotypeIds = []
+        self.attackState = 0
+        self.loadObjId = -1
+        self.dirForCharging = deepcopy(INITIAL_OBJECTS_DIRECTION)
+        self.numExplodedLoads = 0
+        self.curLoadExploded = 0
+        self.curAttackAction = -1
+        self.curLoadVelocity = deepcopy(ZERO_VECTOR)
+
+
+class Boss02Arm(BossArm):
+    def __init__(self, prototype_info_object):
+        BossArm.__init__(self, prototype_info_object)
+        self.customState = 0
+        self.containerId = -1
+        self.relPosForContainerPickUp = deepcopy(ZERO_VECTOR)
+        self.relPosForContainerPutDown = deepcopy(ZERO_VECTOR)
+        self.effectsEnabled = True
+        # self.SetNodeAction()
+
+
+class Boss03Part(VehiclePart):
+    def __init__(self, prototype_info_object):
+        VehiclePart.__init__(self, prototype_info_object)
+        self.isDamageable = False
+
+
+class Boss03(AnimatedComplexPhysicObj):
+    def __init__(self, prototype_info_object):
+        AnimatedComplexPhysicObj.__init__(self, prototype_info_object)
+        self.heath = prototype_info_object.maxHealth
+        self.pointsForDrones = []
+        self.pointsForShooting = []
+        self.pathNameForFlyingWithWings = ""
+        self.linearVelocity = deepcopy(ZERO_VECTOR)
+        self.relAngularVelocity = deepcopy(ZERO_VECTOR)
+        self.liveStatus = 4
+        self.droneSpawningStatus = 0
+        self.dronePlacingTimeout = 0.0
+        self.shootingTimeout = 0.0
+        self.pathTrackingStatus = 0
+        self.desiredDestination = deepcopy(ZERO_VECTOR)
+        self.desiredDirection = deepcopy(INITIAL_OBJECTS_DIRECTION)
+        self.droneTeam = 0
+        self.currentFlyPath = 0
+        self.currentFlyTime = 0.0
+        self.keyPartsMaxDurability = 0.0
+        # self.DisablePhysics()
+        self.physicState = 1
+        # self.SetCorrectEnabledCellsCounter()
+        # self.EnableGeometry()
+
+
+class Boss04(ComplexPhysicObj):
+    def __init__(self, prototype_info_object=None):
+        ComplexPhysicObj.__init__(self, prototype_info_object)
+        self.stations = []
+        self.drones = []
+        self.pathNamesForDrones = []
+        self.state = 0
+        # self.DisablePhysics()
+
+
+class Boss04Drone(ComplexPhysicObj):
+    def __init__(self, prototype_info_object=None):
+        ComplexPhysicObj.__init__(self, prototype_info_object)
+        self.flyPathName = ""
+        self.currentFlyPath = 0
+        self.currentFlyTime = 0.0
+        self.customControl = False
+
+
+class Boss04Part(VehiclePart):
+    def __init__(self, prototype_info_object=None):
+        VehiclePart.__init__(self, prototype_info_object)
+        self.isDamageable = False
+
+
+class Boss04Station(ComplexPhysicObj):
+    def __init__(self, prototype_info_object=None):
+        ComplexPhysicObj.__init__(self, prototype_info_object)
+        self.destroyed = False
+        # self.DisablePhysics()
+
+
+class Boss04StationPart(VehiclePart):
+    def __init__(self, prototype_info_object=None):
+        VehiclePart.__init__(self, prototype_info_object)
+        self.meshGroupInfos = []
+        self.prevMeshGroupInfos = []
+
+
+class BlastWave(SimplePhysicObj):
+    def __init__(self, prototype_info_object):
+        SimplePhysicObj.__init__(self, prototype_info_object)
+        self.waveForceIntensity = prototype_info_object.waveForceIntensity
+        self.waveDamageIntensity = prototype_info_object.waveDamageIntensity
+        self.rocketExplosionType = 0
+        self.effectNode = 0
+        self.frameWhenCreated = 0
+        self.emitterId = -1
+        self.collider = False
+
+
+class Gun(VehiclePart):
+    def __init__(self, prototype_info_object):
+        VehiclePart.__init__(self, prototype_info_object)
+        self.lowStopAngle = prototype_info_object.lowStopAngle
+        self.highStopAngle = prototype_info_object.highStopAngle
+        self.damage = prototype_info_object.damage
+        self.shellPrototypeId = prototype_info_object.shellPrototypeId
+        self.damageType = prototype_info_object.damageType
+        self.firingRate = prototype_info_object.firingRate
+        self.firingRange = prototype_info_object.firingRange
+        self.recoilForce = prototype_info_object.recoilForce
+        self.turningSpeed = prototype_info_object.turningSpeed
+        self.chargeSize = prototype_info_object.chargeSize
+        self.reChargingTime = prototype_info_object.reChargingTime
+        self.reChargingTimePerShell = prototype_info_object.reChargingTimePerShell
+        self.shellsInPool = prototype_info_object.shellsPoolSize
+        self.currentDesiredAlpha = 1000000.0
+        self.curBarrelIndex = 0
+        self.isFiring = False
+        self.chargeState = 0
+        self.barrelNode = 0
+        self.wasShot = False
+        self.justShot = False
+        self.leftStopAngle = 0.0
+        self.rightStopAngle = 0.0
+        self.targetObjId = -1
+        self.timeFromLastShot = 1000.0
+        self.currentReChargingTime = 0.0
+        self.shellsInCurrentCharge = self.chargeSize
+        self.initialHorizAngle = 0.0
+
+
+class CompoundVehiclePart(VehiclePart):
+    def __init__(self, prototype_info_object):
+        VehiclePart.__init__(self, prototype_info_object)
+        self.vehicleParts = []
+
+
+class CompoundGun(CompoundVehiclePart):
+    def __init__(self, prototype_info_object):
+        CompoundVehiclePart.__init__(self, prototype_info_object)
+
+
+class BulletLauncher(Gun):
+    def __init__(self, prototype_info_object):
+        Gun.__init__(self, prototype_info_object)
+        self.numBulletsInShot = prototype_info_object.numBulletsInShot
+        self.groupingAngle = prototype_info_object.groupingAngle
+        self.numBulletsToTracer = 0
+
+
+class RocketLauncher(Gun):
+    def __init__(self, prototype_info_object):
+        Gun.__init__(self, prototype_info_object)
+
+
+class RocketVolleyLauncher(RocketLauncher):
+    def __init__(self, prototype_info_object):
+        RocketLauncher.__init__(self, prototype_info_object)
+        self.hadToLaunch = []
+        self.isVolleyFiring = False
+
+
+class ThunderboltLauncher(Gun):
+    def __init__(self, prototype_info_object):
+        Gun.__init__(self, prototype_info_object)
+        self.enemies = []
+
+
+class PlasmaBunchLauncher(Gun):
+    def __init__(self, prototype_info_object):
+        Gun.__init__(self, prototype_info_object)
+
+
+class Mortar(Gun):
+    def __init__(self, prototype_info_object):
+        Gun.__init__(self, prototype_info_object)
+
+
+class MortarVolleyLauncher(Mortar):
+    def __init__(self, prototype_info_object):
+        Mortar.__init__(self, prototype_info_object)
+
+
+class LocationPusher(Gun):
+    def __init__(self, prototype_info_object):
+        Gun.__init__(self, prototype_info_object)
+
+
+class MinePusher(Gun):
+    def __init__(self, prototype_info_object):
+        Gun.__init__(self, prototype_info_object)
+
+
+class TurboAccelerationPusher(Gun):
+    def __init__(self, prototype_info_object):
+        Gun.__init__(self, prototype_info_object)
+
+
+class Shell(SimplePhysicObj):
+    def __init__(self, prototype_info_object):
+        SimplePhysicObj.__init__(self, prototype_info_object)
+        self.gunObjId = -1
+        self.emittedObjId = -1
+
+
+class Rocket(Shell):
+    def __init__(self, prototype_info_object):
+        Shell.__init__(self, prototype_info_object)
+        self.velocity = prototype_info_object.velocity
+        self.lifeTime = prototype_info_object.flyTime
+        self.minTurningRadius = prototype_info_object.minTurningRadius
+        self.physicState = 1
+        # self.DisablePhysics()
+        # self.SetCorrectEnabledCellsCounter()
+        # self.EnableGeometry()
+        self.targetObjId = -1
+        self.withAngleLimit = 1
+        self.numCircles = 0
+
+
+class PlasmaBunch(Shell):
+    def __init__(self, prototype_info_object):
+        Shell.__init__(self, prototype_info_object)
+        self.velocity = prototype_info_object.velocity
+        self.lifeTime = prototype_info_object.flyTime
+        self.physicState = 1
+        # self.DisablePhysics()
+        # self.SetCorrectEnabledCellsCounter()
+        # self.EnableGeometry()
+
+
+class MortarShell(Shell):
+    def __init__(self, prototype_info_object):
+        Shell.__init__(self, prototype_info_object)
+        self.lifeTime = prototype_info_object.flyTime
+        self.physicState = 1
+        # self.DisablePhysics()
+        # self.SetCorrectEnabledCellsCounter()
+        # self.EnableGeometry()
+
+
+class Mine(Rocket):
+    def __init__(self, prototype_info_object):
+        Rocket.__init__(self, prototype_info_object)
+        self.TL = 0.0
+        self.yVelocity = 0.0
+        # sefl.EnableGeometry()
+
+
+class Thunderbolt(Obj):
+    def __init__(self, prototype_info_object):
+        Obj.__init__(self, prototype_info_object)
+        self.lifeTime = prototype_info_object.flyTime
+        self.origin = deepcopy(ZERO_VECTOR)
+        self.origin["masterPoints"] = []
+        self.targets = []
+        self.segments = []
+
+
+class Bullet(Shell):
+    def __init__(self, prototype_info_object):
+        Shell.__init__(self, prototype_info_object)
+        self.tracet = 0
+        self.parentBarrel = 0
+        self.framesToLive = 1
+
+
+class TemporaryLocation(Location):
+    def __init__(self, prototype_info_object):
+        Location.__init__(self, prototype_info_object)
+        self.temporaryLocationState = 0
+        self.isActive = False
+        self.TL = 0.0
+
+
+class SmokeScreenLocation(TemporaryLocation):
+    def __init__(self, prototype_info_object):
+        TemporaryLocation.__init__(self, prototype_info_object)
+
+
+class NailLocation(TemporaryLocation):
+    def __init__(self, prototype_info_object):
+        TemporaryLocation.__init__(self, prototype_info_object)
+
+
+class EngineOilLocation(TemporaryLocation):
+    def __init__(self, prototype_info_object):
+        TemporaryLocation.__init__(self, prototype_info_object)
+
+
+class Submarine(DummyObject):
+    def __init__(self, prototype_info_object):
+        DummyObject.__init__(self, prototype_info_object)
+        self.entryPath = {"vehiclePoints": [],
+                          "cameraPoints": []}
+        self.nextMap = ""
+        self.nextMapLocation = ""
+        self.physicState = 1
+        # self.SetCorrectEnabledCellsCounter()
+        self.EnableGeometry()
+        self.linearVelocity = deepcopy(ZERO_VECTOR)
+        self.nextMapAngle = -1
+
+
+class Building(Obj):
+    def __init__(self, prototype_info_object):
+        Obj.__init__(self, prototype_info_object)
+        self.npcs = []
+
+    def GetBuildingTypeByName(name):
+        return BUILDING_TYPE.get(name)
+
+
+class Bar(Building):
+    def __init__(self, prototype_info_object):
+        Building.__init__(self, prototype_info_object)
+        self.barmanId = -1
+
+
+class Workshop(Building):
+    def __init__(self, prototype_info_object):
+        Building.__init__(self, prototype_info_object)
+        self.repositories = []
+        self.articles = []
+        self.originalObjectsInRepository = []
+        priceCoeffProvider = WorkshopPriceCoeffProvider(self)
+        self.priceCoeffProvider = priceCoeffProvider
+
+
+class WorkshopPriceCoeffProvider(object):
+    def __init__(self, workshop: Workshop):
+        self.workshop = workshop
+
+
+class Ware(Obj):
+    def __init__(self, prototype_info_object):
+        Obj.__init__(self, prototype_info_object)
+        self.maxItems = prototype_info_object.maxItems
+        self.durability = prototype_info_object.maxDurability
+
+
+class BreakableObject(SimplePhysicObj):
+    def __init__(self, prototype_info_object):
+        SimplePhysicObj.__init__(self, prototype_info_object)
+        self.removingEffectName = ""
+        self.connectedRopes = []
+        # self.DisablePhysics()
+        self.state = 0
+        self.destroyable = prototype_info_object.destroyable
+        self.criticalHitEnergy = prototype_info_object.criticalHitEnergy
+        self.effectType = f"Placeholder for {prototype_info_object.effectType}!"  # DynamicScene.GetBoEffectTypeByName(prototype_info_object.effectType)
+        self.destroyEffectType = f"Placeholder for {prototype_info_object.destroyEffectType}!"  # DynamicScene.GetBoEffectTypeByName(prototype_info_object.destroyEffectType)
+        self.jointId = 0
+        self.positioningOnGround = 1
+        self.causePos = {"x": 0.0, "y": 0.0}
+        self.auseForce = 0.0
+        self.initVelocities = 0
+        # self.SetStaticCollision()
+
+
+class ParticleSplinter(DummyObject):
+    def __init__(self, prototype_info_object):
+        DummyObject.__init__(self, prototype_info_object)
+        # self.TransferToSpace()
+
+
+class VehicleSplinter(DummyObject):
+    def __init__(self, prototype_info_object):
+        DummyObject.__init__(self, prototype_info_object)
+
+
+class PhysicUnit(SimplePhysicObj):
+    def __init__(self, prototype_info_object):
+        SimplePhysicObj.__init__(self, prototype_info_object)
+        self.walkSpeed = prototype_info_object.walkSpeed
+        self.turnSpeed = prototype_info_object.turningSpeed
+        self.maxStandTime = prototype_info_object.maxStandTime
+        self.pathsMap = []
+        self.curPathName = []
+        self.State = 0
+        self.causePos = deepcopy(ZERO_VECTOR)
+        self.causeForce = 0.0
+        self.initVelocities = 0
+        self.curWayPointNum = 0
+        self.prevWayPoint = deepcopy(ZERO_VECTOR)
+        self.walkState = 0
+        self.curPath = 0
+        self.mustChangePath = False
+        self.mustWalk = True
+        logger.info("Partially implemented PhysicUnit class")
+
+
+class Wheel(SimplePhysicObj):
+    def __init__(self, prototype_info_object=None):
+        SimplePhysicObj.__init__(self, prototype_info_object)
+        self.jointID = 0
+        self.driven = 1
+        self.steering = 0
+        self.splashEffect = 0
+        self.splashType = 0
+        self.makeSplash = 0
+        self.wheelType = f"Placeholder type for {prototype_info_object.typeName}!"  # DynamicScene.GetWheelTypeByName(prototype_info_object.typeName)
+        self.modelBroken = False
+        self.suspencionNode = 0
+        self.curAngle = 0.0
+        self.initialRotation = deepcopy(IDENTITY_QUATERNION)
+
+
+class JointedObj(Obj):
+    def __init__(self, prototype_info_object):
+        Obj.__init__(self, prototype_info_object)
+        self.membersSpace = 0
+        self.members = []
+        self.extraMembers = []
+        self.joints = []
+        self.jointsIndices = []
+        self.externalJoints = []
+        self.externalJointsInfo = []
+        self.onLoad = 0
+        self.jointToGeom = []
+        self.modelName = ""
+        self.mass = 10.0
+        self.node = 0
+        self.model = 0
+        self.anim = 0
+        self.strech = 1.0
+        self.position = deepcopy(ZERO_VECTOR)
+        self.enabled = 0
+        self.dataForLoad = []
+        self.edataForLoad = []
+        self.asRope = 0
+        self.splineNeighbours = []
+        self.deadTimerActive = []
+        self.testVisibility = 0
+        self.disableTimerActive = 0
+        self.deadTimer = 0.0
+        self.disableTimer = 0.0
+
+
+class CompositeObj(Obj):
+    def __init__(self, prototype_info_object):
+        Obj.__init__(self, prototype_info_object)
+        self.members = []
+        self.boneToGeom = []
+        self.bonesIndices = []
+        self.joints = []
+        self.connections = []
+        self.modelName = ""
+        self.mass = 10.0
+        self.node = 0
+        self.Model = 0
+        self.Anim = 0
+        self.position = deepcopy(ZERO_VECTOR)
+        self.enabled = 0
+        self.dataForLoad = []
+        self.initialNodeTransform = 1.0
+        self.deadTimerActive = 0
+        self.deadTimer = 0.0
+        self.testVisibility = 0
+
+
+class GeomObj(PhysicObj):
+    def __init__(self, prototype_info_object):
+        PhysicObj.__init__(self, prototype_info_object)
+        self.pGeom = 0
+        self.mass = 0.0
+
+
+class RopeObj(SimplePhysicObj):
+    def __init__(self, prototype_info_object):
+        SimplePhysicObj.__init__(self, prototype_info_object)
+        self.posts = []
+        self.strech = 1.0
+        self.tiePoses = []
+        self.tiedObjPoses = []
+        self.tieObjects = []
+        post = self.Post()
+        self.dummyPost = post
+        # self.DisablePhysics()
+        # self.DisableGeometry()
+
+    class Post(object):
+        def __init__(self):
+            self.serverObjName = ""
+            self.lpName = ""
+            self.nodesNamesHierarchy = []
+            self.postNode = 0
+            self.postObj = 0
+            self.postTiePos = deepcopy(ZERO_VECTOR)
+
+
+class WanderersGenerator(object):
+    def __init__(self, prototype_info_object=None):
+        self.not_implemented = "DummyClass"
+
+
+class AffixGenerator(object):
+    def __init__(self, prototype_info_object=None):
+        self.not_implemented = "DummyClass"
+
+
+class QuestItem(object):
+    def __init__(self, prototype_info_object=None):
+        self.not_implemented = "DummyClass"

@@ -9,7 +9,6 @@ from constants import (STATUS_SUCCESS, DEFAULT_TURNING_SPEED, FiringTypesStruct,
                        TEAM_DEFAULT_FORMATION_PROTOTYPE, GEOM_TYPE, ZERO_VECTOR, IDENTITY_QUATERNION)
 from object_classes import *
 from global_functions import GetActionByName
-from global_properties import theServer
 
 
 class PrototypeInfo(object):
@@ -130,6 +129,108 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
             return STATUS_SUCCESS
 
 
+class ChassisPrototypeInfo(VehiclePartPrototypeInfo):
+    def __init__(self, server):
+        VehiclePartPrototypeInfo.__init__(self, server)
+        self.maxHealth = 1.0
+        self.maxFuel = 1.0
+        self.brakingSoundName = ""
+        self.pneumoSoundName = ""
+        self.gearShiftSoundName = ""
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = PhysicBodyPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            maxHealth = read_from_xml_node(xmlNode, "MaxHealth", do_not_warn=True)
+            if maxHealth is not None:
+                self.maxHealth = float(maxHealth)
+
+            maxFuel = read_from_xml_node(xmlNode, "MaxFuel", do_not_warn=True)
+            if maxFuel is not None:
+                self.maxFuel = float(maxFuel)
+
+            self.brakingSoundName = read_from_xml_node(xmlNode, "BrakingSound")
+            self.pneumoSoundName = read_from_xml_node(xmlNode, "PneumoSound")
+            self.gearShiftSoundName = read_from_xml_node(xmlNode, "GearShiftSound")
+            return STATUS_SUCCESS
+
+
+class CabinPrototypeInfo(VehiclePartPrototypeInfo):
+    def __init__(self, server):
+        VehiclePartPrototypeInfo.__init__(self, server)
+        self.maxPower = 1.0
+        self.maxTorque = 1.0
+        self.maxSpeed = 1.0
+        self.fuelConsumption = 1.0
+        self.gadgetSlots = []
+        self.control = 50.0
+        self.engineHighSoundName = ""
+        self.engineLowSoundName = ""
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = PhysicBodyPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            maxPower = read_from_xml_node(xmlNode, "MaxPower", do_not_warn=True)
+            if maxPower is not None:
+                self.maxPower = float(maxPower)
+
+            maxTorque = read_from_xml_node(xmlNode, "MaxTorque", do_not_warn=True)
+            if maxTorque is not None:
+                self.maxTorque = float(maxTorque)
+
+            maxSpeed = read_from_xml_node(xmlNode, "MaxSpeed", do_not_warn=True)
+            if maxSpeed is not None:
+                self.maxSpeed = float(maxSpeed)
+
+            fuelConsumption = read_from_xml_node(xmlNode, "FuelConsumption", do_not_warn=True)
+            if fuelConsumption is not None:
+                self.fuelConsumption = float(fuelConsumption)
+
+            self.engineHighSoundName = read_from_xml_node(xmlNode, "EngineHighSound")
+            self.engineLowSoundName = read_from_xml_node(xmlNode, "EngineLowSound")
+
+            control = read_from_xml_node(xmlNode, "Control", do_not_warn=True)
+            if control is not None:
+                self.control = float(control)
+            if self.control < 0.0 or self.control > 100.0:
+                self.control = 100.0
+
+            self.maxSpeed = self.maxSpeed * 0.27777779  # ~5/18 or 50/180
+
+            gadgetDescriptions = child_from_xml_node(xmlNode, "GadgetDescription", do_not_warn=True)
+            if gadgetDescriptions is not None:
+                check_mono_xml_node(gadgetDescriptions, "Slot")
+                for gadget_node in gadgetDescriptions.iterchildren():
+                    gadget = {"resourceType": read_from_xml_node(gadget_node, "ResourceType"),
+                              "maxAmount": int(read_from_xml_node(gadget_node, "MaxAmount"))}
+                    self.gadgetSlots.append(gadget)
+            return STATUS_SUCCESS
+
+
+class BasketPrototypeInfo(VehiclePartPrototypeInfo):
+    def __init__(self, server):
+        VehiclePartPrototypeInfo.__init__(self, server)
+        self.slots = []
+        self.repositorySize = {"x": 10, "y": 10}
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = PhysicBodyPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            repositoryDescriptions = child_from_xml_node(xmlNode, "RepositoryDescription")
+            repositorySize = read_from_xml_node(repositoryDescriptions, "RepositorySize")
+            self.repositorySize = {"x": repositorySize[0],
+                                   "y": repositorySize[1]}
+            if len(repositoryDescriptions.getchildren()) > 1:
+                check_mono_xml_node(repositoryDescriptions, "Slot")
+                for slot_node in repositoryDescriptions.iterchildren():
+                    pos = read_from_xml_node(slot_node, "Pos").split()
+                    pos = {"x": pos[0], "y": pos[1]}
+                    slot = {"name": read_from_xml_node(slot_node, "Name"),
+                            "pos": pos}
+                    self.slots.append(slot)
+            return STATUS_SUCCESS
+
+
 class GunPrototypeInfo(VehiclePartPrototypeInfo):
     def __init__(self, server):
         VehiclePartPrototypeInfo.__init__(self, server)
@@ -182,10 +283,10 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
                 self.recoilForce = float(recoilForce)
 
             decalName = read_from_xml_node(xmlNode, "Decal")
-            self.decalId = f"Placeholder for {decalName}!"  # ai::DynamicScene::AddDecalName(ai::gDynamicScene, &decalName)
+            self.decalId = f"Placeholder for {decalName}!"  # DynamicScene.AddDecalName(decalName)
 
             firingType = read_from_xml_node(xmlNode, "FiringType")
-            self.firingType = self.Str2FiringType(firingType)
+            self.firingType = GunPrototypeInfo.Str2FiringType(firingType)
             if self.firingType is None:
                 logger.warning(f"Unknown firing type: {self.firingType}!")
 
@@ -213,9 +314,9 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
                 shellsPoolSize = int(shellsPoolSize)
                 if shellsPoolSize > 0:
                     self.shellsPoolSize = shellsPoolSize
-            if shellsPoolSize <= 0:
-                self.withShellsPoolLimit = 0
-                self.shellsPoolSize = 12
+                if shellsPoolSize <= 0:
+                    self.withShellsPoolLimit = 0
+                    self.shellsPoolSize = 12
 
             self.withShellsPoolLimit = parse_str_to_bool(read_from_xml_node(xmlNode, "WithShellsPoolLimit"))
 
@@ -419,7 +520,7 @@ class ComplexPhysicObjPartDescription(Object):
         self.lpNames = []
         self.child_descriptions = []  # ??? temporary placeholder for original logic
 
-    def LoadFromXML(self, xmlFile, xmlNode):
+    def LoadFromXML(self, xmlFile, xmlNode, server):
         self.name = read_from_xml_node(xmlNode, "id")
         if self.parent is not None:
             parent_lookup = self.parent.GetChildByName(self.name)
@@ -427,13 +528,13 @@ class ComplexPhysicObjPartDescription(Object):
                 logger.warning(f"When loading PartDescription: name = {self.name} conflicts with another child")
 
         partResourceType = read_from_xml_node(xmlNode, "partResourceType")
-        self.partResourceId = theServer.theResourceManager.GetResourceId(partResourceType)
+        self.partResourceId = server.theResourceManager.GetResourceId(partResourceType)
         lpNames = read_from_xml_node(xmlNode, "lpName")
         if lpNames is not None:
             self.lpNames = lpNames.split()
         for description_node in xmlNode.iterchildren():
             part_description = ComplexPhysicObjPartDescription()
-            part_description.LoadFromXML(xmlFile, description_node)
+            part_description.LoadFromXML(xmlFile, description_node, server)
             self.child_descriptions.append(part_description)  # ??? temporary placeholder for original logic
 
 
@@ -441,6 +542,7 @@ class ComplexPhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
     def __init__(self, server):
         PhysicObjPrototypeInfo.__init__(self, server)
         self.partPrototypeIds = []
+        self.partPrototypeNames = []
         self.massSize = {"x": 1.0,
                          "y": 1.0,
                          "z": 1.0}
@@ -454,22 +556,26 @@ class ComplexPhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
             if main_part_description_node is not None:
                 check_mono_xml_node(main_part_description_node, "PartDescription")
                 partPrototypeDescriptions = ComplexPhysicObjPartDescription()
-                partPrototypeDescriptions.LoadFromXML(xmlFile, main_part_description_node)
+                partPrototypeDescriptions.LoadFromXML(xmlFile, main_part_description_node, self.theServer)
                 self.partPrototypeDescriptions = partPrototypeDescriptions
             else:
                 logger.warning(f"Parts description is missing for prototype {self.prototypeName}")
 
             parts_node = child_from_xml_node(xmlNode, "Parts")
             if parts_node is not None:
-                check_mono_xml_node(parts_node, "Parts")
+                check_mono_xml_node(parts_node, "Part")
                 for part_node in parts_node.iterchildren():
                     prototypeId = read_from_xml_node(part_node, "id")
                     prototypeName = read_from_xml_node(part_node, "Prototype")
                     protName = {"name": prototypeName,
                                 "id": prototypeId}
                     self.partPrototypeNames.append(protName)
-            self.massSize = read_from_xml_node(xmlNode, "MassSize").split()
-            self.massTranslation = read_from_xml_node(xmlNode, "MassTranslation").split()
+            self.massSize = read_from_xml_node(xmlNode, "MassSize")
+            if self.massSize is not None:
+                self.massSize = self.massSize.split()
+            self.massTranslation = read_from_xml_node(xmlNode, "MassTranslation")
+            if self.massTranslation is not None:
+                self.massTranslation = self.massTranslation.split()
             massShape = read_from_xml_node(xmlNode, "MassShape")
             if massShape is not None:
                 self.massShape = int(massShape)
@@ -496,6 +602,43 @@ class LocationPrototypeInfo(SimplePhysicObjPrototypeInfo):
         result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             self.SetGeomType("BOX")  # from GEOM_TYPE const enum
+            return STATUS_SUCCESS
+
+
+class WheelPrototypeInfo(SimplePhysicObjPrototypeInfo):
+    def __init__(self, server):
+        SimplePhysicObjPrototypeInfo.__init__(self, server)
+        self.suspensionModelName = ""
+        self.suspensionRange = 0.5
+        self.suspensionCFM = 0.1
+        self.suspensionERP = 0.80000001
+        self.mU = 1.0
+        self.typeName = "BIG"
+        self.blowEffectName = "ET_PS_HARD_BLOW"
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            suspensionRange = read_from_xml_node(xmlNode, "SuspensionRange", do_not_warn=True)
+            if suspensionRange is not None:
+                self.suspensionRange = float(suspensionRange)
+
+            self.suspensionModelName = read_from_xml_node(xmlNode, "SuspensionModelFile")
+
+            suspensionCFM = read_from_xml_node(xmlNode, "SuspensionCFM", do_not_warn=True)
+            if suspensionCFM is not None:
+                self.suspensionCFM = float(suspensionCFM)
+
+            suspensionERP = read_from_xml_node(xmlNode, "SuspensionERP", do_not_warn=True)
+            if suspensionERP is not None:
+                self.suspensionERP = float(suspensionERP)
+
+            mU = read_from_xml_node(xmlNode, "mU", do_not_warn=True)
+            if mU is not None:
+                self.mU = float(mU)
+
+            self.typeName = read_from_xml_node(xmlNode, "EffectType")
+            self.blowEffectName = read_from_xml_node(xmlNode, "BlowEffect")
             return STATUS_SUCCESS
 
 
@@ -1289,7 +1432,7 @@ class Boss02PrototypeInfo(ComplexPhysicObjPrototypeInfo):
             check_mono_xml_node(states_node, "State")
             for state_node in states_node.iterchildren():
                 state = self.StateInfo()
-                state.LoadFromXML(state_node)
+                state.LoadFromXML(xmlFile, state_node)
             speed = read_from_xml_node(xmlNode, "Speed")
             if speed is not None:
                 self.speed = float(speed)
@@ -1320,8 +1463,8 @@ class Boss03PrototypeInfo(AnimatedComplexPhysicObjPrototypeInfo):
         AnimatedComplexPhysicObjPrototypeInfo.__init__(self, server)
         self.dronePrototypeIds = []
         self.maxDrones = 1
-        self.droneRelPosition = ZERO_VECTOR
-        self.droneRelRotation = IDENTITY_QUATERNION
+        self.droneRelPosition = deepcopy(ZERO_VECTOR)
+        self.droneRelRotation = deepcopy(IDENTITY_QUATERNION)
         self.maxHorizAngularVelocity = 0.0
         self.horizAngularAcceleration = 0.0
         self.maxVertAngularVelocity = 0.0
@@ -1338,7 +1481,52 @@ class Boss03PrototypeInfo(AnimatedComplexPhysicObjPrototypeInfo):
     def LoadFromXML(self, xmlFile, xmlNode):
         result = AnimatedComplexPhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            pass
+            self.dronePrototypeNames = read_from_xml_node(xmlNode, "DronePrototypes").split()
+            maxDrones = read_from_xml_node(xmlNode, "MaxDrones")
+            if maxDrones is not None:
+                self.maxDrones = int(maxDrones)
+
+            maxHealth = read_from_xml_node(xmlNode, "MaxHealth")
+            if maxHealth is not None:
+                self.maxHealth = float(maxHealth)
+
+            maxHorizAngularVelocity = read_from_xml_node(xmlNode, "MaxHorizAngularVelocity")
+            if maxHorizAngularVelocity is not None:
+                self.maxHorizAngularVelocity = float(maxHorizAngularVelocity)
+
+            horizAngularAcceleration = read_from_xml_node(xmlNode, "HorizAngularAcceleration")
+            if horizAngularAcceleration is not None:
+                self.horizAngularAcceleration = float(horizAngularAcceleration)
+
+            vertAngularAcceleration = read_from_xml_node(xmlNode, "VertAngularAcceleration")
+            if vertAngularAcceleration is not None:
+                self.vertAngularAcceleration = float(vertAngularAcceleration)
+
+            maxLinearVelocity = read_from_xml_node(xmlNode, "MaxLinearVelocity")
+            if maxLinearVelocity is not None:
+                self.maxLinearVelocity = float(maxLinearVelocity)
+
+            linearAcceleration = read_from_xml_node(xmlNode, "LinearAcceleration")
+            if linearAcceleration is not None:
+                self.linearAcceleration = float(linearAcceleration)
+
+            pathTrackTiltAngle = read_from_xml_node(xmlNode, "PathTrackTiltAngle")
+            if pathTrackTiltAngle is not None:
+                self.pathTrackTiltAngle = float(pathTrackTiltAngle) * pi / 180  # 0.017453292
+
+            maxShootingTime = read_from_xml_node(xmlNode, "MaxShootingTime")
+            if maxShootingTime is not None:
+                self.maxShootingTime = float(maxShootingTime)
+
+            defaultHover = read_from_xml_node(xmlNode, "DefaultHover")
+            if defaultHover is not None:
+                self.defaultHover = float(defaultHover)
+
+            hoverForPlacingDrones = read_from_xml_node(xmlNode, "HoverForPlacingDrones")
+            if hoverForPlacingDrones is not None:
+                self.hoverForPlacingDrones = float(hoverForPlacingDrones)
+
+            return STATUS_SUCCESS
 
 
 class Boss04PrototypeInfo(ComplexPhysicObjPrototypeInfo):
@@ -1357,21 +1545,593 @@ class Boss04PrototypeInfo(ComplexPhysicObjPrototypeInfo):
     def LoadFromXML(self, xmlFile, xmlNode):
         result = ComplexPhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            pass
+            self.stationPrototypeName = read_from_xml_node(xmlNode, "StationPrototype")
+            self.dronePrototypeName = read_from_xml_node(xmlNode, "DronePrototype")
+            self.timeBetweenDrones = read_from_xml_node(xmlNode, "TimeBetweenDrones").split()
+            maxDrones = read_from_xml_node(xmlNode, "MaxDrones")
+            if maxDrones is not None:
+                maxDrones = int(maxDrones)
+                if maxDrones > 0:
+                    self.maxDrones = maxDrones
+            self.droneSpawningLpNames = read_from_xml_node(xmlNode, "DroneSpawningLps").split()
+            stationToPartBindings = child_from_xml_node(xmlNode, "StationToPartBindings")
+            check_mono_xml_node(stationToPartBindings, "Station")
+            for station_node in stationToPartBindings.iterchildren():
+                station = {"id": read_from_xml_node(station_node, "id"),
+                           "parts": read_from_xml_node(station_node, "Parts").split()}
+                self.stationToPartBindings.append(station)
+            return STATUS_SUCCESS
 
-    # "Boss03": Boss03PrototypeInfo,
-    # "Boss04": Boss04PrototypeInfo,
 
+class BlastWavePrototypeInfo(SimplePhysicObjPrototypeInfo):
+    def __init__(self, server):
+        SimplePhysicObjPrototypeInfo.__init__(self, server)
+        self.waveForceIntensity = 0.0
+        self.waveDamageIntensity = 0.0
+        self.effectName = ""
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            self.SetGeomType("SPHERE")
+        waveForceIntensity = read_from_xml_node(xmlNode, "WaveForceIntensity")
+        if waveForceIntensity is not None:
+            self.waveForceIntensity = float(waveForceIntensity)
+
+        waveDamageIntensity = read_from_xml_node(xmlNode, "WaveDamageIntensity")
+        if waveDamageIntensity is not None:
+            self.waveDamageIntensity = float(waveDamageIntensity)
+
+        self.effectName = read_from_xml_node(xmlNode, "Effect")
+        return STATUS_SUCCESS
+
+
+class BulletLauncherPrototypeInfo(GunPrototypeInfo):
+    def __init__(self, server):
+        GunPrototypeInfo.__init__(self, server)
+        self.groupingAngle = 0.0
+        self.numBulletsInShot = 1
+        self.blastWavePrototypeName = ""
+        self.tracerRange = 1
+        self.tracerEffectName = ""
+        self.damageType = 0
+
+
+class CompoundVehiclePartPrototypeInfo(VehiclePartPrototypeInfo):
+    def __init__(self, server):
+        VehiclePartPrototypeInfo.__init__(self, server)
+        self.partInfo = []
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            main_part_description_node = child_from_xml_node(xmlNode, "MainPartDescription")
+            if main_part_description_node is not None:
+                check_mono_xml_node(main_part_description_node, "PartDescription")
+                partPrototypeDescriptions = ComplexPhysicObjPartDescription()
+                partPrototypeDescriptions.LoadFromXML(xmlFile, main_part_description_node, self.theServer)
+                self.partPrototypeDescriptions = partPrototypeDescriptions
+            else:
+                logger.warning(f"Parts description is missing for prototype {self.prototypeName}")
+            parts_node = child_from_xml_node(xmlNode, "Parts")
+            if parts_node is not None:
+                check_mono_xml_node(parts_node, "Part")
+                for part_node in parts_node.iterchildren():
+                    prototypeId = read_from_xml_node(part_node, "id")
+                    prototypeName = read_from_xml_node(part_node, "Prototype")
+                    protName = {"name": prototypeName,
+                                "id": prototypeId}
+                    self.partPrototypeNames.append(protName)
+
+
+class CompoundGunPrototypeInfo(CompoundVehiclePartPrototypeInfo):
+    def __init__(self, server):
+        CompoundVehiclePartPrototypeInfo.__init__(self, server)
+
+
+class RocketLauncherPrototypeInfo(GunPrototypeInfo):
+    def __init__(self, server):
+        GunPrototypeInfo.__init__(self, server)
+        self.withAngleLimit = True
+        self.damageType = 1
+        self.withShellsPoolLimit = True
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = GunPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            self.withAngleLimit = parse_str_to_bool(read_from_xml_node(xmlNode, "WithAngleLimit"))
+            return STATUS_SUCCESS
+
+
+class RocketVolleyLauncherPrototypeInfo(RocketLauncherPrototypeInfo):
+    def __init__(self, server):
+        RocketLauncherPrototypeInfo.__init__(self, server)
+        self.actionDist = 0.0
+        # self.withShellsPoolLimit = True
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = GunPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            actionDist = read_from_xml_node(xmlNode, "ActionDist")
+            if actionDist is not None:
+                self.actionDist = float(actionDist)
+            return STATUS_SUCCESS
+
+
+class ThunderboltLauncherPrototypeInfo(GunPrototypeInfo):
+    def __init__(self, server):
+        GunPrototypeInfo.__init__(self, server)
+        self.damageType = 2
+        self.withShellsPoolLimit = True
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = GunPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            actionDist = read_from_xml_node(xmlNode, "ActionDist")
+            if actionDist is not None:
+                self.actionDist = float(actionDist)
+            return STATUS_SUCCESS
+
+
+class PlasmaBunchLauncherPrototypeInfo(GunPrototypeInfo):
+    def __init__(self, server):
+        GunPrototypeInfo.__init__(self, server)
+        self.bunchPrototypeName = ""
+        self.damageType = 2
+        self.withShellsPoolLimit = True
+
+
+class MortarPrototypeInfo(GunPrototypeInfo):
+    def __init__(self, server):
+        GunPrototypeInfo.__init__(self, server)
+        self.damageType = 1
+        self.withShellsPoolLimit = True
+        self.initialVelocity = 50.0
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = GunPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            initialVelocity = read_from_xml_node(xmlNode, "InitialVelocity")
+            if initialVelocity is not None:
+                self.initialVelocity = float(initialVelocity)
+            return STATUS_SUCCESS
+
+
+class MortarVolleyLauncherPrototypeInfo(MortarPrototypeInfo):
+    def __init__(self, server):
+        MortarPrototypeInfo.__init__(self, server)
+
+
+class LocationPusherPrototypeInfo(GunPrototypeInfo):
+    def __init__(self, server):
+        GunPrototypeInfo.__init__(self, server)
+
+
+class MinePusherPrototypeInfo(GunPrototypeInfo):
+    def __init__(self, server):
+        GunPrototypeInfo.__init__(self, server)
+        self.damageType = 1
+
+
+class TurboAccelerationPusherPrototypeInfo(GunPrototypeInfo):
+    def __init__(self, server):
+        GunPrototypeInfo.__init__(self, server)
+        self.accelerationValue = 1.0
+        self.accelerationTime = 0.0
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = GunPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            accelerationValue = read_from_xml_node(xmlNode, "AccelerationValue")
+            if accelerationValue is not None:
+                self.accelerationValue = float(accelerationValue)
+
+            accelerationTime = read_from_xml_node(xmlNode, "AccelerationTime")
+            if accelerationTime is not None:
+                self.accelerationTime = float(accelerationTime)
+            return STATUS_SUCCESS
+
+
+class ShellPrototypeInfo(SimplePhysicObjPrototypeInfo):
+    def __init__(self, server):
+        SimplePhysicObjPrototypeInfo.__init__(self, server)
+
+
+class RocketPrototypeInfo(ShellPrototypeInfo):
+    def __init__(self, server):
+        ShellPrototypeInfo.__init__(self, server)
+        self.velocity = 1.0
+        self.acceleration = 1.0
+        self.minTurningRadius = 1.0
+        self.flyTime = 1.0
+        self.blastWavePrototypeId = -1
+        self.blastWavePrototypeName = ""
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = ShellPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            velocity = read_from_xml_node(xmlNode, "Velocity")
+            if velocity is not None:
+                self.velocity = float(velocity)
+
+            acceleration = read_from_xml_node(xmlNode, "Acceleration")
+            if acceleration is not None:
+                self.acceleration = float(acceleration)
+
+            minTurningRadius = read_from_xml_node(xmlNode, "MinTurningRadius")
+            if minTurningRadius is not None:
+                self.minTurningRadius = float(minTurningRadius)
+
+            flyTime = read_from_xml_node(xmlNode, "FlyTime")
+            if flyTime is not None:
+                self.flyTime = float(flyTime)
+
+            self.blastWavePrototypeName = read_from_xml_node(xmlNode, "BlastWavePrototype")
+            return STATUS_SUCCESS
+
+
+class PlasmaBunchPrototypeInfo(ShellPrototypeInfo):
+    def __init__(self, server):
+        ShellPrototypeInfo.__init__(self, server)
+        self.velocity = 1.0
+        self.acceleration = 1.0
+        self.flyTime = 1.0
+        self.blastWavePrototypeName = ""
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = ShellPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            velocity = read_from_xml_node(xmlNode, "Velocity")
+            if velocity is not None:
+                self.velocity = float(velocity)
+
+            acceleration = read_from_xml_node(xmlNode, "Acceleration")
+            if acceleration is not None:
+                self.acceleration = float(acceleration)
+
+            flyTime = read_from_xml_node(xmlNode, "FlyTime")
+            if flyTime is not None:
+                self.flyTime = float(flyTime)
+            self.blastWavePrototypeName = read_from_xml_node(xmlNode, "BlastWavePrototype")
+            return STATUS_SUCCESS
+
+
+class MortarShellPrototypeInfo(ShellPrototypeInfo):
+    def __init__(self, server):
+        ShellPrototypeInfo.__init__(self, server)
+        self.velocity = 1.0
+        self.acceleration = 1.0
+        self.flyTime = 1.0
+        self.blastWavePrototypeId = -1
+        self.blastWavePrototypeName = ""
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = ShellPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            flyTime = read_from_xml_node(xmlNode, "FlyTime")
+            if flyTime is not None:
+                self.flyTime = float(flyTime)
+            self.blastWavePrototypeName = read_from_xml_node(xmlNode, "BlastWavePrototype")
+            return STATUS_SUCCESS
+
+
+class MinePrototypeInfo(RocketPrototypeInfo):
+    def __init__(self, server):
+        RocketPrototypeInfo.__init__(self, server)
+        self.TTL = 100.0
+        self.timeForActivation = 0.0
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = RocketPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            TTL = read_from_xml_node(xmlNode, "TTL")
+            if TTL is not None:
+                self.TTL = float(TTL)
+
+            timeForActivation = read_from_xml_node(xmlNode, "TimeForActivation")
+            if timeForActivation is not None:
+                self.timeForActivation = float(timeForActivation)
+            return STATUS_SUCCESS
+
+
+class ThunderboltPrototypeInfo(PrototypeInfo):
+    def __init__(self, server):
+        PrototypeInfo.__init__(self, server)
+        self.flyTime = 1.0
+        self.damage = 0.0
+        self.averageSegmentLength = 0.1
+        self.effectName = ""
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            flyTime = read_from_xml_node(xmlNode, "FlyTime")
+            if flyTime is not None:
+                self.flyTime = float(flyTime)
+
+            damage = read_from_xml_node(xmlNode, "Damage")
+            if damage is not None:
+                self.damage = float(damage)
+
+            averageSegmentLength = read_from_xml_node(xmlNode, "AverageSegmentLength")
+            if averageSegmentLength is not None:
+                self.averageSegmentLength = float(averageSegmentLength)
+
+            self.effectName = read_from_xml_node(xmlNode, "Effect")
+            return STATUS_SUCCESS
+
+
+class BulletPrototypeInfo(ShellPrototypeInfo):
+    def __init__(self, server):
+        ShellPrototypeInfo.__init__(self, server)
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = ShellPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            self.SetGeomType("RAY")
+            return STATUS_SUCCESS
+
+
+class TemporaryLocationPrototypeInfo(LocationPrototypeInfo):
+    def __init__(self, server):
+        LocationPrototypeInfo.__init__(self, server)
+        self.TTL = 0.0
+        self.timeForActivation = 0.0
+        self.effectName = ""
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = LocationPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            TTL = read_from_xml_node(xmlNode, "TTL")
+            if TTL is not None:
+                self.TTL = float(TTL)
+
+            timeForActivation = read_from_xml_node(xmlNode, "ActivateTime")
+            if timeForActivation is not None:
+                self.timeForActivation = float(timeForActivation)
+
+            self.effectName = read_from_xml_node(xmlNode, "Effect")
+
+
+class NailLocationPrototypeInfo(TemporaryLocationPrototypeInfo):
+    def __init__(self, server):
+        TemporaryLocationPrototypeInfo.__init__(self, server)
+
+
+class SmokeScreenLocationPrototypeInfo(TemporaryLocationPrototypeInfo):
+    def __init__(self, server):
+        TemporaryLocationPrototypeInfo.__init__(self, server)
+
+
+class EngineOilLocationPrototypeInfo(TemporaryLocationPrototypeInfo):
+    def __init__(self, server):
+        TemporaryLocationPrototypeInfo.__init__(self, server)
+
+
+class SubmarinePrototypeInfo(DummyObjectPrototypeInfo):
+    def __init__(self, server):
+        DummyObjectPrototypeInfo.__init__(self, server)
+        self.maxLinearVelocity = 0.0
+        self.linearAcceleration = 0.0
+        self.platformOpenFps = 2
+        self.vehicleMaxSpeed = 72.0
+        self.vehicleRelativePosition = deepcopy(ZERO_VECTOR)
+        self.isUpdating = True
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = ShellPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            maxLinearVelocity = read_from_xml_node(xmlNode, "MaxLinearVelocity")
+            if maxLinearVelocity is not None:
+                self.maxLinearVelocity = float(maxLinearVelocity)
+
+            linearAcceleration = read_from_xml_node(xmlNode, "LinearAcceleration")
+            if linearAcceleration is not None:
+                self.linearAcceleration = float(linearAcceleration)
+
+            platformOpenFps = read_from_xml_node(xmlNode, "PlatformOpenFps")
+            if platformOpenFps is not None:
+                self.platformOpenFps = int(platformOpenFps)
+
+            vehicleMaxSpeed = read_from_xml_node(xmlNode, "VehicleMaxSpeed")
+            if vehicleMaxSpeed is not None:
+                self.vehicleMaxSpeed = float(vehicleMaxSpeed)
+
+            self.maxLinearVelocity *= 0.27777779  # ~5/18 or 50/180
+            self.vehicleMaxSpeed *= 0.27777779
+            return STATUS_SUCCESS
+
+
+class BuildingPrototypeInfo(PrototypeInfo):
+    def __init__(self, server):
+        PrototypeInfo.__init__(self, server)
+        self.buildingType = 5
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            buildingTypeName = read_from_xml_node(xmlNode, "BuildingType")
+            self.buildingType = Building.GetBuildingTypeByName(buildingTypeName)
+            return STATUS_SUCCESS
+
+
+class BarPrototypeInfo(BuildingPrototypeInfo):
+    def __init__(self, server):
+        BuildingPrototypeInfo.__init__(self, server)
+        self.withBarman = True
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = BuildingPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            self.withBarman = read_from_xml_node(xmlNode, "WithBarman")
+            return STATUS_SUCCESS
+
+
+class WorkshopPrototypeInfo(BuildingPrototypeInfo):
+    def __init__(self, server):
+        BuildingPrototypeInfo.__init__(self, server)
+
+
+class WarePrototypeInfo(PrototypeInfo):
+    def __init__(self, server):
+        PrototypeInfo.__init__(self, server)
+        self.maxDurability = 1.0
+        self.maxItems = 1
+        self.priceDispersion = 0.0
+        self.modelName = ""
+        self.minCount = 0
+        self.maxCount = 50
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = BuildingPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            maxItems = read_from_xml_node(xmlNode, "MaxItems")
+            if maxItems is not None:
+                maxItems = int(maxItems)
+                if maxItems >= 0:
+                    self.maxItems = maxItems
+
+            maxDurability = read_from_xml_node(xmlNode, "Durability")
+            if maxDurability is not None:
+                self.maxDurability = float(maxDurability)
+
+            priceDispersion = read_from_xml_node(xmlNode, "PriceDispersion")
+            if priceDispersion is not None:
+                self.priceDispersion = float(priceDispersion)
+
+            if self.priceDispersion < 0.0 or self.priceDispersion > 100.0:
+                logger(f"Price dispersion can't be outside 0.0-100.0 range: see {self.prototypeName}")
+
+            self.modelName = read_from_xml_node(xmlNode, "ModelName")
+
+            minCount = read_from_xml_node(xmlNode, "MinCount")
+            if minCount is not None:
+                self.minCount = int(minCount)
+
+            maxCount = read_from_xml_node(xmlNode, "MaxCount")
+            if maxCount is not None:
+                self.maxCount = int(maxCount)
+            return STATUS_SUCCESS
+
+
+class QuestItemPrototypeInfo(PrototypeInfo):
+    def __init__(self, server):
+        PrototypeInfo.__init__(self, server)
+        self.modelName = ""
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = BuildingPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            self.modelName = read_from_xml_node(xmlNode, "ModelName")
+            return STATUS_SUCCESS
+
+
+class BreakableObjectPrototypeInfo(SimplePhysicObjPrototypeInfo):
+    def __init__(self, server):
+        SimplePhysicObjPrototypeInfo.__init__(self, server)
+        self.destroyable = 0
+        self.effectType = "WOOD"
+        self.destroyEffectType = "BLOW"
+        self.brokenModelName = "brokenTest"
+        self.destroyedModelName = "brokenTest"
+        self.breakEffect = ""
+        self.blastWavePrototypeId = -1
+        self.blastWavePrototypeName = ""
+        self.isUpdating = False
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            self.SetGeomType("BOX")
+            destroyable = read_from_xml_node(xmlNode, "Destroyable")
+            if destroyable is not None:
+                self.destroyable = int(destroyable)
+
+            criticalHitEnergy = read_from_xml_node(xmlNode, "CriticalHitEnergy")
+            if criticalHitEnergy is not None:
+                self.criticalHitEnergy = float(criticalHitEnergy)
+
+            self.effectType = read_from_xml_node(xmlNode, "EffectType")
+            self.destroyEffectType = read_from_xml_node(xmlNode, "DestroyEffectType")
+            self.brokenModelName = read_from_xml_node(xmlNode, "BrokenModel")
+            self.destroyedModelName = read_from_xml_node(xmlNode, "DestroyedModel")
+            self.breakEffect = read_from_xml_node(xmlNode, "BreakEffect")
+            self.blastWavePrototypeName = read_from_xml_node(xmlNode, "BlastWave")
+            return STATUS_SUCCESS
+
+
+class ParticleSplinterPrototypeInfo(DummyObjectPrototypeInfo):
+    def __init__(self, server):
+        DummyObjectPrototypeInfo.__init__(self, server)
+
+
+class VehicleSplinterPrototypeInfo(DummyObjectPrototypeInfo):
+    def __init__(self, server):
+        DummyObjectPrototypeInfo.__init__(self, server)
+
+
+class PhysicUnitPrototypeInfo(SimplePhysicObjPrototypeInfo):
+    def __init__(self, server):
+        SimplePhysicObjPrototypeInfo.__init__(self, server)
+        self.walkSpeed = 1.0
+        self.turnSpeed = 1.0
+        self.maxStandTime = 1.0
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            self.SetGeomType("FROM_MODEL")
+            walkSpeed = read_from_xml_node(xmlNode, "WalkSpeed", do_not_warn=True)
+            if walkSpeed is not None:
+                self.walkSpeed = float(walkSpeed)
+
+            maxStandTime = read_from_xml_node(xmlNode, "MaxStandTime", do_not_warn=True)
+            if maxStandTime is not None:
+                self.maxStandTime = float(maxStandTime)
+
+            turnSpeed = read_from_xml_node(xmlNode, "TurnSpeed", do_not_warn=True)
+            if turnSpeed is not None:
+                self.turnSpeed = float(turnSpeed)
+            return STATUS_SUCCESS
+
+
+class JointedObjPrototypeInfo(PrototypeInfo):
+    def __init__(self, server):
+        PrototypeInfo.__init__(self, server)
+
+
+class CompositeObjPrototypeInfo(PrototypeInfo):
+    def __init__(self, server):
+        PrototypeInfo.__init__(self, server)
+
+
+class GeomObjPrototypeInfo(PhysicObjPrototypeInfo):
+    def __init__(self, server):
+        PhysicObjPrototypeInfo.__init__(self, server)
+
+
+class RopeObjPrototypeInfo(SimplePhysicObjPrototypeInfo):
+    def __init__(self, server):
+        SimplePhysicObjPrototypeInfo.__init__(self, server)
+        self.brokenModel = ""
+        self.isUpdating = False
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            self.SetGeomType("BOX")
+            self.brokenModel = read_from_xml_node(xmlNode, "BrokenModel")
+            return STATUS_SUCCESS
 
 
 # dict mapping Object Classes to PrototypeInfo Classes
 thePrototypeInfoClassDict = {
     "AffixGenerator": AffixGeneratorPrototypeInfo,
     # "ArticulatedVehicle": ArticulatedVehiclePrototypeInfo,
-    # "Bar": BarPrototypeInfo,
+    "Bar": BarPrototypeInfo,
     # "Barricade": BarricadePrototypeInfo,
-    # "Basket": BasketPrototypeInfo,
-    # "BlastWave": BlastWavePrototypeInfo,
+    "Basket": BasketPrototypeInfo,
+    "BlastWave": BlastWavePrototypeInfo,
     "Boss02Arm": Boss02ArmPrototypeInfo,
     "Boss02": Boss02PrototypeInfo,
     "Boss03Part": Boss03PartPrototypeInfo,
@@ -1383,68 +2143,68 @@ thePrototypeInfoClassDict = {
     "Boss04Station": Boss04StationPrototypeInfo,
     "BossMetalArmLoad": BossMetalArmLoadPrototypeInfo,
     "BossMetalArm": BossMetalArmPrototypeInfo,
-    # "BreakableObject": BreakableObjectPrototypeInfo,
-    # "Building": BuildingPrototypeInfo,
-    # "BulletLauncher": BulletLauncherPrototypeInfo,
-    # "Bullet": BulletPrototypeInfo,
-    # "Cabin": CabinPrototypeInfo,
+    "BreakableObject": BreakableObjectPrototypeInfo,
+    "Building": BuildingPrototypeInfo,
+    "BulletLauncher": BulletLauncherPrototypeInfo,
+    "Bullet": BulletPrototypeInfo,
+    "Cabin": CabinPrototypeInfo,
     "CaravanTeam": CaravanTeamPrototypeInfo,
-    # "Chassis": ChassisPrototypeInfo,
+    "Chassis": ChassisPrototypeInfo,
     # "Chest": ChestPrototypeInfo,
     "CinematicMover": CinematicMoverPrototypeInfo,
-    # "CompositeObj": CompositeObjPrototypeInfo,
-    # "CompoundGun": CompoundGunPrototypeInfo,
-    # "CompoundVehiclePart": CompoundVehiclePartPrototypeInfo,
+    "CompositeObj": CompositeObjPrototypeInfo,
+    "CompoundGun": CompoundGunPrototypeInfo,
+    "CompoundVehiclePart": CompoundVehiclePartPrototypeInfo,
     "DummyObject": DummyObjectPrototypeInfo,
     "DynamicQuestConvoy": DynamicQuestConvoyPrototypeInfo,
     "DynamicQuestDestroy": DynamicQuestDestroyPrototypeInfo,
     "DynamicQuestHunt": DynamicQuestHuntPrototypeInfo,
     "DynamicQuestPeace": DynamicQuestPeacePrototypeInfo,
     "DynamicQuestReach": DynamicQuestReachPrototypeInfo,
-    # "EngineOilLocation": EngineOilLocationPrototypeInfo,
+    "EngineOilLocation": EngineOilLocationPrototypeInfo,
     "Formation": FormationPrototypeInfo,
     "Gadget": GadgetPrototypeInfo,
-    # "GeomObj": GeomObjPrototypeInfo,
+    "GeomObj": GeomObjPrototypeInfo,
     "InfectionLair": InfectionLairPrototypeInfo,
     "InfectionTeam": InfectionTeamPrototypeInfo,
     "InfectionZone": InfectionZonePrototypeInfo,
-    # "JointedObj": JointedObjPrototypeInfo,
+    "JointedObj": JointedObjPrototypeInfo,
     # "Lair": LairPrototypeInfo,
     "LightObj": LightObjPrototypeInfo,
     "Location": LocationPrototypeInfo,
-    # "LocationPusher": LocationPusherPrototypeInfo,
-    # "Mine": MinePrototypeInfo,
-    # "MinePusher": MinePusherPrototypeInfo,
-    # "Mortar": MortarPrototypeInfo,
-    # "MortarShell": MortarShellPrototypeInfo,
-    # "MortarVolleyLauncher": MortarVolleyLauncherPrototypeInfo,
+    "LocationPusher": LocationPusherPrototypeInfo,
+    "Mine": MinePrototypeInfo,
+    "MinePusher": MinePusherPrototypeInfo,
+    "Mortar": MortarPrototypeInfo,
+    "MortarShell": MortarShellPrototypeInfo,
+    "MortarVolleyLauncher": MortarVolleyLauncherPrototypeInfo,
     "NPCMotionController": NPCMotionControllerPrototypeInfo,
-    # "NailLocation": NailLocationPrototypeInfo,
+    "NailLocation": NailLocationPrototypeInfo,
     # "Npc": NpcPrototypeInfo,
     # "ObjPrefab": ObjPrefabPrototypeInfo,
-    # "ParticleSplinter": ParticleSplinterPrototypeInfo,
-    # "PhysicUnit": PhysicUnitPrototypeInfo,
-    # "PlasmaBunchLauncher": PlasmaBunchLauncherPrototypeInfo,
-    # "PlasmaBunch": PlasmaBunchPrototypeInfo,
+    "ParticleSplinter": ParticleSplinterPrototypeInfo,
+    "PhysicUnit": PhysicUnitPrototypeInfo,
+    "PlasmaBunchLauncher": PlasmaBunchLauncherPrototypeInfo,
+    "PlasmaBunch": PlasmaBunchPrototypeInfo,
     "Player": PlayerPrototypeInfo,
-    # "QuestItem": QuestItemPrototypeInfo,
+    "QuestItem": QuestItemPrototypeInfo,
     "RadioManager": RadioManagerPrototypeInfo,
     # "RepositoryObjectsGenerator": RepositoryObjectsGeneratorPrototypeInfo,
-    # "RocketLauncher": RocketLauncherPrototypeInfo,
-    # "Rocket": RocketPrototypeInfo,
-    # "RocketVolleyLauncher": RocketVolleyLauncherPrototypeInfo,
-    # "RopeObj": RopeObjPrototypeInfo,
+    "RocketLauncher": RocketLauncherPrototypeInfo,
+    "Rocket": RocketPrototypeInfo,
+    "RocketVolleyLauncher": RocketVolleyLauncherPrototypeInfo,
+    "RopeObj": RopeObjPrototypeInfo,
     "SgNodeObj": SgNodeObjPrototypeInfo,
-    # "SmokeScreenLocation": SmokeScreenLocationPrototypeInfo,
+    "SmokeScreenLocation": SmokeScreenLocationPrototypeInfo,
     # "StaticAutoGun": StaticAutoGunPrototypeInfo,
-    # "Submarine": SubmarinePrototypeInfo,
+    "Submarine": SubmarinePrototypeInfo,
     "Team": TeamPrototypeInfo,
     "TeamTacticWithRoles": TeamTacticWithRolesPrototypeInfo,
-    # "ThunderboltLauncher": ThunderboltLauncherPrototypeInfo,
-    # "Thunderbolt": ThunderboltPrototypeInfo,
+    "ThunderboltLauncher": ThunderboltLauncherPrototypeInfo,
+    "Thunderbolt": ThunderboltPrototypeInfo,
     # "Town": TownPrototypeInfo,
     "Trigger": TriggerPrototypeInfo,
-    # "TurboAccelerationPusher": TurboAccelerationPusherPrototypeInfo,
+    "TurboAccelerationPusher": TurboAccelerationPusherPrototypeInfo,
     "VagabondTeam": VagabondTeamPrototypeInfo,
     "VehiclePart": VehiclePartPrototypeInfo,
     # "Vehicle": VehiclePrototypeInfo,
@@ -1456,11 +2216,11 @@ thePrototypeInfoClassDict = {
     "VehicleRoleOppressor": VehicleRoleOppressorPrototypeInfo,
     "VehicleRolePendulum": VehicleRolePendulumPrototypeInfo,
     "VehicleRoleSniper": VehicleRoleSniperPrototypeInfo,
-    # "VehicleSplinter": VehicleSplinterPrototypeInfo,
+    "VehicleSplinter": VehicleSplinterPrototypeInfo,
     "VehiclesGenerator": VehiclesGeneratorPrototypeInfo,
     "WanderersGenerator": WanderersGeneratorPrototypeInfo,
     "WanderersManager": WanderersManagerPrototypeInfo,
-    # "Ware": WarePrototypeInfo,
-    # "Wheel": WheelPrototypeInfo,
-    # "Workshop": WorkshopPrototypeInfo
+    "Ware": WarePrototypeInfo,
+    "Wheel": WheelPrototypeInfo,
+    "Workshop": WorkshopPrototypeInfo
 }

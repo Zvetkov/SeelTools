@@ -191,7 +191,7 @@ def check_mono_xml_node(xml_node: objectify.ObjectifiedElement, expected_child_n
                     logger.warning(f"Unexpected node with a name {child.tag} found "
                                    f"in xml node: {xml_node.tag} in {xml_node.base}!")
     else:
-        logger.error(f"Empty node with a name {child.tag} when expecting to find child "
+        logger.error(f"Empty node with a name {xml_node.tag} when expecting to find child "
                      f"nodes with a name {expected_child_name} in {xml_node.base}")
 
 
@@ -202,14 +202,12 @@ def log_comment(comment_node: objectify.ObjectifiedElement, parent_node: objecti
                  f"in tag: '{parent_node.tag}'' "
                  f"in file: {path}.")
 
-
-
 def parse_str_to_bool(string: str):
     if string is None:
         return False
-    if string.lower() == "true":
+    if string.lower() == "true" or string == "1":
         return True
-    elif string.lower() == "false":
+    elif string.lower() == "false" or string == "0":
         return False
     else:
         raise ValueError(f"Invalid str to parse: {string}")

@@ -351,6 +351,14 @@ ZERO_VECTOR = {"x": 0.0,
                "y": 0.0,
                "z": 0.0}
 
+INITIAL_OBJECTS_DIRECTION = {"x": 0.0,
+                             "y": 0.0,
+                             "z": 1.0}
+
+INITIAL_UP_DIRECTION = {"x": 0.0,
+                        "y": 1.0,
+                        "z": 0.0}
+
 IDENTITY_QUATERNION = {"x": 0.0,
                        "y": 0.0,
                        "z": 0.0,
