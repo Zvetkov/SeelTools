@@ -411,6 +411,21 @@ class SimplePhysicObj(PhysicObj):
             logger.warn("Not implemented Construct method for SimplePhysicObject class")
 
 
+class ObjPrefab(SimplePhysicObj):
+    def __init__(self, prototype_info_object=None):
+        SimplePhysicObj.__init__(self, prototype_info_object)
+        self.physicObjs = []
+        self.otherChildren = []
+        self.vehiclesForAdd = []
+        self.team = 0
+
+
+class Barricade(ObjPrefab):
+    def __init__(self, prototype_info_object=None):
+        ObjPrefab.__init__(self, prototype_info_object)
+        self.probability = prototype_info_object.probability
+
+
 class Settlement(SimplePhysicObj):
     def __init__(self, prototype_info_object=None):
         SimplePhysicObj.__init__(self, prototype_info_object)

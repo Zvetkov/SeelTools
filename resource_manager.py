@@ -117,7 +117,11 @@ class ResourceManager(object):
         return self.resourceVector[resourceId].name
 
     def GetResourceId(self, resourceName):
-        return self.resourceMap[resourceName].id
+        resource = self.resourceMap.get(resourceName)
+        if resource is not None:
+            return resource.id
+        else:
+            return -1
 
     def ResourceIsKindOf(self, resourceId, ancestorId):
         return self.resourceVector[resourceId].IsKindOf(self, ancestorId)

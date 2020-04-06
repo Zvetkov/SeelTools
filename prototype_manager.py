@@ -64,9 +64,9 @@ class PrototypeManager(object):
             parent_prot_name = read_from_xml_node(xmlNode, "ParentPrototype", do_not_warn=True)
             if parent_prot_name is not None:
                 parent_prot_info = self.InternalGetPrototypeInfo(parent_prot_name)
-                dummy = PrototypeInfo()
+                dummy = PrototypeInfo(self.theServer)
                 if parent_prot_info is None:
-                    logger.error(f"Parent prototype for {class_name} is not loade! Expected parent: {parent_prot_name}")
+                    logger.error(f"Parent prototype for {class_name} is not loaded! Expected parent: {parent_prot_name}")
                     parent_prot_info = dummy
                 prototype_info.CopyFrom(parent_prot_info)
             prototypes_length = len(self.prototypes)

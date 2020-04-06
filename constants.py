@@ -363,3 +363,8 @@ IDENTITY_QUATERNION = {"x": 0.0,
                        "y": 0.0,
                        "z": 0.0,
                        "w": 1.0}
+
+DESTROY_EFFECT_NAMES = ["DestroyEffectPiercing",
+                        "DestroyEffectBlast",
+                        "DestroyEffectEnergy",
+                        "DestroyEffectWater"]

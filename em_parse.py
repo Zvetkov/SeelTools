@@ -202,6 +202,7 @@ def log_comment(comment_node: objectify.ObjectifiedElement, parent_node: objecti
                  f"in tag: '{parent_node.tag}'' "
                  f"in file: {path}.")
 
+
 def parse_str_to_bool(string: str):
     if string is None:
         return False
@@ -211,3 +212,52 @@ def parse_str_to_bool(string: str):
         return False
     else:
         raise ValueError(f"Invalid str to parse: {string}")
+
+
+def parse_str_to_vector_attrib(string: str):
+    if string is not None:
+        split_str = string.split()
+    else:
+        split_str = []
+    if len(split_str) == 3:
+        dictionary = {"x": float(split_str[0]),
+                      "y": float(split_str[1]),
+                      "z": float(split_str[2])}
+    else:
+        logger.warn(f"Expected 3 vector attributes: {string} were given")
+        dictionary = {"x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0}
+    return dictionary
+
+
+def parse_str_to_quaternion_attrib(string: str):
+    if string is not None:
+        split_str = string.split()
+    else:
+        split_str = []
+    if len(split_str) == 4:
+        dictionary = {"x": float(split_str[0]),
+                      "y": float(split_str[1]),
+                      "z": float(split_str[2]),
+                      "w": float(split_str[3])}
+    else:
+        logger.warn(f"Expected 4 quaternion attributes: {string} were given")
+        dictionary = {"x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0,
+                      "w": 1.0}
+    return dictionary
+
+
+def safe_check_and_set(property_default_value, xmlNode, name_to_check, convert_type=None, do_not_warn=True):
+    value_from_xml = read_from_xml_node(xmlNode, name_to_check, do_not_warn)
+    if value_from_xml is not None:
+        if convert_type is None:
+            return value_from_xml
+        elif convert_type == "float":
+            return float(value_from_xml)
+        elif convert_type == "int":
+            return int(value_from_xml)
+    else:
+        return property_default_value

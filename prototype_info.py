@@ -4,8 +4,9 @@ from lxml import objectify
 
 from logger import logger
 
-from em_parse import read_from_xml_node, parse_str_to_bool, child_from_xml_node, check_mono_xml_node
-from constants import (STATUS_SUCCESS, DEFAULT_TURNING_SPEED, FiringTypesStruct, DamageTypeStruct,
+from em_parse import (read_from_xml_node, child_from_xml_node, check_mono_xml_node, safe_check_and_set,
+                      parse_str_to_bool, parse_str_to_quaternion_attrib, parse_str_to_vector_attrib)
+from constants import (STATUS_SUCCESS, DEFAULT_TURNING_SPEED, FiringTypesStruct, DamageTypeStruct, DESTROY_EFFECT_NAMES,
                        TEAM_DEFAULT_FORMATION_PROTOTYPE, GEOM_TYPE, ZERO_VECTOR, IDENTITY_QUATERNION)
 from object_classes import *
 from global_functions import GetActionByName
@@ -36,8 +37,12 @@ class PrototypeInfo(object):
             self.isUpdating = parse_str_to_bool(read_from_xml_node(xmlNode, "IsUpdating", do_not_warn=True))
             if strResType is not None:
                 self.resourceId = self.theServer.theResourceManager.GetResourceId(strResType)
-            if self.resourceId == -1:
-                logger.info(f"Invalid ResourceType: {strResType} for prototype {self.prototypeName}")
+            if strResType is not None and self.resourceId == -1:
+                if not self.parentPrototypeName:
+                    logger.info(f"Invalid ResourceType: {strResType} for prototype {self.prototypeName}")
+                elif self.parent.resourceId == -1:
+                    logger.info(f"Invalid ResourceType: {strResType} for prototype {self.prototypeName} and its parent {self.parent.prototypeName}")
+
             self.visibleInEncyclopedia = parse_str_to_bool(read_from_xml_node(xmlNode,
                                                                               "VisibleInEncyclopedia",
                                                                               do_not_warn=True))
@@ -51,6 +56,16 @@ class PrototypeInfo(object):
         else:
             logger.warning(f"XML Node with unexpected tag {xmlNode.tag} given for PrototypeInfo loading")
 
+    def CopyFrom(self, prot_to_copy_from):
+        if self.className == prot_to_copy_from.className:
+            self.InternalCopyFrom(prot_to_copy_from)
+        else:
+            logger.error(f"Unexpected parent prototype class for {self.prototypeName}: "
+                         f"expected {self.className}, got {prot_to_copy_from.className}")
+
+    def InternalCopyFrom(self, prot_to_copy_from):
+        logger.error(f"CopyFrom is not implemented for PrototypeInfo {self.prototypeName} of class {self.className}")
+        
 
 class PhysicBodyPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
@@ -67,7 +82,7 @@ class PhysicBodyPrototypeInfo(PrototypeInfo):
             if self.engineModelName is None and self.prototypeName == "CompoundVehiclePart":
                 logger.error(f"No model file is provided for prototype {self.prototypeName}")
             mass = read_from_xml_node(xmlNode, "Mass", do_not_warn=True)
-            self.collisionTrimeshAllowed = parse_str_to_bool(read_from_xml_node(xmlNode, "CollisionTrimeshAllowed"))
+            self.collisionTrimeshAllowed = parse_str_to_bool(read_from_xml_node(xmlNode, "CollisionTrimeshAllowed", do_not_warn=True))
             if mass is not None:
                 self.massValue = float(mass)
             if self.massValue < 0.001:
@@ -101,7 +116,7 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PhysicBodyPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.blowEffectName = read_from_xml_node(xmlNode, "BlowEffect")
+            self.blowEffectName = safe_check_and_set(self.blowEffectName, xmlNode, "BlowEffect")
             durability = read_from_xml_node(xmlNode, "Durability", do_not_warn=True)
             if durability is not None:
                 self.durability = float(durability)
@@ -230,6 +245,9 @@ class BasketPrototypeInfo(VehiclePartPrototypeInfo):
                     self.slots.append(slot)
             return STATUS_SUCCESS
 
+    def InternalCopyFrom(self, prot_to_copy_from):
+        self.parent = prot_to_copy_from
+
 
 class GunPrototypeInfo(VehiclePartPrototypeInfo):
     def __init__(self, server):
@@ -292,7 +310,7 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
 
             damageTypeName = read_from_xml_node(xmlNode, "DamageType")
             if damageTypeName is not None:
-                self.damageType = self.Str2DamageType(damageTypeName)
+                self.damageType = GunPrototypeInfo.Str2DamageType(damageTypeName)
             if self.damageType is None:
                 logger.warning(f"Unknown damage type: {self.damageType}")
 
@@ -404,7 +422,7 @@ class WanderersGeneratorPrototypeInfo(PrototypeInfo):
     def LoadFromXML(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            desiredCount = read_from_xml_node(xmlNode, "DesiredCount")
+            desiredCount = read_from_xml_node(xmlNode, "DesiredCount", do_not_warn=True)
             if desiredCount is not None:
                 tokensDesiredCount = desiredCount.split("-")
                 token_length = len(tokensDesiredCount)
@@ -424,7 +442,58 @@ class WanderersGeneratorPrototypeInfo(PrototypeInfo):
                 if self.desiredCountHigh > 5:
                     logger.error(f"WanderersGenerator {self.prototypeName} attrib DesiredCount high value: "
                                  f"{self.desiredCountHigh} is higher than permitted MAX_VEHICLES_IN_TEAM: 5")
-        logger.warn("Partially implemented WanderersGeneratorPrototypeInfo LoadFromXML!")
+            vehicles = child_from_xml_node(xmlNode, "Vehicles")
+            check_mono_xml_node(vehicles, "Vehicle")
+            for vehicle_node in vehicles.iterchildren():
+                vehicle_description = self.VehicleDescription()
+                vehicle_description.LoadFromXML(xmlFile, xmlNode)
+            return STATUS_SUCCESS
+
+    class VehicleDescription(object):
+        def __init__(self):
+            self.prototype = ""
+            self.cabin = {"present": True, "prototypeNames": [], "prototypeIds": []}
+            self.basket = {"present": True, "prototypeNames": [], "prototypeIds": []}
+            self.cabinSmallGun = {"present": True, "prototypeNames": [], "prototypeIds": []}
+            self.cabinBigGun = {"present": True, "prototypeNames": [], "prototypeIds": []}
+            self.cabinSpecialWeapon = {"present": True, "prototypeNames": [], "prototypeIds": []}
+            self.basketSmallGun0 = {"present": True, "prototypeNames": [], "prototypeIds": []}
+            self.basketSmallGun1 = {"present": True, "prototypeNames": [], "prototypeIds": []}
+            self.basketBigGun0 = {"present": True, "prototypeNames": [], "prototypeIds": []}
+            self.basketBigGun1 = {"present": True, "prototypeNames": [], "prototypeIds": []}
+            self.basketSideGun = {"present": True, "prototypeNames": [], "prototypeIds": []}
+
+        def LoadFromXML(self, xmlFile, xmlNode):
+            self.prototype = safe_check_and_set(self.prototype, xmlNode, "Prototype")
+            self.cabin = self.LoadPartFromXML("Cabin", xmlFile, xmlNode)
+            self.basket = self.LoadPartFromXML("Basket", xmlFile, xmlNode)
+            self.cabinSmallGun = self.LoadPartFromXML("CabinSmallGun", xmlFile, xmlNode)
+            self.cabinBigGun = self.LoadPartFromXML("CabinBigGun", xmlFile, xmlNode)
+            self.cabinSpecialWeapon = self.LoadPartFromXML("CabinSpecialWeapon", xmlFile, xmlNode)
+            self.basketSmallGun0 = self.LoadPartFromXML("BasketSmallGun0", xmlFile, xmlNode)
+            self.basketSmallGun1 = self.LoadPartFromXML("BasketSmallGun1", xmlFile, xmlNode)
+            self.basketBigGun0 = self.LoadPartFromXML("BasketBigGun0", xmlFile, xmlNode)
+            self.basketBigGun1 = self.LoadPartFromXML("BasketBigGun1", xmlFile, xmlNode)
+            self.basketSideGun = self.LoadPartFromXML("BasketSideGun", xmlFile, xmlNode)
+
+        def LoadPartFromXML(self, partName, xmlFile, xmlNode):
+            partXMLNode = child_from_xml_node(xmlNode, partName, do_not_warn=True)
+            part = WanderersGeneratorPrototypeInfo.VehiclePartDescription()
+            if partXMLNode is not None:
+                part.LoadFromXML(xmlFile, partXMLNode)
+            return part
+
+    class VehiclePartDescription(object):
+        def __init__(self):
+            self.present = True
+            self.prototypeNames = []
+            self.prototypeIds = []
+
+        def LoadFromXML(self, xmlFile, xmlNode):
+            self.present = parse_str_to_bool(read_from_xml_node(xmlNode, "Present", do_not_warn=True))
+            strPrototypes = read_from_xml_node(xmlNode, "Prototypes", do_not_warn=True)
+            if strPrototypes is not None:
+                self.prototypeNames = strPrototypes.split()
 
 
 class AffixGeneratorPrototypeInfo(PrototypeInfo):
@@ -435,12 +504,17 @@ class AffixGeneratorPrototypeInfo(PrototypeInfo):
     def LoadFromXML(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            for affix in xmlNode["Affix"].iterchildren():
+            affix_nodes = child_from_xml_node(xmlNode, "Affix")
+            for affix in affix_nodes:
                 self.affixDescriptions.append(read_from_xml_node(affix, "AffixName"))
             return STATUS_SUCCESS
 
     def GenerateAffixesForObj(self, obj, desiredNumAffixed):
         pass
+
+    def InternalCopyFrom(self, prot_to_copy_from):
+        self.parent = prot_to_copy_from
+
 
     # class AffixDescription(object):
     #     def __init__(self):
@@ -529,7 +603,7 @@ class ComplexPhysicObjPartDescription(Object):
 
         partResourceType = read_from_xml_node(xmlNode, "partResourceType")
         self.partResourceId = server.theResourceManager.GetResourceId(partResourceType)
-        lpNames = read_from_xml_node(xmlNode, "lpName")
+        lpNames = read_from_xml_node(xmlNode, "lpName", do_not_warn=True)
         if lpNames is not None:
             self.lpNames = lpNames.split()
         for description_node in xmlNode.iterchildren():
@@ -546,21 +620,23 @@ class ComplexPhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
         self.massSize = {"x": 1.0,
                          "y": 1.0,
                          "z": 1.0}
-        self.massTranslation = []
+        self.massTranslation = deepcopy(ZERO_VECTOR)
         self.partDescription = []
+        self.allPartNames = []
+        self.massShape = 0
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            main_part_description_node = child_from_xml_node(xmlNode, "MainPartDescription")
+            main_part_description_node = child_from_xml_node(xmlNode, "MainPartDescription", do_not_warn=True)
             if main_part_description_node is not None:
                 check_mono_xml_node(main_part_description_node, "PartDescription")
                 partPrototypeDescriptions = ComplexPhysicObjPartDescription()
                 partPrototypeDescriptions.LoadFromXML(xmlFile, main_part_description_node, self.theServer)
                 self.partPrototypeDescriptions = partPrototypeDescriptions
             else:
-                logger.warning(f"Parts description is missing for prototype {self.prototypeName}")
-
+                if self.parent.partPrototypeDescriptions is None:
+                    logger.warning(f"Parts description is missing for prototype {self.prototypeName}")
             parts_node = child_from_xml_node(xmlNode, "Parts")
             if parts_node is not None:
                 check_mono_xml_node(parts_node, "Part")
@@ -570,16 +646,97 @@ class ComplexPhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
                     protName = {"name": prototypeName,
                                 "id": prototypeId}
                     self.partPrototypeNames.append(protName)
-            self.massSize = read_from_xml_node(xmlNode, "MassSize")
-            if self.massSize is not None:
-                self.massSize = self.massSize.split()
-            self.massTranslation = read_from_xml_node(xmlNode, "MassTranslation")
-            if self.massTranslation is not None:
-                self.massTranslation = self.massTranslation.split()
-            massShape = read_from_xml_node(xmlNode, "MassShape")
-            if massShape is not None:
-                self.massShape = int(massShape)
+            massSize = read_from_xml_node(xmlNode, "MassSize", do_not_warn=True)
+            if massSize is not None:
+                self.massSize = parse_str_to_vector_attrib(massSize)
+            massTranslation = read_from_xml_node(xmlNode, "MassTranslation", do_not_warn=True)
+            if massTranslation is not None:
+                self.massTranslation = parse_str_to_vector_attrib(massTranslation)
+            self.massShape = safe_check_and_set(self.massShape, xmlNode, "MassShape", "int")
             return STATUS_SUCCESS
+
+
+class VehiclePrototypeInfo(ComplexPhysicObjPrototypeInfo):
+    def __init__(self, server):
+        ComplexPhysicObjPrototypeInfo.__init__(self, server)
+        self.wheelInfos = []
+        self.selfbrakingCoeff = 0.0060000001
+        self.diffRatio = 1.0
+        self.maxEngineRpm = 1.0
+        self.lowGearShiftLimit = 1.0
+        self.highGearShiftLimit = 1.0
+        self.steeringSpeed = 1.0
+        self.takingRadius = 1.0
+        self.priority = -56
+        self.decisionMatrixNum = -1
+        self.hornSoundName = ""
+        self.cameraHeight = -1.0
+        self.cameraMaxDist = 25.0
+        self.destroyEffectNames = ["ET_PS_VEH_EXP" for i in range(4)]
+        self.blastWavePrototypeId = -1
+        self.additionalWheelsHover = 0.0
+        self.driftCoeff = 1.0
+        self.pressingForce = 1.0
+        self.healthRegeneration = 0.0
+        self.durabilityRegeneration = 0.0
+        self.blastWavePrototypeName = ""
+        self.visibleInEncyclopedia = False
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = ComplexPhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            self.diffRatio = safe_check_and_set(self.diffRatio, xmlNode, "DiffRatio", "float")
+            self.maxEngineRpm = safe_check_and_set(self.maxEngineRpm, xmlNode, "MaxEngineRpm", "float")
+            self.lowGearShiftLimit = safe_check_and_set(self.lowGearShiftLimit, xmlNode, "LowGearShiftLimit", "float")
+            self.highGearShiftLimit = safe_check_and_set(self.highGearShiftLimit, xmlNode,
+                                                         "HighGearShiftLimit", "float")
+            self.selfbrakingCoeff = safe_check_and_set(self.selfbrakingCoeff, xmlNode, "SelfBrakingCoeff", "float")
+            self.steeringSpeed = safe_check_and_set(self.steeringSpeed, xmlNode, "SteeringSpeed", "float")
+            decisionMatrixName = read_from_xml_node(xmlNode, "DecisionMatrix", do_not_warn=True)
+            # theAIManager.LoadMatrix(decisionMatrixName)
+            # self.decisionMatrixNum = theAIManager.GetMatrixNum(decisionMatrixName)
+            self.decisionMatrixNum = f"DummyMatrixNum_{decisionMatrixName}"  # ??? replace when AIManager is implemented
+            self.takingRadius = safe_check_and_set(self.takingRadius, xmlNode, "TakingRadius", "float")
+            self.priority = safe_check_and_set(self.priority, xmlNode, "Priority", "int")
+            self.hornSoundName = safe_check_and_set(self.hornSoundName, xmlNode, "HornSound")
+            self.cameraHeight = safe_check_and_set(self.cameraHeight, xmlNode, "CameraHeight", "float")
+            self.cameraMaxDist = safe_check_and_set(self.cameraMaxDist, xmlNode, "CameraMaxDist", "float")
+            destroyEffectNames = [read_from_xml_node(xmlNode, name, do_not_warn=True) for name in DESTROY_EFFECT_NAMES]
+            for i in range(len(self.destroyEffectNames)):
+                if destroyEffectNames[i] is not None:
+                    self.destroyEffectNames[i] = destroyEffectNames[i]
+            wheels_info = child_from_xml_node(xmlNode, "Wheels", do_not_warn=True)
+            if self.parentPrototypeName is not None and wheels_info is not None:
+                logger.error(f"Wheels info is present for inherited vehicle {self.prototypeName}")
+            elif self.parentPrototypeName is None and wheels_info is None:
+                logger.error(f"Wheels info is not present for parent vehicle {self.prototypeName}")
+            elif self.parentPrototypeName is None and wheels_info is not None:
+                check_mono_xml_node(wheels_info, "Wheel")
+                for wheel_node in wheels_info.iterchildren():
+                    steering = read_from_xml_node(wheel_node, "steering", do_not_warn=True)
+                    wheel_prototype_name = read_from_xml_node(wheel_node, "Prototype")
+                    wheel = self.WheelInfo(wheel_prototype_name, steering)
+                    self.wheelInfos.append(wheel)
+            self.blastWavePrototypeName = safe_check_and_set(self.blastWavePrototypeName, xmlNode, "BlastWave")
+            self.additionalWheelsHover = safe_check_and_set(self.additionalWheelsHover, xmlNode,
+                                                            "AdditionalWheelsHover", "float")
+            self.blastWavePrototypeName = safe_check_and_set(self.blastWavePrototypeName, xmlNode, "BlastWave")
+            self.driftCoeff = safe_check_and_set(self.driftCoeff, xmlNode, "DriftCoeff", "float")
+            self.pressingForce = safe_check_and_set(self.pressingForce, xmlNode, "PressingForce", "float")
+            self.healthRegeneration = safe_check_and_set(self.healthRegeneration, xmlNode,
+                                                         "HealthRegeneration", "float")
+            self.durabilityRegeneration = safe_check_and_set(self.durabilityRegeneration, xmlNode,
+                                                             "DurabilityRegeneration", "float")
+            return STATUS_SUCCESS
+
+    class WheelInfo(object):
+        def __init__(self, wheelPrototypeName, steering):
+            self.steering = steering
+            self.wheelPrototypeName = wheelPrototypeName
+            self.wheelPrototypeId = -1
+
+    def InternalCopyFrom(self, prot_to_copy_from):
+        self.parent = prot_to_copy_from
 
 
 class DummyObjectPrototypeInfo(SimplePhysicObjPrototypeInfo):
@@ -758,7 +915,7 @@ class TeamPrototypeInfo(PrototypeInfo):
         self.decisionMatrixName = ""  # placeholder for AIManager functionality ???
         self.removeWhenChildrenDead = True
         self.formationPrototypeName = "caravanFormation"
-        self.overridesDistBetweenVehicles = 0
+        self.overridesDistBetweenVehicles = False
         self.isUpdating = False
         self.formationDistBetweenVehicles = 30.0
 
@@ -770,7 +927,7 @@ class TeamPrototypeInfo(PrototypeInfo):
             formation = child_from_xml_node(xmlNode, "Formation", do_not_warn=True)
             if formation is not None:
                 self.formationPrototypeName = read_from_xml_node(formation, "Prototype")
-                distBetweenVehicles = read_from_xml_node(formation, "DistBetweenVehicles")
+                distBetweenVehicles = read_from_xml_node(formation, "DistBetweenVehicles", do_not_warn=True)
                 if distBetweenVehicles is not None:
                     self.overridesDistBetweenVehicles = True
                     self.formationDistBetweenVehicles = float(distBetweenVehicles)
@@ -790,7 +947,7 @@ class CaravanTeamPrototypeInfo(TeamPrototypeInfo):
         if result == STATUS_SUCCESS:
             self.tradersGeneratorPrototypeName = read_from_xml_node(xmlNode, "TradersVehiclesGeneratorName")
             self.guardsGeneratorPrototypeName = read_from_xml_node(xmlNode, "GuardVehiclesGeneratorName")
-            waresPrototypes = read_from_xml_node(xmlNode, "WaresPrototypes")
+            waresPrototypes = read_from_xml_node(xmlNode, "WaresPrototypes", do_not_warn=True)
             if waresPrototypes is not None:
                 self.waresPrototypes = waresPrototypes.split()
             if self.tradersGeneratorPrototypeName is not None:
@@ -945,15 +1102,16 @@ class VehiclesGeneratorPrototypeInfo(PrototypeInfo):
                 self.partOfSchwartz = float(partOfSchwartz)
             self.tuningBySchwartz = self.partOfSchwartz > 0.0
 
-            vehiclesPrototypes = read_from_xml_node(xmlNode, "VehiclesPrototypes")
+            vehiclesPrototypes = read_from_xml_node(xmlNode, "VehiclesPrototypes", do_not_warn=True)
             if vehiclesPrototypes is not None:
                 self.vehiclePrototypeNames = vehiclesPrototypes.split()
 
-            waresPrototypesNames = read_from_xml_node(xmlNode, "WaresPrototypes")
+            waresPrototypesNames = read_from_xml_node(xmlNode, "WaresPrototypes", do_not_warn=True)
             if waresPrototypesNames is not None:
                 self.waresPrototypesNames = waresPrototypesNames.split()
 
-            self.gunAffixGeneratorPrototypeName = read_from_xml_node(xmlNode, "GunAffixGeneratorPrototype")
+            self.gunAffixGeneratorPrototypeName = safe_check_and_set(self.gunAffixGeneratorPrototypeName, xmlNode,
+                                                                     "GunAffixGeneratorPrototype")
 
         def PostLoad(self, prototype_manager):
             for vehicle_prot_name in self.vehiclePrototypeNames:
@@ -1585,6 +1743,9 @@ class BlastWavePrototypeInfo(SimplePhysicObjPrototypeInfo):
         self.effectName = read_from_xml_node(xmlNode, "Effect")
         return STATUS_SUCCESS
 
+    def InternalCopyFrom(self, prot_to_copy_from):
+        self.parent = prot_to_copy_from
+
 
 class BulletLauncherPrototypeInfo(GunPrototypeInfo):
     def __init__(self, server):
@@ -1613,6 +1774,7 @@ class CompoundVehiclePartPrototypeInfo(VehiclePartPrototypeInfo):
                 self.partPrototypeDescriptions = partPrototypeDescriptions
             else:
                 logger.warning(f"Parts description is missing for prototype {self.prototypeName}")
+                self.partPrototypeDescriptions = None
             parts_node = child_from_xml_node(xmlNode, "Parts")
             if parts_node is not None:
                 check_mono_xml_node(parts_node, "Part")
@@ -1966,6 +2128,9 @@ class BarPrototypeInfo(BuildingPrototypeInfo):
             self.withBarman = read_from_xml_node(xmlNode, "WithBarman")
             return STATUS_SUCCESS
 
+    def InternalCopyFrom(self, prot_to_copy_from):
+        self.parent = prot_to_copy_from
+
 
 class WorkshopPrototypeInfo(BuildingPrototypeInfo):
     def __init__(self, server):
@@ -2124,12 +2289,70 @@ class RopeObjPrototypeInfo(SimplePhysicObjPrototypeInfo):
             return STATUS_SUCCESS
 
 
+class ObjPrefabPrototypeInfo(SimplePhysicObjPrototypeInfo):
+    def __init__(self, server):
+        SimplePhysicObjPrototypeInfo.__init__(self, server)
+        self.objInfos = []
+        self.isUpdating = False
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            self.SetGeomType("BOX")
+            obj_infos_node = child_from_xml_node(xmlNode, "ObjInfos")
+            if obj_infos_node is not None:
+                check_mono_xml_node(obj_infos_node, "ObjInfo")
+                for obj_info_node in obj_infos_node.iterchildren():
+                    obj_info = self.ObjInfo()
+                    obj_info.prototypeName = read_from_xml_node(obj_info_node, "Prototype")
+                    if obj_info.prototypeName is not None:
+                        obj_info.prototypeName = parse_str_to_vector_attrib(read_from_xml_node(obj_info_node, "RelPos")) 
+                        obj_info.prototypeName = parse_str_to_quaternion_attrib(read_from_xml_node(obj_info_node, "RelRot"))
+                        obj_info.prototypeName = read_from_xml_node(obj_info_node, "ModelName")
+                        scale = read_from_xml_node(obj_info_node, "Scale")
+                        if scale is not None:
+                            obj_info.scale = float(scale)
+                    else:
+                        logger.error(f"Invalid object info in {SimplePhysicObjPrototypeInfo.prototypeName}")
+                    self.objInfos.append(obj_info)
+            else:
+                logger.error(f"Missing ObjectsInfo in {SimplePhysicObjPrototypeInfo.prototypeName}")
+            return STATUS_SUCCESS
+
+    class ObjInfo(object):
+        def __init__(self):
+            self.prototypeId = -1
+            self.relPos = deepcopy(ZERO_VECTOR)
+            self.relRot = deepcopy(IDENTITY_QUATERNION)
+            self.scale = 1.0
+            self.modelName = ""
+            self.prototypeName = ""
+
+
+class BarricadePrototypeInfo(ObjPrefabPrototypeInfo):
+    def __init__(self, server):
+        ObjPrefabPrototypeInfo.__init__(self, server)
+        self.objInfos = []
+        self.probability = 1.0
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = ObjPrefabPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            probability = read_from_xml_node(xmlNode, "Probability")
+            if probability is not None:
+                self.probability = float(probability)
+            return STATUS_SUCCESS
+
+    def InternalCopyFrom(self, prot_to_copy_from):
+        self.parent = prot_to_copy_from
+
+
 # dict mapping Object Classes to PrototypeInfo Classes
 thePrototypeInfoClassDict = {
     "AffixGenerator": AffixGeneratorPrototypeInfo,
-    # "ArticulatedVehicle": ArticulatedVehiclePrototypeInfo,
+    # "ArticulatedVehicle": ArticulatedVehiclePrototypeInfo, # def InternalCopyFrom(self, prot_to_copy_from): self.parent = prot_to_copy_from
     "Bar": BarPrototypeInfo,
-    # "Barricade": BarricadePrototypeInfo,
+    "Barricade": BarricadePrototypeInfo,
     "Basket": BasketPrototypeInfo,
     "BlastWave": BlastWavePrototypeInfo,
     "Boss02Arm": Boss02ArmPrototypeInfo,
@@ -2181,7 +2404,7 @@ thePrototypeInfoClassDict = {
     "NPCMotionController": NPCMotionControllerPrototypeInfo,
     "NailLocation": NailLocationPrototypeInfo,
     # "Npc": NpcPrototypeInfo,
-    # "ObjPrefab": ObjPrefabPrototypeInfo,
+    "ObjPrefab": ObjPrefabPrototypeInfo,
     "ParticleSplinter": ParticleSplinterPrototypeInfo,
     "PhysicUnit": PhysicUnitPrototypeInfo,
     "PlasmaBunchLauncher": PlasmaBunchLauncherPrototypeInfo,
@@ -2196,7 +2419,7 @@ thePrototypeInfoClassDict = {
     "RopeObj": RopeObjPrototypeInfo,
     "SgNodeObj": SgNodeObjPrototypeInfo,
     "SmokeScreenLocation": SmokeScreenLocationPrototypeInfo,
-    # "StaticAutoGun": StaticAutoGunPrototypeInfo,
+    # "StaticAutoGun": StaticAutoGunPrototypeInfo,  # def InternalCopyFrom(self, prot_to_copy_from): self.parent = prot_to_copy_from
     "Submarine": SubmarinePrototypeInfo,
     "Team": TeamPrototypeInfo,
     "TeamTacticWithRoles": TeamTacticWithRolesPrototypeInfo,
@@ -2207,7 +2430,7 @@ thePrototypeInfoClassDict = {
     "TurboAccelerationPusher": TurboAccelerationPusherPrototypeInfo,
     "VagabondTeam": VagabondTeamPrototypeInfo,
     "VehiclePart": VehiclePartPrototypeInfo,
-    # "Vehicle": VehiclePrototypeInfo,
+    "Vehicle": VehiclePrototypeInfo,
     "VehicleRecollection": VehicleRecollectionPrototypeInfo,
     "VehicleRoleBarrier": VehicleRoleBarrierPrototypeInfo,
     "VehicleRoleCheater": VehicleRoleCheaterPrototypeInfo,
