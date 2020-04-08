@@ -155,6 +155,8 @@ def read_from_xml_node(xml_node: objectify.ObjectifiedElement, attrib_name: str,
 
     else:
         logger.warning(f"Node {xml_node.tag} of {xml_node.base} is empty!")
+        if xml_node.tag == "comment":
+            log_comment(xml_node, xml_node.getparent())
         return None
 
 
@@ -214,39 +216,42 @@ def parse_str_to_bool(string: str):
         raise ValueError(f"Invalid str to parse: {string}")
 
 
-def parse_str_to_vector_attrib(string: str):
+def parse_str_to_vector(string: str):
     if string is not None:
         split_str = string.split()
     else:
         split_str = []
+    # default in case string is not valid
+    dictionary = {"x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0}
     if len(split_str) == 3:
         dictionary = {"x": float(split_str[0]),
                       "y": float(split_str[1]),
                       "z": float(split_str[2])}
-    else:
+    elif split_str:
         logger.warn(f"Expected 3 vector attributes: {string} were given")
-        dictionary = {"x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0}
+
     return dictionary
 
 
-def parse_str_to_quaternion_attrib(string: str):
+def parse_str_to_quaternion(string: str):
     if string is not None:
         split_str = string.split()
     else:
         split_str = []
+    # default in case string is not valid
+    dictionary = {"x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0,
+                  "w": 1.0}
     if len(split_str) == 4:
         dictionary = {"x": float(split_str[0]),
                       "y": float(split_str[1]),
                       "z": float(split_str[2]),
                       "w": float(split_str[3])}
-    else:
+    elif split_str:
         logger.warn(f"Expected 4 quaternion attributes: {string} were given")
-        dictionary = {"x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0,
-                      "w": 1.0}
     return dictionary
 
 

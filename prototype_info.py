@@ -5,7 +5,7 @@ from lxml import objectify
 from logger import logger
 
 from em_parse import (read_from_xml_node, child_from_xml_node, check_mono_xml_node, safe_check_and_set,
-                      parse_str_to_bool, parse_str_to_quaternion_attrib, parse_str_to_vector_attrib)
+                      parse_str_to_bool, parse_str_to_quaternion, parse_str_to_vector)
 from constants import (STATUS_SUCCESS, DEFAULT_TURNING_SPEED, FiringTypesStruct, DamageTypeStruct, DESTROY_EFFECT_NAMES,
                        TEAM_DEFAULT_FORMATION_PROTOTYPE, GEOM_TYPE, ZERO_VECTOR, IDENTITY_QUATERNION)
 from object_classes import *
@@ -65,7 +65,7 @@ class PrototypeInfo(object):
 
     def InternalCopyFrom(self, prot_to_copy_from):
         logger.error(f"CopyFrom is not implemented for PrototypeInfo {self.prototypeName} of class {self.className}")
-        
+
 
 class PhysicBodyPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
@@ -79,10 +79,11 @@ class PhysicBodyPrototypeInfo(PrototypeInfo):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             self.engineModelName = read_from_xml_node(xmlNode, "ModelFile")
-            if self.engineModelName is None and self.prototypeName == "CompoundVehiclePart":
+            if self.engineModelName is None and issubclass(type(self), CompoundVehiclePartPrototypeInfo):
                 logger.error(f"No model file is provided for prototype {self.prototypeName}")
             mass = read_from_xml_node(xmlNode, "Mass", do_not_warn=True)
-            self.collisionTrimeshAllowed = parse_str_to_bool(read_from_xml_node(xmlNode, "CollisionTrimeshAllowed", do_not_warn=True))
+            self.collisionTrimeshAllowed = parse_str_to_bool(read_from_xml_node(xmlNode, "CollisionTrimeshAllowed",
+                                                                                do_not_warn=True))
             if mass is not None:
                 self.massValue = float(mass)
             if self.massValue < 0.001:
@@ -201,8 +202,8 @@ class CabinPrototypeInfo(VehiclePartPrototypeInfo):
             if fuelConsumption is not None:
                 self.fuelConsumption = float(fuelConsumption)
 
-            self.engineHighSoundName = read_from_xml_node(xmlNode, "EngineHighSound")
-            self.engineLowSoundName = read_from_xml_node(xmlNode, "EngineLowSound")
+            self.engineHighSoundName = safe_check_and_set(self.engineHighSoundName, xmlNode, "EngineHighSound")
+            self.engineLowSoundName = safe_check_and_set(self.engineLowSoundName, xmlNode, "EngineLowSound")
 
             control = read_from_xml_node(xmlNode, "Control", do_not_warn=True)
             if control is not None:
@@ -215,7 +216,7 @@ class CabinPrototypeInfo(VehiclePartPrototypeInfo):
             gadgetDescriptions = child_from_xml_node(xmlNode, "GadgetDescription", do_not_warn=True)
             if gadgetDescriptions is not None:
                 check_mono_xml_node(gadgetDescriptions, "Slot")
-                for gadget_node in gadgetDescriptions.iterchildren():
+                for gadget_node in gadgetDescriptions.iterchildren(tag="Slot"):
                     gadget = {"resourceType": read_from_xml_node(gadget_node, "ResourceType"),
                               "maxAmount": int(read_from_xml_node(gadget_node, "MaxAmount"))}
                     self.gadgetSlots.append(gadget)
@@ -237,7 +238,7 @@ class BasketPrototypeInfo(VehiclePartPrototypeInfo):
                                    "y": repositorySize[1]}
             if len(repositoryDescriptions.getchildren()) > 1:
                 check_mono_xml_node(repositoryDescriptions, "Slot")
-                for slot_node in repositoryDescriptions.iterchildren():
+                for slot_node in repositoryDescriptions.iterchildren(tag="Slot"):
                     pos = read_from_xml_node(slot_node, "Pos").split()
                     pos = {"x": pos[0], "y": pos[1]}
                     slot = {"name": read_from_xml_node(slot_node, "Name"),
@@ -280,8 +281,8 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
     def LoadFromXML(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
         result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.shellPrototypeName = read_from_xml_node(xmlNode, "BulletPrototype")
-            self.blastWavePrototypeName = read_from_xml_node(xmlNode, "BlastWavePrototype")
+            self.shellPrototypeName = safe_check_and_set(self.shellPrototypeName, xmlNode, "BulletPrototype")
+            self.blastWavePrototypeName = safe_check_and_set(self.blastWavePrototypeName, xmlNode, "BlastWavePrototype")
             damage = read_from_xml_node(xmlNode, "Damage", do_not_warn=True)
             if damage is not None:
                 self.damage = float(damage)
@@ -294,13 +295,13 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
             if firingRange is not None:
                 self.firingRange = float(firingRange)
 
-            self.explosionTypeName = read_from_xml_node(xmlNode, "ExplosionType")
+            self.explosionTypeName = safe_check_and_set(self.explosionTypeName, xmlNode, "ExplosionType")
 
             recoilForce = read_from_xml_node(xmlNode, "RecoilForce", do_not_warn=True)
             if recoilForce is not None:
                 self.recoilForce = float(recoilForce)
 
-            decalName = read_from_xml_node(xmlNode, "Decal")
+            decalName = safe_check_and_set("", xmlNode, "Decal")
             self.decalId = f"Placeholder for {decalName}!"  # DynamicScene.AddDecalName(decalName)
 
             firingType = read_from_xml_node(xmlNode, "FiringType")
@@ -308,26 +309,26 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
             if self.firingType is None:
                 logger.warning(f"Unknown firing type: {self.firingType}!")
 
-            damageTypeName = read_from_xml_node(xmlNode, "DamageType")
+            damageTypeName = read_from_xml_node(xmlNode, "DamageType", do_not_warn=True)
             if damageTypeName is not None:
                 self.damageType = GunPrototypeInfo.Str2DamageType(damageTypeName)
             if self.damageType is None:
                 logger.warning(f"Unknown damage type: {self.damageType}")
 
-            self.withCharging = parse_str_to_bool(read_from_xml_node(xmlNode, "WithCharging"))
+            self.withCharging = parse_str_to_bool(read_from_xml_node(xmlNode, "WithCharging", do_not_warn=True))
 
-            chargeSize = read_from_xml_node(xmlNode, "ChargeSize")
+            chargeSize = read_from_xml_node(xmlNode, "ChargeSize", do_not_warn=True)
             if chargeSize is not None:
                 chargeSize = int(chargeSize)
                 if chargeSize >= 0:  # ??? whaaat, why should it ever be less than 0?
                     self.chargeSize = chargeSize
 
-            reChargingTime = read_from_xml_node(xmlNode, "RechargingTime")
+            reChargingTime = read_from_xml_node(xmlNode, "RechargingTime", do_not_warn=True)
             if reChargingTime is not None:
                 self.reChargingTime = float(reChargingTime)
 
             self.shellsPoolSize = 0
-            shellsPoolSize = read_from_xml_node(xmlNode, "ShellsPoolSize")
+            shellsPoolSize = read_from_xml_node(xmlNode, "ShellsPoolSize", do_not_warn=True)
             if shellsPoolSize is not None:
                 shellsPoolSize = int(shellsPoolSize)
                 if shellsPoolSize > 0:
@@ -336,14 +337,16 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
                     self.withShellsPoolLimit = 0
                     self.shellsPoolSize = 12
 
-            self.withShellsPoolLimit = parse_str_to_bool(read_from_xml_node(xmlNode, "WithShellsPoolLimit"))
+            self.withShellsPoolLimit = parse_str_to_bool(read_from_xml_node(xmlNode, "WithShellsPoolLimit",
+                                                                            do_not_warn=True))
 
-            turningSpeed = read_from_xml_node(xmlNode, "TurningSpeed")
+            turningSpeed = read_from_xml_node(xmlNode, "TurningSpeed", do_not_warn=True)
             if turningSpeed is not None:
                 self.turningSpeed = float(turningSpeed)
             self.turningSpeed *= pi / 180  # convert to rads
             self.engineModelName += "Gun"  # ??? is this really what's happening?
-            self.ignoreStopAnglesWhenFire = parse_str_to_bool(read_from_xml_node(xmlNode, "IgnoreStopAnglesWhenFire"))
+            self.ignoreStopAnglesWhenFire = parse_str_to_bool(read_from_xml_node(xmlNode, "IgnoreStopAnglesWhenFire",
+                                                                                 do_not_warn=True))
             return STATUS_SUCCESS
 
     def Str2FiringType(firing_type_name: str):
@@ -376,6 +379,7 @@ class GadgetPrototypeInfo(PrototypeInfo):
             modifications = read_from_xml_node(xmlNode, "Modifications").split(";")
             for mod in modifications:
                 pass
+                logger.warning("Partially implemented GadgetPrototypeInfo.LoadFromXML!")
 
     class ModificationInfo(object):
         def __init__(self, prot_info, tokens=None, other_mod=None):  # other ModificationInfo object can be passed to create copy
@@ -444,7 +448,7 @@ class WanderersGeneratorPrototypeInfo(PrototypeInfo):
                                  f"{self.desiredCountHigh} is higher than permitted MAX_VEHICLES_IN_TEAM: 5")
             vehicles = child_from_xml_node(xmlNode, "Vehicles")
             check_mono_xml_node(vehicles, "Vehicle")
-            for vehicle_node in vehicles.iterchildren():
+            for vehicle_node in vehicles.iterchildren("Vehicle"):
                 vehicle_description = self.VehicleDescription()
                 vehicle_description.LoadFromXML(xmlFile, xmlNode)
             return STATUS_SUCCESS
@@ -606,7 +610,8 @@ class ComplexPhysicObjPartDescription(Object):
         lpNames = read_from_xml_node(xmlNode, "lpName", do_not_warn=True)
         if lpNames is not None:
             self.lpNames = lpNames.split()
-        for description_node in xmlNode.iterchildren():
+        check_mono_xml_node(xmlNode, "PartDescription")
+        for description_node in xmlNode.iterchildren(tag="PartDescription"):
             part_description = ComplexPhysicObjPartDescription()
             part_description.LoadFromXML(xmlFile, description_node, server)
             self.child_descriptions.append(part_description)  # ??? temporary placeholder for original logic
@@ -640,7 +645,7 @@ class ComplexPhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
             parts_node = child_from_xml_node(xmlNode, "Parts")
             if parts_node is not None:
                 check_mono_xml_node(parts_node, "Part")
-                for part_node in parts_node.iterchildren():
+                for part_node in parts_node.iterchildren(tag="Part"):
                     prototypeId = read_from_xml_node(part_node, "id")
                     prototypeName = read_from_xml_node(part_node, "Prototype")
                     protName = {"name": prototypeName,
@@ -648,10 +653,10 @@ class ComplexPhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
                     self.partPrototypeNames.append(protName)
             massSize = read_from_xml_node(xmlNode, "MassSize", do_not_warn=True)
             if massSize is not None:
-                self.massSize = parse_str_to_vector_attrib(massSize)
+                self.massSize = parse_str_to_vector(massSize)
             massTranslation = read_from_xml_node(xmlNode, "MassTranslation", do_not_warn=True)
             if massTranslation is not None:
-                self.massTranslation = parse_str_to_vector_attrib(massTranslation)
+                self.massTranslation = parse_str_to_vector(massTranslation)
             self.massShape = safe_check_and_set(self.massShape, xmlNode, "MassShape", "int")
             return STATUS_SUCCESS
 
@@ -712,7 +717,7 @@ class VehiclePrototypeInfo(ComplexPhysicObjPrototypeInfo):
                 logger.error(f"Wheels info is not present for parent vehicle {self.prototypeName}")
             elif self.parentPrototypeName is None and wheels_info is not None:
                 check_mono_xml_node(wheels_info, "Wheel")
-                for wheel_node in wheels_info.iterchildren():
+                for wheel_node in wheels_info.iterchildren(tag="Wheel"):
                     steering = read_from_xml_node(wheel_node, "steering", do_not_warn=True)
                     wheel_prototype_name = read_from_xml_node(wheel_node, "Prototype")
                     wheel = self.WheelInfo(wheel_prototype_name, steering)
@@ -794,8 +799,8 @@ class WheelPrototypeInfo(SimplePhysicObjPrototypeInfo):
             if mU is not None:
                 self.mU = float(mU)
 
-            self.typeName = read_from_xml_node(xmlNode, "EffectType")
-            self.blowEffectName = read_from_xml_node(xmlNode, "BlowEffect")
+            self.typeName = safe_check_and_set(self.typeName, xmlNode, "EffectType")
+            self.blowEffectName = safe_check_and_set(self.blowEffectName, xmlNode, "BlowEffect")
             return STATUS_SUCCESS
 
 
@@ -893,7 +898,8 @@ class TeamTacticWithRolesPrototypeInfo(PrototypeInfo):
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            for role in xmlNode.iterchildren():
+            check_mono_xml_node(xmlNode, "Role")
+            for role in xmlNode.iterchildren(tag="Role"):
                 self.rolePrototypeNames.append(read_from_xml_node(role, "Prototype"))
             return STATUS_SUCCESS
 
@@ -945,8 +951,10 @@ class CaravanTeamPrototypeInfo(TeamPrototypeInfo):
     def LoadFromXML(self, xmlFile, xmlNode):
         result = TeamPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.tradersGeneratorPrototypeName = read_from_xml_node(xmlNode, "TradersVehiclesGeneratorName")
-            self.guardsGeneratorPrototypeName = read_from_xml_node(xmlNode, "GuardVehiclesGeneratorName")
+            self.tradersGeneratorPrototypeName = safe_check_and_set(self.tradersGeneratorPrototypeName, xmlNode,
+                                                                    "TradersVehiclesGeneratorName")
+            self.guardsGeneratorPrototypeName = safe_check_and_set(self.guardsGeneratorPrototypeName, xmlNode,
+                                                                   "GuardVehiclesGeneratorName")
             waresPrototypes = read_from_xml_node(xmlNode, "WaresPrototypes", do_not_warn=True)
             if waresPrototypes is not None:
                 self.waresPrototypes = waresPrototypes.split()
@@ -982,7 +990,8 @@ class InfectionTeamPrototypeInfo(TeamPrototypeInfo):
         if result == STATUS_SUCCESS:
             vehicles = child_from_xml_node(xmlNode, "Vehicles", do_not_warn=True)
             if vehicles is not None:
-                for vehicle in vehicles.iterchildren():
+                check_mono_xml_node(vehicles, "Vehicle")
+                for vehicle in vehicles.iterchildren(tag="Vehicle"):
                     item = {"protoName": read_from_xml_node(vehicle, "PrototypeName"),
                             "count": int(read_from_xml_node(vehicle, "Count"))}
                     self.items.append(item)
@@ -1061,7 +1070,7 @@ class VehiclesGeneratorPrototypeInfo(PrototypeInfo):
 
                 if len(xmlNode.getchildren()) > 1:
                     check_mono_xml_node(xmlNode, "Description")
-                    for description_entry in xmlNode.iterchildren():
+                    for description_entry in xmlNode.iterchildren(tag="Description"):
                         veh_description = self.VehicleDescription(xmlFile, description_entry)
                         self.vehicleDescriptions.append(veh_description)
                 self.partOfSchwartzForCabin = 0.25
@@ -1170,7 +1179,7 @@ class FormationPrototypeInfo(PrototypeInfo):
         polyline = child_from_xml_node(xmlNode, "Polyline")
         if polyline is not None:
             check_mono_xml_node(xmlNode["Polyline"], "Point")
-            for child in xmlNode["Polyline"].iterchildren():
+            for child in xmlNode["Polyline"].iterchildren(tag="Point"):
                 point = read_from_xml_node(child, "Coord").split()
                 if len(point) == 2:
                     point = {"x": float(point[0]),
@@ -1361,7 +1370,7 @@ class SgNodeObjPrototypeInfo(PrototypeInfo):
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.engineModelName = read_from_xml_node(xmlNode, "ModelFile")
+            self.engineModelName = safe_check_and_set(self.engineModelName, xmlNode, "ModelFile")
             return STATUS_SUCCESS
 
 
@@ -1393,7 +1402,7 @@ class BossArmPrototypeInfo(VehiclePartPrototypeInfo):
 
             attack_actions = child_from_xml_node(xmlNode, "AttackActions")
             check_mono_xml_node(attack_actions, "Attack")
-            for attack_node in attack_actions.iterchildren():
+            for attack_node in attack_actions.iterchildren(tag="Attack"):
                 action = self.AttackActionInfo()
                 action.LoadFromXML(attack_node)
                 self.attacks.append(action)
@@ -1457,7 +1466,8 @@ class Boss02ArmPrototypeInfo(BossArmPrototypeInfo):
             actionForDie = read_from_xml_node(xmlNode, "ActionForDie")
             self.actionForDie = GetActionByName(actionForDie)
 
-            self.blockingContainerPrototypeName = read_from_xml_node(xmlNode, "ContainerPrototype")
+            self.blockingContainerPrototypeName = safe_check_and_set(self.blockingContainerPrototypeName, xmlNode,
+                                                                     "ContainerPrototype")
             return STATUS_SUCCESS
 
 
@@ -1487,7 +1497,7 @@ class BossMetalArmPrototypeInfo(SimplePhysicObjPrototypeInfo):
 
             attack_actions = child_from_xml_node(xmlNode, "AttackActions")
             check_mono_xml_node(attack_actions, "Attack")
-            for attack_node in attack_actions.iterchildren():
+            for attack_node in attack_actions.iterchildren(tag="Attack"):
                 action = self.AttackActionInfo()
                 action.LoadFromXML(attack_node)
                 self.attacks.append(action)
@@ -1526,8 +1536,8 @@ class BossMetalArmLoadPrototypeInfo(DummyObjectPrototypeInfo):
     def LoadFromXML(self, xmlFile, xmlNode):
         result = DummyObjectPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.blastWavePrototypeName = read_from_xml_node(xmlNode, "BlastWavePrototype")
-            self.explosionEffectName = read_from_xml_node(xmlNode, "ExplosionEffect")
+            self.blastWavePrototypeName = safe_check_and_set(self.blastWavePrototypeName, xmlNode, "BlastWavePrototype")
+            self.explosionEffectName = safe_check_and_set(self.explosionEffectName, xmlNode, "ExplosionEffect")
 
             maxHealth = read_from_xml_node(xmlNode, "MaxHealth")
             if maxHealth is not None:
@@ -1588,7 +1598,7 @@ class Boss02PrototypeInfo(ComplexPhysicObjPrototypeInfo):
         if result == STATUS_SUCCESS:
             states_node = child_from_xml_node(xmlNode, "States")
             check_mono_xml_node(states_node, "State")
-            for state_node in states_node.iterchildren():
+            for state_node in states_node.iterchildren(tag="State"):
                 state = self.StateInfo()
                 state.LoadFromXML(xmlFile, state_node)
             speed = read_from_xml_node(xmlNode, "Speed")
@@ -1714,7 +1724,7 @@ class Boss04PrototypeInfo(ComplexPhysicObjPrototypeInfo):
             self.droneSpawningLpNames = read_from_xml_node(xmlNode, "DroneSpawningLps").split()
             stationToPartBindings = child_from_xml_node(xmlNode, "StationToPartBindings")
             check_mono_xml_node(stationToPartBindings, "Station")
-            for station_node in stationToPartBindings.iterchildren():
+            for station_node in stationToPartBindings.iterchildren(tag="Station"):
                 station = {"id": read_from_xml_node(station_node, "id"),
                            "parts": read_from_xml_node(station_node, "Parts").split()}
                 self.stationToPartBindings.append(station)
@@ -1766,7 +1776,7 @@ class CompoundVehiclePartPrototypeInfo(VehiclePartPrototypeInfo):
     def LoadFromXML(self, xmlFile, xmlNode):
         result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            main_part_description_node = child_from_xml_node(xmlNode, "MainPartDescription")
+            main_part_description_node = child_from_xml_node(xmlNode, "MainPartDescription", do_not_warn=True)
             if main_part_description_node is not None:
                 check_mono_xml_node(main_part_description_node, "PartDescription")
                 partPrototypeDescriptions = ComplexPhysicObjPartDescription()
@@ -1775,10 +1785,10 @@ class CompoundVehiclePartPrototypeInfo(VehiclePartPrototypeInfo):
             else:
                 logger.warning(f"Parts description is missing for prototype {self.prototypeName}")
                 self.partPrototypeDescriptions = None
-            parts_node = child_from_xml_node(xmlNode, "Parts")
+            parts_node = child_from_xml_node(xmlNode, "Parts", do_not_warn=True)
             if parts_node is not None:
                 check_mono_xml_node(parts_node, "Part")
-                for part_node in parts_node.iterchildren():
+                for part_node in parts_node.iterchildren(tag="Part"):
                     prototypeId = read_from_xml_node(part_node, "id")
                     prototypeName = read_from_xml_node(part_node, "Prototype")
                     protName = {"name": prototypeName,
@@ -1801,7 +1811,7 @@ class RocketLauncherPrototypeInfo(GunPrototypeInfo):
     def LoadFromXML(self, xmlFile, xmlNode):
         result = GunPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.withAngleLimit = parse_str_to_bool(read_from_xml_node(xmlNode, "WithAngleLimit"))
+            self.withAngleLimit = parse_str_to_bool(read_from_xml_node(xmlNode, "WithAngleLimit", do_not_warn=True))
             return STATUS_SUCCESS
 
 
@@ -1928,7 +1938,7 @@ class RocketPrototypeInfo(ShellPrototypeInfo):
             if flyTime is not None:
                 self.flyTime = float(flyTime)
 
-            self.blastWavePrototypeName = read_from_xml_node(xmlNode, "BlastWavePrototype")
+            self.blastWavePrototypeName = safe_check_and_set(self.blastWavePrototypeName, xmlNode, "BlastWavePrototype")
             return STATUS_SUCCESS
 
 
@@ -1954,7 +1964,7 @@ class PlasmaBunchPrototypeInfo(ShellPrototypeInfo):
             flyTime = read_from_xml_node(xmlNode, "FlyTime")
             if flyTime is not None:
                 self.flyTime = float(flyTime)
-            self.blastWavePrototypeName = read_from_xml_node(xmlNode, "BlastWavePrototype")
+            self.blastWavePrototypeName = safe_check_and_set(self.blastWavePrototypeName, xmlNode, "BlastWavePrototype")
             return STATUS_SUCCESS
 
 
@@ -1973,7 +1983,7 @@ class MortarShellPrototypeInfo(ShellPrototypeInfo):
             flyTime = read_from_xml_node(xmlNode, "FlyTime")
             if flyTime is not None:
                 self.flyTime = float(flyTime)
-            self.blastWavePrototypeName = read_from_xml_node(xmlNode, "BlastWavePrototype")
+            self.blastWavePrototypeName = safe_check_and_set(self.blastWavePrototypeName, xmlNode, "BlastWavePrototype")
             return STATUS_SUCCESS
 
 
@@ -2011,7 +2021,7 @@ class ThunderboltPrototypeInfo(PrototypeInfo):
             if flyTime is not None:
                 self.flyTime = float(flyTime)
 
-            damage = read_from_xml_node(xmlNode, "Damage")
+            damage = read_from_xml_node(xmlNode, "Damage", do_not_warn=True)
             if damage is not None:
                 self.damage = float(damage)
 
@@ -2095,7 +2105,7 @@ class SubmarinePrototypeInfo(DummyObjectPrototypeInfo):
             if platformOpenFps is not None:
                 self.platformOpenFps = int(platformOpenFps)
 
-            vehicleMaxSpeed = read_from_xml_node(xmlNode, "VehicleMaxSpeed")
+            vehicleMaxSpeed = read_from_xml_node(xmlNode, "VehicleMaxSpeed", do_not_warn=True)
             if vehicleMaxSpeed is not None:
                 self.vehicleMaxSpeed = float(vehicleMaxSpeed)
 
@@ -2112,7 +2122,7 @@ class BuildingPrototypeInfo(PrototypeInfo):
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            buildingTypeName = read_from_xml_node(xmlNode, "BuildingType")
+            buildingTypeName = safe_check_and_set("", xmlNode, "BuildingType")
             self.buildingType = Building.GetBuildingTypeByName(buildingTypeName)
             return STATUS_SUCCESS
 
@@ -2150,30 +2160,30 @@ class WarePrototypeInfo(PrototypeInfo):
     def LoadFromXML(self, xmlFile, xmlNode):
         result = BuildingPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            maxItems = read_from_xml_node(xmlNode, "MaxItems")
+            maxItems = read_from_xml_node(xmlNode, "MaxItems", do_not_warn=True)
             if maxItems is not None:
                 maxItems = int(maxItems)
                 if maxItems >= 0:
                     self.maxItems = maxItems
 
-            maxDurability = read_from_xml_node(xmlNode, "Durability")
+            maxDurability = read_from_xml_node(xmlNode, "Durability", do_not_warn=True)
             if maxDurability is not None:
                 self.maxDurability = float(maxDurability)
 
-            priceDispersion = read_from_xml_node(xmlNode, "PriceDispersion")
+            priceDispersion = read_from_xml_node(xmlNode, "PriceDispersion", do_not_warn=True)
             if priceDispersion is not None:
                 self.priceDispersion = float(priceDispersion)
 
             if self.priceDispersion < 0.0 or self.priceDispersion > 100.0:
                 logger(f"Price dispersion can't be outside 0.0-100.0 range: see {self.prototypeName}")
 
-            self.modelName = read_from_xml_node(xmlNode, "ModelName")
+            self.modelName = safe_check_and_set(self.modelName, xmlNode, "ModelName")
 
-            minCount = read_from_xml_node(xmlNode, "MinCount")
+            minCount = read_from_xml_node(xmlNode, "MinCount", do_not_warn=True)
             if minCount is not None:
                 self.minCount = int(minCount)
 
-            maxCount = read_from_xml_node(xmlNode, "MaxCount")
+            maxCount = read_from_xml_node(xmlNode, "MaxCount", do_not_warn=True)
             if maxCount is not None:
                 self.maxCount = int(maxCount)
             return STATUS_SUCCESS
@@ -2185,9 +2195,9 @@ class QuestItemPrototypeInfo(PrototypeInfo):
         self.modelName = ""
 
     def LoadFromXML(self, xmlFile, xmlNode):
-        result = BuildingPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.modelName = read_from_xml_node(xmlNode, "ModelName")
+            self.modelName = safe_check_and_set(self.modelName, xmlNode, "ModelName")
             return STATUS_SUCCESS
 
 
@@ -2216,12 +2226,12 @@ class BreakableObjectPrototypeInfo(SimplePhysicObjPrototypeInfo):
             if criticalHitEnergy is not None:
                 self.criticalHitEnergy = float(criticalHitEnergy)
 
-            self.effectType = read_from_xml_node(xmlNode, "EffectType")
-            self.destroyEffectType = read_from_xml_node(xmlNode, "DestroyEffectType")
-            self.brokenModelName = read_from_xml_node(xmlNode, "BrokenModel")
-            self.destroyedModelName = read_from_xml_node(xmlNode, "DestroyedModel")
-            self.breakEffect = read_from_xml_node(xmlNode, "BreakEffect")
-            self.blastWavePrototypeName = read_from_xml_node(xmlNode, "BlastWave")
+            self.effectType = safe_check_and_set(self.effectType, xmlNode, "EffectType")
+            self.destroyEffectType = safe_check_and_set(self.destroyEffectType, xmlNode, "DestroyEffectType")
+            self.brokenModelName = safe_check_and_set(self.brokenModelName, xmlNode, "BrokenModel")
+            self.destroyedModelName = safe_check_and_set(self.destroyedModelName, xmlNode, "DestroyedModel")
+            self.breakEffect = safe_check_and_set(self.breakEffect, xmlNode, "BreakEffect")
+            self.blastWavePrototypeName = safe_check_and_set(self.blastWavePrototypeName, xmlNode, "BlastWave")
             return STATUS_SUCCESS
 
 
@@ -2302,14 +2312,16 @@ class ObjPrefabPrototypeInfo(SimplePhysicObjPrototypeInfo):
             obj_infos_node = child_from_xml_node(xmlNode, "ObjInfos")
             if obj_infos_node is not None:
                 check_mono_xml_node(obj_infos_node, "ObjInfo")
-                for obj_info_node in obj_infos_node.iterchildren():
+                for obj_info_node in obj_infos_node.iterchildren(tag="ObjInfo"):
                     obj_info = self.ObjInfo()
                     obj_info.prototypeName = read_from_xml_node(obj_info_node, "Prototype")
                     if obj_info.prototypeName is not None:
-                        obj_info.prototypeName = parse_str_to_vector_attrib(read_from_xml_node(obj_info_node, "RelPos")) 
-                        obj_info.prototypeName = parse_str_to_quaternion_attrib(read_from_xml_node(obj_info_node, "RelRot"))
-                        obj_info.prototypeName = read_from_xml_node(obj_info_node, "ModelName")
-                        scale = read_from_xml_node(obj_info_node, "Scale")
+                        obj_info.prototypeName = parse_str_to_vector(read_from_xml_node(obj_info_node, "RelPos",
+                                                                                        do_not_warn=True))
+                        obj_info.prototypeName = parse_str_to_quaternion(read_from_xml_node(obj_info_node,
+                                                                                            "RelRot", do_not_warn=True))
+                        obj_info.prototypeName = safe_check_and_set(obj_info.prototypeName, obj_info_node, "ModelName")
+                        scale = read_from_xml_node(obj_info_node, "Scale", do_not_warn=True)
                         if scale is not None:
                             obj_info.scale = float(scale)
                     else:
