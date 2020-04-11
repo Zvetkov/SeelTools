@@ -42,7 +42,6 @@ class Object(object):
         return self.children_map.get(name)
 
 
-
 class Obj(Object):
     '''Base class containing prototype info'''
     def __init__(self, prototype_info_object=None):
@@ -471,7 +470,7 @@ class Team(Obj):
         self.steeringForceMap = []
         self.teamTacticName = ""
         self.useStandardUpdatingBehavior = True
-        self.ai = self.decisionMatrixNum  # ai::AI::SetDecisionMatrix(this_team->m_AI, prototypeInfo->m_decisionMatrixNum) ???
+        self.ai = self.decisionMatrixNum  # AI.SetDecisionMatrix(this_team.AI, prototypeInfo.decisionMatrixNum) ???
         self.formation = 0
         self.combatMastermind = 0
         self.pPath = 0
@@ -582,7 +581,8 @@ class CaravanTeam(Team):
 class VagabondTeam(Team):
     def __init__(self, prototype_info_object=None):
         Team.__init__(self, prototype_info_object)
-        self.vehiclesGeneratorPrototypeId = "PLACEHOLDER_PROTOTYPE_ID"  # should be replaced with proper Id for PrototypeManager
+        # should be replaced with proper Id for PrototypeManager
+        self.vehiclesGeneratorPrototypeId = "PLACEHOLDER_PROTOTYPE_ID"
         if self.vehiclesGeneratorPrototypeId == -1:
             logger.error(f"Unknown VehiclesGenerator {self.vehiclesGeneratorPrototype}")
 
@@ -1096,8 +1096,10 @@ class BreakableObject(SimplePhysicObj):
         self.state = 0
         self.destroyable = prototype_info_object.destroyable
         self.criticalHitEnergy = prototype_info_object.criticalHitEnergy
-        self.effectType = f"Placeholder for {prototype_info_object.effectType}!"  # DynamicScene.GetBoEffectTypeByName(prototype_info_object.effectType)
-        self.destroyEffectType = f"Placeholder for {prototype_info_object.destroyEffectType}!"  # DynamicScene.GetBoEffectTypeByName(prototype_info_object.destroyEffectType)
+        # DynamicScene.GetBoEffectTypeByName(prototype_info_object.effectType)
+        self.effectType = f"Placeholder for {prototype_info_object.effectType}!"
+        # DynamicScene.GetBoEffectTypeByName(prototype_info_object.destroyEffectType)
+        self.destroyEffectType = f"Placeholder for {prototype_info_object.destroyEffectType}!"
         self.jointId = 0
         self.positioningOnGround = 1
         self.causePos = {"x": 0.0, "y": 0.0}
@@ -1147,7 +1149,8 @@ class Wheel(SimplePhysicObj):
         self.splashEffect = 0
         self.splashType = 0
         self.makeSplash = 0
-        self.wheelType = f"Placeholder type for {prototype_info_object.typeName}!"  # DynamicScene.GetWheelTypeByName(prototype_info_object.typeName)
+        # DynamicScene.GetWheelTypeByName(prototype_info_object.typeName)
+        self.wheelType = f"Placeholder type for {prototype_info_object.typeName}!"
         self.modelBroken = False
         self.suspencionNode = 0
         self.curAngle = 0.0

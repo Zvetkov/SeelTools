@@ -9,7 +9,7 @@ from em_parse import (read_from_xml_node, child_from_xml_node, check_mono_xml_no
 from constants import (STATUS_SUCCESS, DEFAULT_TURNING_SPEED, FiringTypesStruct, DamageTypeStruct, DESTROY_EFFECT_NAMES,
                        TEAM_DEFAULT_FORMATION_PROTOTYPE, GEOM_TYPE, ZERO_VECTOR, IDENTITY_QUATERNION)
 from object_classes import *
-from global_functions import GetActionByName
+from global_functions import GetActionByName, AIParam
 
 
 class PrototypeInfo(object):
@@ -41,7 +41,8 @@ class PrototypeInfo(object):
                 if not self.parentPrototypeName:
                     logger.info(f"Invalid ResourceType: {strResType} for prototype {self.prototypeName}")
                 elif self.parent.resourceId == -1:
-                    logger.info(f"Invalid ResourceType: {strResType} for prototype {self.prototypeName} and its parent {self.parent.prototypeName}")
+                    logger.info(f"Invalid ResourceType: {strResType} for prototype {self.prototypeName} "
+                                f" and its parent {self.parent.prototypeName}")
 
             self.visibleInEncyclopedia = parse_str_to_bool(read_from_xml_node(xmlNode,
                                                                               "VisibleInEncyclopedia",
@@ -51,7 +52,8 @@ class PrototypeInfo(object):
             if price is not None:
                 self.price = price
             self.isAbstract = parse_str_to_bool(read_from_xml_node(xmlNode, "Abstract", do_not_warn=True))
-            self.parentPrototypeName = read_from_xml_node(xmlNode, "ParentPrototype", do_not_warn=True)  # ??? maybe should fallback to "" instead None
+            # ??? maybe should fallback to "" instead None
+            self.parentPrototypeName = read_from_xml_node(xmlNode, "ParentPrototype", do_not_warn=True)
             return STATUS_SUCCESS
         else:
             logger.warning(f"XML Node with unexpected tag {xmlNode.tag} given for PrototypeInfo loading")
@@ -78,8 +80,8 @@ class PhysicBodyPrototypeInfo(PrototypeInfo):
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.engineModelName = read_from_xml_node(xmlNode, "ModelFile")
-            if self.engineModelName is None and issubclass(type(self), CompoundVehiclePartPrototypeInfo):
+            self.engineModelName = safe_check_and_set(self.engineModelName, xmlNode, "ModelFile")
+            if self.engineModelName is None and not issubclass(type(self), CompoundVehiclePartPrototypeInfo):
                 logger.error(f"No model file is provided for prototype {self.prototypeName}")
             mass = read_from_xml_node(xmlNode, "Mass", do_not_warn=True)
             self.collisionTrimeshAllowed = parse_str_to_bool(read_from_xml_node(xmlNode, "CollisionTrimeshAllowed",
@@ -377,38 +379,73 @@ class GadgetPrototypeInfo(PrototypeInfo):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             modifications = read_from_xml_node(xmlNode, "Modifications").split(";")
-            for mod in modifications:
-                pass
-                logger.warning("Partially implemented GadgetPrototypeInfo.LoadFromXML!")
+            for modification_description in modifications:
+                modification_info = self.ModificationInfo(modification_description, self)
+                self.modifications.append(modification_info)
+            self.modelName = safe_check_and_set(self.modelName, xmlNode, "ModelFile")
+            self.skinNum = safe_check_and_set(self.skinNum, xmlNode, "SkinNum", "int")
+            return STATUS_SUCCESS
 
     class ModificationInfo(object):
-        def __init__(self, prot_info, tokens=None, other_mod=None):  # other ModificationInfo object can be passed to create copy
-            if other_mod is None and tokens is not None:
-                self.applierInfo_applierType = 0
-                self.applierInfo_targetResourceId = -1
-                self.applierInfo_targetFiringType = 0
+        # other ModificationInfo object can be passed to create copy
+        def __init__(self, tokens: str, prot_info, other_mod=None):  # tokens=None
+            if other_mod is None:
+                self.applierInfo = {"applierType": 0,
+                                    "targetResourceId": -1,
+                                    "targetFiringType": 0}
                 self.propertyName = ""
-                self.value = {"id": 0,
-                              "w": 0,
-                              "y": 0,
-                              "NameFromNum": 0,
-                              "NumFromName": 0}
-                tokens = tokens.split(";")
-                for token in tokens:
-                    token_parts = token.split()
-                    if "VEHICLE" in token:
-                        self.applierInfo_applierType = 0
-                    elif prot_info.theServer.theResourceManager.GetResourceId(token_parts[0]) == -1:
-                        self.applierInfo_applierType = 2
+                self.value = ""  # is AIParam() necessary ???
+                self.value_type = 0
+
                 self.modificationType = 0
-            elif other_mod is not None and tokens is None:
-                self.applierInfo_applierType = other_mod.applierInfo_applierType
-                self.applierInfo_targetResourceId = other_mod.applierInfo_targetResourceId
-                self.applierInfo_targetFiringType = other_mod.applierInfo_targetFiringType
+                token_value_part = 2
+
+                token_parts = tokens.split()
+                tokens_size = len(token_parts)
+                if tokens_size == 4:
+                    if token_parts[2] == "+=":
+                        self.modificationType = 1
+                        token_value_part = 3
+                    else:
+                        logger.error("Unexpected gadget modification token format. "
+                                     "For 4-part token format third part should be '+='. "
+                                     f"Given tokens: '{tokens}' for prototype: {prot_info.prototypeName}")
+                elif tokens_size != 3:
+                    logger.error("Expected tokens list with size equal to 3 or 4. "
+                                 f"Given tokens: '{tokens}' for prototype: {prot_info.prototypeName}")
+
+                token_resource_id = prot_info.theServer.theResourceManager.GetResourceId(token_parts[0])
+                if token_parts[0] == "VEHICLE":
+                    self.applierInfo["applierType"] = 0
+                elif token_resource_id == -1:
+                    self.applierInfo["applierType"] = 2
+                    self.applierInfo["targetFiringType"] = GunPrototypeInfo.Str2FiringType(token_parts[0])
+                    if self.applierInfo["targetFiringType"] is None:
+                        logger.warning(f"Unknown firing type '{token_parts[0]}' "
+                                       f"for modification token of prototype: {prot_info.prototypeName}")
+                else:
+                    self.applierInfo["applierType"] = 1
+                    self.applierInfo["targetResourceId"] = token_resource_id
+                self.propertyName = token_parts[1]
+                if self.modificationType != 0:
+                    if self.modificationType == 1:
+                        self.value = token_parts[token_value_part]
+                        self.value_type = 5
+                    else:
+                        logger.error(f"Unexpected modificationType for ModificationInfo '{tokens}'' "
+                                     f"of {prot_info.prototypeName}")
+                else:
+                    value = float(token_parts[token_value_part]) / 100
+                    self.value = value
+                    self.value_type = 4
+
+            elif other_mod is not None:
+                self.applierInfo["applierType"] = other_mod.applierInfo["applierType"]
+                self.applierInfo["targetResourceId"] = other_mod.applierInfo["targetResourceId"]
+                self.applierInfo["targetFiringType"] = other_mod.applierInfo["targetFiringType"]
                 self.propertyName = other_mod.propertyName
-                self.numForName = int(other_mod.modificationType)
+                # self.NumFromName = int(other_mod.modificationType)
                 self.value = other_mod.value  # ??? some AIParam magic in here
-            logger.warn("Is ModificationInfo init partially implemented?")
 
 
 class WanderersManagerPrototypeInfo(PrototypeInfo):
@@ -519,7 +556,6 @@ class AffixGeneratorPrototypeInfo(PrototypeInfo):
     def InternalCopyFrom(self, prot_to_copy_from):
         self.parent = prot_to_copy_from
 
-
     # class AffixDescription(object):
     #     def __init__(self):
     #         self.affixName = ""
@@ -566,7 +602,8 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
             mass = read_from_xml_node(xmlNode, "Mass", do_not_warn=True)
             if mass is not None:
                 self.massValue = float(mass)
-            self.engineModelName = read_from_xml_node(xmlNode, "ModelFile", do_not_warn=True)  # ??? maybe should fallback to "" instead None
+            # ??? maybe should fallback to "" instead None
+            self.engineModelName = read_from_xml_node(xmlNode, "ModelFile", do_not_warn=True)
             self.collisionTrimeshAllowed = parse_str_to_bool(read_from_xml_node(xmlNode,
                                                                                 "CollisionTrimeshAllowed",
                                                                                 do_not_warn=True))
@@ -610,11 +647,12 @@ class ComplexPhysicObjPartDescription(Object):
         lpNames = read_from_xml_node(xmlNode, "lpName", do_not_warn=True)
         if lpNames is not None:
             self.lpNames = lpNames.split()
-        check_mono_xml_node(xmlNode, "PartDescription")
-        for description_node in xmlNode.iterchildren(tag="PartDescription"):
-            part_description = ComplexPhysicObjPartDescription()
-            part_description.LoadFromXML(xmlFile, description_node, server)
-            self.child_descriptions.append(part_description)  # ??? temporary placeholder for original logic
+        if len(xmlNode.getchildren()) >= 1:
+            check_mono_xml_node(xmlNode, "PartDescription")
+            for description_node in xmlNode.iterchildren(tag="PartDescription"):
+                part_description = ComplexPhysicObjPartDescription()
+                part_description.LoadFromXML(xmlFile, description_node, server)
+                self.child_descriptions.append(part_description)  # ??? temporary placeholder for original logic
 
 
 class ComplexPhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
@@ -635,7 +673,6 @@ class ComplexPhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
         if result == STATUS_SUCCESS:
             main_part_description_node = child_from_xml_node(xmlNode, "MainPartDescription", do_not_warn=True)
             if main_part_description_node is not None:
-                check_mono_xml_node(main_part_description_node, "PartDescription")
                 partPrototypeDescriptions = ComplexPhysicObjPartDescription()
                 partPrototypeDescriptions.LoadFromXML(xmlFile, main_part_description_node, self.theServer)
                 self.partPrototypeDescriptions = partPrototypeDescriptions
@@ -929,7 +966,8 @@ class TeamPrototypeInfo(PrototypeInfo):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             self.decisionMatrixName = read_from_xml_node(xmlNode, "DecisionMatrix")
-            self.removeWhenChildrenDead = parse_str_to_bool(read_from_xml_node(xmlNode, "RemoveWhenChildrenDead", do_not_warn=True))
+            self.removeWhenChildrenDead = parse_str_to_bool(read_from_xml_node(xmlNode, "RemoveWhenChildrenDead",
+                                                                               do_not_warn=True))
             formation = child_from_xml_node(xmlNode, "Formation", do_not_warn=True)
             if formation is not None:
                 self.formationPrototypeName = read_from_xml_node(formation, "Prototype")
@@ -989,7 +1027,7 @@ class InfectionTeamPrototypeInfo(TeamPrototypeInfo):
         result = TeamPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             vehicles = child_from_xml_node(xmlNode, "Vehicles", do_not_warn=True)
-            if vehicles is not None:
+            if vehicles is not None and len(vehicles.getchildren()) >= 1:
                 check_mono_xml_node(vehicles, "Vehicle")
                 for vehicle in vehicles.iterchildren(tag="Vehicle"):
                     item = {"protoName": read_from_xml_node(vehicle, "PrototypeName"),
@@ -1305,7 +1343,7 @@ class DynamicQuestConvoyPrototypeInfo(DynamicQuestPrototypeInfo):
 class DynamicQuestDestroyPrototypeInfo(DynamicQuestPrototypeInfo):
     def __init__(self, server):
         DynamicQuestPrototypeInfo.__init__(self, server)
-        targetSchwarzPart = 0.0
+        self.targetSchwarzPart = 0.0
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = DynamicQuestPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -1776,24 +1814,23 @@ class CompoundVehiclePartPrototypeInfo(VehiclePartPrototypeInfo):
     def LoadFromXML(self, xmlFile, xmlNode):
         result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            main_part_description_node = child_from_xml_node(xmlNode, "MainPartDescription", do_not_warn=True)
-            if main_part_description_node is not None:
-                check_mono_xml_node(main_part_description_node, "PartDescription")
-                partPrototypeDescriptions = ComplexPhysicObjPartDescription()
-                partPrototypeDescriptions.LoadFromXML(xmlFile, main_part_description_node, self.theServer)
-                self.partPrototypeDescriptions = partPrototypeDescriptions
-            else:
-                logger.warning(f"Parts description is missing for prototype {self.prototypeName}")
-                self.partPrototypeDescriptions = None
-            parts_node = child_from_xml_node(xmlNode, "Parts", do_not_warn=True)
-            if parts_node is not None:
-                check_mono_xml_node(parts_node, "Part")
-                for part_node in parts_node.iterchildren(tag="Part"):
-                    prototypeId = read_from_xml_node(part_node, "id")
-                    prototypeName = read_from_xml_node(part_node, "Prototype")
-                    protName = {"name": prototypeName,
-                                "id": prototypeId}
-                    self.partPrototypeNames.append(protName)
+            parts_description_nodes = child_from_xml_node(xmlNode, "Part", do_not_warn=True)
+            if parts_description_nodes is not None:
+                descriptions_number = len(parts_description_nodes)
+                for i in range(descriptions_number):
+                    part_node = parts_description_nodes[i]
+                    new_part = self.TPartInfo()
+                    new_part.prototypeId = safe_check_and_set(new_part.prototypeId, part_node, "id")
+                    new_part.prototypeName = safe_check_and_set(new_part.prototypeName, part_node, "Prototype")
+                    new_part.index = i
+                    self.partInfo.append(new_part)
+            return STATUS_SUCCESS
+
+    class TPartInfo(object):
+        def __init__(self):
+            self.prototypeName = ""
+            self.prototypeId = ""
+            self.index = 0
 
 
 class CompoundGunPrototypeInfo(CompoundVehiclePartPrototypeInfo):
@@ -2063,6 +2100,7 @@ class TemporaryLocationPrototypeInfo(LocationPrototypeInfo):
                 self.timeForActivation = float(timeForActivation)
 
             self.effectName = read_from_xml_node(xmlNode, "Effect")
+            return STATUS_SUCCESS
 
 
 class NailLocationPrototypeInfo(TemporaryLocationPrototypeInfo):

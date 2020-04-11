@@ -32,3 +32,33 @@ def GetActionByName(actionName):
         return action_id
     else:
         return 0
+
+
+class AIParam(object):
+    def __init__(self):
+        self.id = 0
+        self.x = 0.0
+        self.y = 0.0
+        self.z = 0.0
+        self.w = 0.0
+        self.NameFromNum - 0
+        self.NumFromName = 0
+
+    def SetAIParamValue(self, string):
+        self.Detach()
+        self.id = string
+        self.Type = 5
+
+    def Detach(self):
+        self.id = 0
+        self.Type = 0
+        self.NameFromNum = 0
+        self.NumFromName = 0
+        # self.x = 0.0  # ??? why this is missing?
+        self.y = 0.0
+        self.z = 0.0
+        self.w = 0.0
+
+        
+
+

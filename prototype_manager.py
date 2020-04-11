@@ -66,7 +66,7 @@ class PrototypeManager(object):
                 parent_prot_info = self.InternalGetPrototypeInfo(parent_prot_name)
                 dummy = PrototypeInfo(self.theServer)
                 if parent_prot_info is None:
-                    logger.error(f"Parent prototype for {class_name} is not loaded! Expected parent: {parent_prot_name}")
+                    logger.error(f"Parent prototype of {class_name} is not loaded! Expected parent: {parent_prot_name}")
                     parent_prot_info = dummy
                 prototype_info.CopyFrom(parent_prot_info)
             prototypes_length = len(self.prototypes)
