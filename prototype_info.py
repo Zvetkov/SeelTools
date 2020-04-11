@@ -435,7 +435,7 @@ class GadgetPrototypeInfo(PrototypeInfo):
                         logger.error(f"Unexpected modificationType for ModificationInfo '{tokens}'' "
                                      f"of {prot_info.prototypeName}")
                 else:
-                    value = float(token_parts[token_value_part]) / 100
+                    value = float(token_parts[token_value_part]) * 0.01
                     self.value = value
                     self.value_type = 4
 
@@ -1263,6 +1263,82 @@ class SettlementPrototypeInfo(SimplePhysicObjPrototypeInfo):
             self.action = ""
             self.offset = deepcopy(ZERO_VECTOR)
             self.radius = 10.0
+
+
+class TownPrototypeInfo(SettlementPrototypeInfo):
+    def __init__(self, server):
+        SettlementPrototypeInfo.__init__(self, server)
+        self.musicName = ""
+        self.gateModelName = ""
+        self.maxDefenders = 1
+        self.desiredGunsInWorkshop = 0
+        self.gunAffixesCount = 0
+        self.cabinsAndBasketsAffixesCount = 0
+        self.numCollisionLayersBelowVehicle = 2
+        self.articles = []
+        self.resourceIdToRandomCoeffMap = []
+        self.gunGeneratorPrototypeName = ""
+        self.gunAffixGeneratorPrototypeName = ""
+        self.cabinsAndBasketsAffixGeneratorPrototypeName = ""
+        self.collisionTrimeshAllowed = True
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = SettlementPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            self.SetGeomType("FROM_MODEL")
+            self.musicName = safe_check_and_set(self.musicName, xmlNode, "MusicName")
+            self.gateModelName = safe_check_and_set(self.gateModelName, xmlNode, "GateModelFile")
+            self.maxDefenders = safe_check_and_set(self.maxDefenders, xmlNode, "MaxDefenders", "int")
+            if self.maxDefenders > 5:
+                logger.error(f"For Town prototype '{self.prototypeName}' maxDefenders > MAX_VEHICLES_IN_TEAM (5)!")
+            self.gunGeneratorPrototypeName = safe_check_and_set(self.gunGeneratorPrototypeName, xmlNode, "GunGenerator")
+            desiredGunsInWorkshop = safe_check_and_set(self.desiredGunsInWorkshop, xmlNode,
+                                                       "DesiredGunsInWorkshop", "int")
+            if desiredGunsInWorkshop >= 0:
+                self.desiredGunsInWorkshop = desiredGunsInWorkshop
+            self.gunAffixGeneratorPrototypeName = safe_check_and_set(self.gunAffixGeneratorPrototypeName, xmlNode,
+                                                                     "GunAffixGenerator")
+            gunAffixesCount = safe_check_and_set(self.gunAffixesCount, xmlNode, "GunAffixesCount", "int")
+            if gunAffixesCount >= 0:
+                self.gunAffixesCount = gunAffixesCount
+            self.cabinsAndBasketsAffixGeneratorPrototypeName = safe_check_and_set(self.CabinsAndBasketsAffixGenerator,
+                                                                                  xmlNode,
+                                                                                  "CabinsAndBasketsAffixGenerator")
+            cabinsAndBasketsAffixesCount = safe_check_and_set(self.cabinsAndBasketsAffixesCount, xmlNode,
+                                                              "CabinsAndBasketsAffixesCount", "int")
+            if cabinsAndBasketsAffixesCount >= 0:
+                self.cabinsAndBasketsAffixesCount = cabinsAndBasketsAffixesCount
+
+            numCollisionLayersBelowVehicle = safe_check_and_set(self.numCollisionLayersBelowVehicle, xmlNode,
+                                                                "NumCollisionLayersBelowVehicle", "int")
+            if numCollisionLayersBelowVehicle >= 0:
+                self.numCollisionLayersBelowVehicle = numCollisionLayersBelowVehicle
+            Article.LoadArticlesFromNode(self.articles, xmlFile, xmlNode)
+            self.LoadFromXmlResourceIdToRandomCoeffMap(xmlFile, xmlNode)
+
+    def LoadFromXmlResourceIdToRandomCoeffMap(self, xmlFile, xmlNode):
+        self.resourceIdToRandomCoeffMap = []
+        resource_coeffs = child_from_xml_node(xmlNode, "ResourceCoeff")
+        for resource_coeff_node in resource_coeffs:
+            newRandomCoeff = 1.0
+            newRandomCoeff_4 = 0.0
+            newRandomCoeff = safe_check_and_set(newRandomCoeff, xmlNode, "Coeff", "float")
+            newRandomCoeff_4 = safe_check_and_set(newRandomCoeff_4, xmlNode, "Dispersion", "float")
+            resourceName = safe_check_and_set("", xmlNode, "Resource")
+            resourceId = self.server.theResourceManager.GetResourceId(resourceName)
+            if resourceId == -1:
+                logger.error(f"Unknown resource name: {resourceName} for prot: {self.prototypeName}")
+            else:
+                coeff = {"first": resourceId,
+                         "second": self.RandomCoeffWithDispersion()}
+                coeff["second"].baseCoeff = newRandomCoeff
+                coeff["second"].baseDispersion = newRandomCoeff_4
+                self.resourceIdToRandomCoeffMap.append(coeff)
+
+    class RandomCoeffWithDispersion(object):
+        def __init__(self):
+            self.baseCoeff = 1.0
+            self.baseDispersion = 0.0
 
 
 class PlayerPrototypeInfo(PrototypeInfo):
@@ -2397,6 +2473,34 @@ class BarricadePrototypeInfo(ObjPrefabPrototypeInfo):
         self.parent = prot_to_copy_from
 
 
+class NpcPrototypeInfo(PrototypeInfo):
+    def __init__(self, server):
+        PrototypeInfo.__init__(self, server)
+        self.isUpdating = False
+
+
+class RepositoryObjectsGeneratorPrototypeInfo(PrototypeInfo):
+    def __init__(self, server):
+        PrototypeInfo.__init__(self, server)
+        self.objectDescriptions = []
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            objects = child_from_xml_node(xmlNode, "Object")
+            for object_node in objects:
+                newDescription = self.ObjectDescription()
+                newDescription.prototypeName = safe_check_and_set("", xmlNode, "PrototypeName")
+                newDescription.prototypeId = -1
+                self.objectDescriptions.append(newDescription)
+            return STATUS_SUCCESS
+
+    class ObjectDescription(object):
+        def __init__(self):
+            self.prototypeName = ""
+            self.prototypeId = -1
+
+
 # dict mapping Object Classes to PrototypeInfo Classes
 thePrototypeInfoClassDict = {
     "AffixGenerator": AffixGeneratorPrototypeInfo,
@@ -2453,7 +2557,7 @@ thePrototypeInfoClassDict = {
     "MortarVolleyLauncher": MortarVolleyLauncherPrototypeInfo,
     "NPCMotionController": NPCMotionControllerPrototypeInfo,
     "NailLocation": NailLocationPrototypeInfo,
-    # "Npc": NpcPrototypeInfo,
+    "Npc": NpcPrototypeInfo,
     "ObjPrefab": ObjPrefabPrototypeInfo,
     "ParticleSplinter": ParticleSplinterPrototypeInfo,
     "PhysicUnit": PhysicUnitPrototypeInfo,
@@ -2462,7 +2566,7 @@ thePrototypeInfoClassDict = {
     "Player": PlayerPrototypeInfo,
     "QuestItem": QuestItemPrototypeInfo,
     "RadioManager": RadioManagerPrototypeInfo,
-    # "RepositoryObjectsGenerator": RepositoryObjectsGeneratorPrototypeInfo,
+    "RepositoryObjectsGenerator": RepositoryObjectsGeneratorPrototypeInfo,
     "RocketLauncher": RocketLauncherPrototypeInfo,
     "Rocket": RocketPrototypeInfo,
     "RocketVolleyLauncher": RocketVolleyLauncherPrototypeInfo,
@@ -2475,7 +2579,7 @@ thePrototypeInfoClassDict = {
     "TeamTacticWithRoles": TeamTacticWithRolesPrototypeInfo,
     "ThunderboltLauncher": ThunderboltLauncherPrototypeInfo,
     "Thunderbolt": ThunderboltPrototypeInfo,
-    # "Town": TownPrototypeInfo,
+    "Town": TownPrototypeInfo,
     "Trigger": TriggerPrototypeInfo,
     "TurboAccelerationPusher": TurboAccelerationPusherPrototypeInfo,
     "VagabondTeam": VagabondTeamPrototypeInfo,

@@ -57,7 +57,7 @@ class PrototypeManager(object):
 
     def ReadNewPrototype(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
         class_name = read_from_xml_node(xmlNode, "Class")
-        logger.debug(f"Loading {class_name} prototype")
+        logger.debug(f"Loading {class_name} prototype from {xmlNode.base}")
         prototype_info = self.theServer.CreatePrototypeInfoByClassName(class_name)(self.theServer)
         if prototype_info:
             prototype_info.className = class_name

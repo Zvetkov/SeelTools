@@ -4,6 +4,7 @@ from copy import deepcopy
 from id_manager import theIdManager
 from constants import STATUS_SUCCESS, ZERO_VECTOR, INITIAL_OBJECTS_DIRECTION, BUILDING_TYPE, IDENTITY_QUATERNION
 from global_functions import MassSetBoxTotal
+from em_parse import safe_check_and_set, parse_str_to_bool, read_from_xml_node, child_from_xml_node
 
 from logger import logger
 
@@ -1238,6 +1239,122 @@ class RopeObj(SimplePhysicObj):
             self.postNode = 0
             self.postObj = 0
             self.postTiePos = deepcopy(ZERO_VECTOR)
+
+
+class Npc(Obj):
+    def __init__(self, prototype_info_object):
+        Obj.__init__(self, prototype_info_object)
+        self.npcType = 1
+        self.modelName = ""
+        self.skinNumber = 0
+        self.cfgNumber = 0
+        self.helloReplyNames = []
+        self.spokenCount = 0
+
+
+class Article(object):
+    def __init__(self, xmlFile, xmlNode):
+        self.prototypeName = ""
+        self.basePrice = 0
+        self.sellable = False
+        self.amount = 0
+        self.amountDynamic = 0
+        self.priceDynamic = 0
+        self.prototypeId = -1
+
+        self.dispersion = 0.0
+        self.externalPriceCoefficient = 1.0
+        self.randomPriceCoefficient = -1.0
+        self.runtimePriceCoefficient = 1.0
+
+        self.buyable = True
+
+        self.minCount = -1
+        self.maxCount = -1
+
+        self.regenerationPeriod = 0  # maybe 300 is better default ???
+        self.afterLastRegeneration = 0.0
+
+        self.prototypeName = safe_check_and_set(self.prototypeName, xmlNode, "Prototype")
+        self.LoadFromXML(self, xmlFile, xmlNode)
+
+        # self.ReadDefaultCountFromPrototype(thePrototypeManager)
+        # self.ReadFromPrototype(thePrototypeManager)  # whyyyyyyy second time, some stupid overwrite ???
+        # if self.randomPriceCoefficient < 0.0:
+        #     dispersion_percentage = self.dispersion * 0.01
+        #     self.randomPriceCoefficient = f"Randomized value based on dispersion: {dispersion_percentage}"
+        # if self.sellable or self.buyable:
+        #     self.priceDynamic = True
+        #     self.amountDynamic = True
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        self.prototypeId = safe_check_and_set(self.prototypeId, xmlNode, "PrototypeId", "int")
+        basePrice = safe_check_and_set(self.basePrice, xmlNode, "BasePrice", "int")
+        if basePrice >= 0:
+            self.basePrice = basePrice
+        self.dispersion = safe_check_and_set(self.dispersion, xmlNode, "Dispersion", "float")
+        if self.dispersion < 0.0 or self.dispersion > 100.0:
+            logger.error(f"Dispersion is outside expected range, should be between 0 and 100. "
+                         f" For prototype {self.prototypeName}")
+        self.externalPriceCoefficient = safe_check_and_set(self.externalPriceCoefficient, xmlNode,
+                                                           "ExternalPriceCoefficient", "float")
+        self.randomPriceCoefficient = safe_check_and_set(self.randomPriceCoefficient, xmlNode,
+                                                         "RandomPriceCoefficient", "float")
+        self.sellable = parse_str_to_bool(read_from_xml_node(xmlNode, "Export"))
+        self.buyable = parse_str_to_bool(read_from_xml_node(xmlNode, "Import"))
+        amount = safe_check_and_set(self.amount, xmlNode, "Amount", "int")
+        if amount >= 0:
+            self.amount = amount
+        self.ReadDefaultCountFromPrototype()
+        self.maxCount = safe_check_and_set(self.maxCount, xmlNode, "MaxCount", "int")
+        self.minCount = safe_check_and_set(self.minCount, xmlNode, "MinCount", "int")
+        self.amountDynamic = safe_check_and_set(self.amountDynamic, xmlNode, "AmountDynamic", "int")
+        self.priceDynamic = safe_check_and_set(self.priceDynamic, xmlNode, "PriceDynamic", "int")
+        self.regenerationPeriod = safe_check_and_set(self.regenerationPeriod, xmlNode, "RegenerationPeriod", "float")
+        self.afterLastRegeneration = safe_check_and_set(self.afterLastRegeneration, xmlNode, "AfterLastRegeneration",
+                                                        "float")
+
+    def ReadFromPrototype(self, thePrototypeManager):
+        prototypes = thePrototypeManager.prototypes
+        prototypeId = self.prototypeId
+        prototype = prototypes[prototypeId]
+        if prototypes and prototypeId < len(prototypes) and prototype != 0:
+            if prototype.className == "Ware":
+                self.basePrice = prototype.price
+                self.dispersion = prototype.priceDispersion
+            else:
+                self.basePrice = prototype.price
+                self.dispersion = 20.0
+        else:
+            logger.error(f"Invalid prototype id: {self.prototypeId}")
+
+    def ReadDefaultCountFromPrototype(self, thePrototypeManager):
+        prototypes = thePrototypeManager.prototypes
+        prototypeId = self.prototypeId
+        prototype = prototypes[prototypeId]
+        if prototypes and prototypeId < len(prototypes) and prototype != 0:
+            if prototype.className == "Ware":
+                self.minCount = prototype.minCount
+                self.dispersion = prototype.maxCount
+        else:
+            logger.error(f"Invalid prototype id: {self.prototypeId}")
+
+    def LoadArticlesFromNode(article_list, xmlFile, xmlNode):
+        articles = []
+        articles = child_from_xml_node(xmlNode, "Article")
+        for article_node in articles:
+            article = Article(xmlFile, article_node)
+            article_list.append(article)
+
+
+class Town(Settlement):
+    def __init__(self, prototype_info_object):
+        Settlement.__init__(self, prototype_info_object)
+
+
+class RepositoryObjectsGenerator(object):
+    def __init__(self, prototype_info_object=None):
+        self.not_implemented = "DummyClass"
 
 
 class WanderersGenerator(object):
