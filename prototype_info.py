@@ -556,6 +556,7 @@ class AffixGeneratorPrototypeInfo(PrototypeInfo):
     def InternalCopyFrom(self, prot_to_copy_from):
         self.parent = prot_to_copy_from
 
+
     # class AffixDescription(object):
     #     def __init__(self):
     #         self.affixName = ""
@@ -628,6 +629,22 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
         self.collisionInfos.append(collision_info)
 
 
+class ChestPrototypeInfo(SimplePhysicObjPrototypeInfo):
+    def __init__(self, server):
+        SimplePhysicObjPrototypeInfo.__init__(self, server)
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            self.SetGeomType("BOX")
+            self.lifeTime = safe_check_and_set(-1, xmlNode, "LifeTime", "float")
+            if self.lifeTime <= 0.0:
+                self.withLifeTime = False
+            else:
+                self.withLifeTime = True
+            return STATUS_SUCCESS
+
+
 class ComplexPhysicObjPartDescription(Object):
     def __init__(self, prototype_info_object=None):
         Object.__init__(self, prototype_info_object)
@@ -695,6 +712,27 @@ class ComplexPhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
             if massTranslation is not None:
                 self.massTranslation = parse_str_to_vector(massTranslation)
             self.massShape = safe_check_and_set(self.massShape, xmlNode, "MassShape", "int")
+            return STATUS_SUCCESS
+
+    def PostLoad(self, prototype_manager):
+        for prot_name in self.partPrototypeNames:
+            self.partPrototypeIds.append(prototype_manager.GetPrototypeId(prot_name))
+        # can this replace ComplexPhysicObjPartDescription::GetPartNames?
+        self.allPartNames = [part.name for part in self.partDescription]
+
+
+class StaticAutoGunPrototypeInfo(ComplexPhysicObjPrototypeInfo):
+    def __init__(self, server):
+        ComplexPhysicObjPrototypeInfo.__init__(self, server)
+        self.maxHealth = 1.0
+        self.destroyedModelName = ""
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = ComplexPhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            if self.parentPrototypeName is None:
+                self.maxHealth = safe_check_and_set(self.maxHealth, xmlNode, "MaxHealth", "float")
+                self.destroyedModelName = safe_check_and_set(self.destroyedModelName, xmlNode, "DestroyedModel")
             return STATUS_SUCCESS
 
 
@@ -779,6 +817,25 @@ class VehiclePrototypeInfo(ComplexPhysicObjPrototypeInfo):
 
     def InternalCopyFrom(self, prot_to_copy_from):
         self.parent = prot_to_copy_from
+
+
+class ArticulatedVehiclePrototypeInfo(VehiclePrototypeInfo):
+    def __init__(self, server):
+        VehiclePrototypeInfo.__init__(self, server)
+        self.trailerPrototypeName = ""
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = VehiclePrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            self.trailerPrototypeName = safe_check_and_set(self.trailerPrototypeName, xmlNode, "TrailerPrototype")
+            return STATUS_SUCCESS
+
+    def InternalCopyFrom(self, prot_to_copy_from):
+        self.parent = prot_to_copy_from
+
+    def PostLoad(self, prototype_manager):
+        VehiclePrototypeInfo.PostLoad(prototype_manager)
+        self.trailerPrototypeId = prototype_manager.GetPrototypeId(self.trailerPrototypeName)
 
 
 class DummyObjectPrototypeInfo(SimplePhysicObjPrototypeInfo):
@@ -983,6 +1040,8 @@ class CaravanTeamPrototypeInfo(TeamPrototypeInfo):
         TeamPrototypeInfo.__init__(self, server)
         self.tradersGeneratorPrototypeName = ""
         self.guardsGeneratorPrototypeName = ""
+        self.tradersGeneratorPrototypeId = -1
+        self.guardsGeneratorPrototypeId = -1
         self.waresPrototypes = []
         self.formationPrototypeName = "caravanFormation"
 
@@ -1000,6 +1059,18 @@ class CaravanTeamPrototypeInfo(TeamPrototypeInfo):
                 if self.waresPrototypes is None:
                     logger.error(f"No wares for caravan with traders: {self.prototypeName}")
             return STATUS_SUCCESS
+
+    def PostLoad(self, prototype_manager):
+        TeamPrototypeInfo.PostLoad(self, prototype_manager)
+        self.tradersGeneratorPrototypeId = prototype_manager.GetPrototypeId(self.tradersGeneratorPrototypeName)
+        if self.tradersGeneratorPrototypeId == -1:
+            logger.error(f"Unknown VehiclesGenerator '{self.tradersGeneratorPrototypeName}' "
+                         f"for traders of CaravanTeam {self.prototypeName}")
+
+        self.guardsGeneratorPrototypeId = prototype_manager.GetPrototypeId(self.guardsGeneratorPrototypeName)
+        if self.guardsGeneratorPrototypeId == -1:
+            logger.error(f"Unknown VehiclesGenerator '{self.guardsGeneratorPrototypeName}' "
+                         f"for guards of CaravanTeam {self.prototypeName}")
 
 
 class VagabondTeamPrototypeInfo(TeamPrototypeInfo):
@@ -1254,7 +1325,7 @@ class SettlementPrototypeInfo(SimplePhysicObjPrototypeInfo):
             if zone is not None:
                 radius = read_from_xml_node(xmlNode["zone"], "radius", do_not_warn=True)
                 zone_info.radius = float(radius)
-            self.zoneInfos.append[zone_info]
+                self.zoneInfos.append(zone_info)
             self.vehiclesPrototypeName = read_from_xml_node(xmlNode, "Vehicles")
             return STATUS_SUCCESS
 
@@ -1301,9 +1372,10 @@ class TownPrototypeInfo(SettlementPrototypeInfo):
             gunAffixesCount = safe_check_and_set(self.gunAffixesCount, xmlNode, "GunAffixesCount", "int")
             if gunAffixesCount >= 0:
                 self.gunAffixesCount = gunAffixesCount
-            self.cabinsAndBasketsAffixGeneratorPrototypeName = safe_check_and_set(self.CabinsAndBasketsAffixGenerator,
-                                                                                  xmlNode,
-                                                                                  "CabinsAndBasketsAffixGenerator")
+            self.cabinsAndBasketsAffixGeneratorPrototypeName = safe_check_and_set(
+                self.cabinsAndBasketsAffixGeneratorPrototypeName,
+                xmlNode,
+                "CabinsAndBasketsAffixGenerator")
             cabinsAndBasketsAffixesCount = safe_check_and_set(self.cabinsAndBasketsAffixesCount, xmlNode,
                                                               "CabinsAndBasketsAffixesCount", "int")
             if cabinsAndBasketsAffixesCount >= 0:
@@ -1313,32 +1385,56 @@ class TownPrototypeInfo(SettlementPrototypeInfo):
                                                                 "NumCollisionLayersBelowVehicle", "int")
             if numCollisionLayersBelowVehicle >= 0:
                 self.numCollisionLayersBelowVehicle = numCollisionLayersBelowVehicle
-            Article.LoadArticlesFromNode(self.articles, xmlFile, xmlNode)
+            Article.LoadArticlesFromNode(self.articles, xmlFile, xmlNode, self.theServer.thePrototypeManager)
             self.LoadFromXmlResourceIdToRandomCoeffMap(xmlFile, xmlNode)
+            return STATUS_SUCCESS
 
     def LoadFromXmlResourceIdToRandomCoeffMap(self, xmlFile, xmlNode):
         self.resourceIdToRandomCoeffMap = []
-        resource_coeffs = child_from_xml_node(xmlNode, "ResourceCoeff")
-        for resource_coeff_node in resource_coeffs:
-            newRandomCoeff = 1.0
-            newRandomCoeff_4 = 0.0
-            newRandomCoeff = safe_check_and_set(newRandomCoeff, xmlNode, "Coeff", "float")
-            newRandomCoeff_4 = safe_check_and_set(newRandomCoeff_4, xmlNode, "Dispersion", "float")
-            resourceName = safe_check_and_set("", xmlNode, "Resource")
-            resourceId = self.server.theResourceManager.GetResourceId(resourceName)
-            if resourceId == -1:
-                logger.error(f"Unknown resource name: {resourceName} for prot: {self.prototypeName}")
-            else:
-                coeff = {"first": resourceId,
-                         "second": self.RandomCoeffWithDispersion()}
-                coeff["second"].baseCoeff = newRandomCoeff
-                coeff["second"].baseDispersion = newRandomCoeff_4
-                self.resourceIdToRandomCoeffMap.append(coeff)
+        resource_coeffs = child_from_xml_node(xmlNode, "ResourceCoeff", do_not_warn=True)
+        if resource_coeffs is not None:
+            for resource_coeff_node in resource_coeffs:
+                newRandomCoeff = 1.0
+                newRandomCoeff_4 = 0.0
+                newRandomCoeff = safe_check_and_set(newRandomCoeff, resource_coeff_node, "Coeff", "float")
+                newRandomCoeff_4 = safe_check_and_set(newRandomCoeff_4, resource_coeff_node, "Dispersion", "float")
+                resourceName = safe_check_and_set("", resource_coeff_node, "Resource")
+                resourceId = self.theServer.theResourceManager.GetResourceId(resourceName)
+                if resourceId == -1:
+                    logger.error(f"Unknown resource name: {resourceName} for prot: {self.prototypeName}")
+                else:
+                    coeff = {"first": resourceId,
+                             "second": self.RandomCoeffWithDispersion()}
+                    coeff["second"].baseCoeff = newRandomCoeff
+                    coeff["second"].baseDispersion = newRandomCoeff_4
+                    self.resourceIdToRandomCoeffMap.append(coeff)
 
     class RandomCoeffWithDispersion(object):
         def __init__(self):
             self.baseCoeff = 1.0
             self.baseDispersion = 0.0
+
+
+class LairPrototypeInfo(SettlementPrototypeInfo):
+    def __init__(self, server):
+        SettlementPrototypeInfo.__init__(self, server)
+        self.maxAttackers = 1
+        self.maxDefenders = 1
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = SettlementPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            self.SetGeomType("BOX")
+            self.maxAttackers = safe_check_and_set(self.maxAttackers, xmlNode, "MaxAttackers", "int")
+            if self.maxAttackers > 5:
+                logger.error(f"Lair {self.prototypeName} attrib MaxAttackers: "
+                             f"{self.maxAttackers} is higher than permitted MAX_VEHICLES_IN_TEAM: 5")
+
+            self.maxDefenders = safe_check_and_set(self.maxDefenders, xmlNode, "MaxDefenders", "int")
+            if self.maxDefenders > 5:
+                logger.error(f"Lair {self.prototypeName} attrib MaxDefenders: "
+                             f"{self.maxDefenders} is higher than permitted MAX_VEHICLES_IN_TEAM: 5")
+            return STATUS_SUCCESS
 
 
 class PlayerPrototypeInfo(PrototypeInfo):
@@ -1584,6 +1680,9 @@ class Boss02ArmPrototypeInfo(BossArmPrototypeInfo):
                                                                      "ContainerPrototype")
             return STATUS_SUCCESS
 
+    def PostLoad(self, prototype_manager):
+        self.blockingContainerPrototypeId = prototype_manager.GetPrototypeId(self.blockingContainerPrototypeName)
+
 
 class BossMetalArmPrototypeInfo(SimplePhysicObjPrototypeInfo):
     def __init__(self, server):
@@ -1625,6 +1724,21 @@ class BossMetalArmPrototypeInfo(SimplePhysicObjPrototypeInfo):
                 self.numExplodedLoadsToDie = int(numExplodedLoadsToDie)
             return STATUS_SUCCESS
 
+    def PostLoad(self, prototype_manager):
+        if self.loadPrototypeNames:
+            for prot_name in self.loadPrototypeNames:
+                prot_id = prototype_manager.GetPrototypeId(self.loadPrototypeNames)
+                if prot_id == -1:
+                    logger.error("Invalid loadPrototypes/IDs for BossMetalArm prototype")
+                else:
+                    prot = prototype_manager.InternalGetPrototypeInfo(prot_id)
+                    if prot.className != "BossMetalArmLoad":
+                        logger.error("Invalid class for BossMetalArm LoadPrototype, expected 'BossMetalArmLoad', but "
+                                     f"'{prot.className}' given for {self.prototypeName}!")
+                    self.loadProrotypeIds.append(prot_id)
+        else:
+            logger.error(f"Empty loadPrototypes for BossMetalArm prototype {self.prototypeName}!")
+
     class AttackActionInfo(object):
         def __init__(self):
             self.frameToReleaseLoad = 0
@@ -1657,6 +1771,9 @@ class BossMetalArmLoadPrototypeInfo(DummyObjectPrototypeInfo):
             if maxHealth is not None:
                 self.maxHealth = float(maxHealth)
             return STATUS_SUCCESS
+
+    def PostLoad(self, prototype_manager):
+        self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName)
 
 
 class Boss03PartPrototypeInfo(VehiclePartPrototypeInfo):
@@ -1721,6 +1838,12 @@ class Boss02PrototypeInfo(ComplexPhysicObjPrototypeInfo):
             self.containerPrototypeName = read_from_xml_node(xmlNode, "ContainerPrototype")
             return STATUS_SUCCESS
 
+    def PostLoad(self, prototype_manager):
+        ComplexPhysicObjPrototypeInfo.PostLoad(self, prototype_manager)
+        for state_info in self.stateInfos:
+            state_info.PostLoad(prototype_manager)
+        self.containerPrototypeId = prototype_manager.GetPrototypeId(self.containerPrototypeName)
+
     class StateInfo(object):
         def __init__(self):
             self.loadPrototypeIds = []
@@ -1734,13 +1857,17 @@ class Boss02PrototypeInfo(ComplexPhysicObjPrototypeInfo):
                              "y": position[1],
                              "z": position[2]}
 
+        def PostLoad(self, prototype_manager):
+            for prot_name in self.loadPrototypeNames:
+                self.loadPrototypeIds.append(prototype_manager.GetPrototypeId(prot_name))
+
 
 class AnimatedComplexPhysicObjPrototypeInfo(ComplexPhysicObjPrototypeInfo):
     def __init__(self, server):
         ComplexPhysicObjPrototypeInfo.__init__(self, server)
 
 
-class Boss03PrototypeInfo(AnimatedComplexPhysicObjPrototypeInfo):
+class Boss03PrototypeInfo(ComplexPhysicObjPrototypeInfo):
     def __init__(self, server):
         AnimatedComplexPhysicObjPrototypeInfo.__init__(self, server)
         self.dronePrototypeIds = []
@@ -1758,10 +1885,10 @@ class Boss03PrototypeInfo(AnimatedComplexPhysicObjPrototypeInfo):
         self.maxShootingTime = 1.0
         self.defaultHover = 10.0
         self.hoverForPlacingDrones = 10.0
-        self.dronePrototypeNames = ""
+        self.dronePrototypeNames = []
 
     def LoadFromXML(self, xmlFile, xmlNode):
-        result = AnimatedComplexPhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        result = ComplexPhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             self.dronePrototypeNames = read_from_xml_node(xmlNode, "DronePrototypes").split()
             maxDrones = read_from_xml_node(xmlNode, "MaxDrones")
@@ -1810,6 +1937,14 @@ class Boss03PrototypeInfo(AnimatedComplexPhysicObjPrototypeInfo):
 
             return STATUS_SUCCESS
 
+    def PostLoad(self, prototype_manager):
+        ComplexPhysicObjPrototypeInfo.PostLoad(self, prototype_manager)
+        for prot_name in self.dronePrototypeNames:
+            dronePrototypeId = prototype_manager.GetPrototypeId(prot_name)
+            if dronePrototypeId == -1:
+                logger.error("Invalid drone prototype/prototype ID for Boss03")
+            self.dronePrototypeIds.append(dronePrototypeId)
+
 
 class Boss04PrototypeInfo(ComplexPhysicObjPrototypeInfo):
     def __init__(self, server):
@@ -1843,6 +1978,11 @@ class Boss04PrototypeInfo(ComplexPhysicObjPrototypeInfo):
                            "parts": read_from_xml_node(station_node, "Parts").split()}
                 self.stationToPartBindings.append(station)
             return STATUS_SUCCESS
+
+    def PostLoad(self, prototype_manager):
+        ComplexPhysicObjPrototypeInfo.PostLoad(self, prototype_manager)
+        self.stationPrototypeId = prototype_manager.GetPrototypeId(self.stationPrototypeName)
+        self.dronePrototypeId = prototype_manager.GetPrototypeId(self.dronePrototypeName)
 
 
 class BlastWavePrototypeInfo(SimplePhysicObjPrototypeInfo):
@@ -2348,6 +2488,10 @@ class BreakableObjectPrototypeInfo(SimplePhysicObjPrototypeInfo):
             self.blastWavePrototypeName = safe_check_and_set(self.blastWavePrototypeName, xmlNode, "BlastWave")
             return STATUS_SUCCESS
 
+    def PostLoad(self, prototype_manager):
+        if self.blastWavePrototypeName:
+            self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName)
+
 
 class ParticleSplinterPrototypeInfo(DummyObjectPrototypeInfo):
     def __init__(self, server):
@@ -2504,7 +2648,7 @@ class RepositoryObjectsGeneratorPrototypeInfo(PrototypeInfo):
 # dict mapping Object Classes to PrototypeInfo Classes
 thePrototypeInfoClassDict = {
     "AffixGenerator": AffixGeneratorPrototypeInfo,
-    # "ArticulatedVehicle": ArticulatedVehiclePrototypeInfo, # def InternalCopyFrom(self, prot_to_copy_from): self.parent = prot_to_copy_from
+    # "ArticulatedVehicle": ArticulatedVehiclePrototypeInfo, # 
     "Bar": BarPrototypeInfo,
     "Barricade": BarricadePrototypeInfo,
     "Basket": BasketPrototypeInfo,
@@ -2527,7 +2671,7 @@ thePrototypeInfoClassDict = {
     "Cabin": CabinPrototypeInfo,
     "CaravanTeam": CaravanTeamPrototypeInfo,
     "Chassis": ChassisPrototypeInfo,
-    # "Chest": ChestPrototypeInfo,
+    "Chest": ChestPrototypeInfo,
     "CinematicMover": CinematicMoverPrototypeInfo,
     "CompositeObj": CompositeObjPrototypeInfo,
     "CompoundGun": CompoundGunPrototypeInfo,
@@ -2546,7 +2690,7 @@ thePrototypeInfoClassDict = {
     "InfectionTeam": InfectionTeamPrototypeInfo,
     "InfectionZone": InfectionZonePrototypeInfo,
     "JointedObj": JointedObjPrototypeInfo,
-    # "Lair": LairPrototypeInfo,
+    "Lair": LairPrototypeInfo,
     "LightObj": LightObjPrototypeInfo,
     "Location": LocationPrototypeInfo,
     "LocationPusher": LocationPusherPrototypeInfo,
@@ -2573,7 +2717,7 @@ thePrototypeInfoClassDict = {
     "RopeObj": RopeObjPrototypeInfo,
     "SgNodeObj": SgNodeObjPrototypeInfo,
     "SmokeScreenLocation": SmokeScreenLocationPrototypeInfo,
-    # "StaticAutoGun": StaticAutoGunPrototypeInfo,  # def InternalCopyFrom(self, prot_to_copy_from): self.parent = prot_to_copy_from
+    "StaticAutoGun": StaticAutoGunPrototypeInfo,  # def InternalCopyFrom(self, prot_to_copy_from): self.parent = prot_to_copy_from
     "Submarine": SubmarinePrototypeInfo,
     "Team": TeamPrototypeInfo,
     "TeamTacticWithRoles": TeamTacticWithRolesPrototypeInfo,

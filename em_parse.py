@@ -213,7 +213,8 @@ def parse_str_to_bool(string: str):
     elif string.lower() == "false" or string == "0":
         return False
     else:
-        raise ValueError(f"Invalid str to parse: {string}")
+        logger.warning(f"Invalid str passed to parse to bool: '{string}'")
+        return False
 
 
 def parse_str_to_vector(string: str):

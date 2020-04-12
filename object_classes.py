@@ -78,6 +78,17 @@ class Obj(Object):
         logger.info("Contains info mostly useful for savefile loading, ignoring?")
 
 
+class GeomRepository(Object):
+    def __init__(self):
+        Object.__init__(self)
+        self.slots = []
+        self.referenceChests = []
+        self.changed = False
+        self.geomSize = {"x": 1, "y": 1}
+        self.sortStyle = 0
+        self.vehicleId = -1
+
+
 class CollisionInfo(object):
     def __init__(self, info=None):  # other CollisionInfo object can be passed as arg to initialise something of a copy
         if info is not None:
@@ -411,6 +422,16 @@ class SimplePhysicObj(PhysicObj):
             logger.warn("Not implemented Construct method for SimplePhysicObject class")
 
 
+class Chest(SimplePhysicObj):
+    def __init__(self, prototype_info_object=None):
+        SimplePhysicObj.__init__(self, prototype_info_object)
+        self.lifeTime = prototype_info_object.lifeTime
+        self.repository = GeomRepository()
+        self.repository.geomSize["x"] = 200  # guessing, missing parameter name
+        self.repository.geomSize["y"] = 2000  # guessing, missing parameter name
+        # self.SetAutoDisabling(isAutoDisabling=True, linearThreshold=0.1, angularThreshold=0.1, steps=5)
+
+
 class ObjPrefab(SimplePhysicObj):
     def __init__(self, prototype_info_object=None):
         SimplePhysicObj.__init__(self, prototype_info_object)
@@ -522,6 +543,17 @@ class ComplexPhysicObj(PhysicObj):
             self.vehicleParts = []
 
 
+class StaticAutoGun(ComplexPhysicObj):
+    def __init__(self, prototype_info_object=None):
+        ComplexPhysicObj.__init__(self, prototype_info_object)
+        self.health = 0.0
+        self.maxHealth = 0.0  # actually NumericInRangeRegenerating object, probably only matters in runtime
+        self.timeForNextCheck = 0.1  # temp value
+        self.destroyedModelName = prototype_info_object.destroyedModelName
+        self.targetClasses = []
+        self.currentEnemyId = -1
+
+
 class AnimatedComplexPhysicObj(ComplexPhysicObj):
     def __init__(self, prototype_info_object=None):
         ComplexPhysicObj.__init__(self, prototype_info_object)
@@ -533,6 +565,15 @@ class Vehicle(ComplexPhysicObj):
         self.wheels = []
         self.AI = []
         self.gadgets = []
+
+
+class ArticulatedVehicle(Vehicle):
+    def __init__(self, prototype_info_object):
+        Vehicle.__init__(self, prototype_info_object)
+        self.trailerObjId = -1
+        self.trailerJoint = 0
+        self.relJointPosOnMe = deepcopy(ZERO_VECTOR)
+        self.relJointPosOnTrailer = deepcopy(ZERO_VECTOR)
 
 
 class VehicleRecollection(Obj):
@@ -618,9 +659,9 @@ class DummyObject(SimplePhysicObj):
     def __init__(self, prototype_info_object=None):
         SimplePhysicObj.__init__(self, prototype_info_object)
         # if prototype_info_object.disablePhysics:
-        #     PhysicObj.DisablePhysics(self)
+        #     self.DisablePhysics(self)
         # if prototype_info_object.disableGeometry:
-        #     PhysicObj.DisableGeometry(self)
+        #     self.DisableGeometry(self)
         if self.physicBody is not None:
             logger.warn("Not implemented PhysicBody check related to modelName")
 
@@ -1253,7 +1294,7 @@ class Npc(Obj):
 
 
 class Article(object):
-    def __init__(self, xmlFile, xmlNode):
+    def __init__(self, xmlFile, xmlNode, thePrototypeManager):
         self.prototypeName = ""
         self.basePrice = 0
         self.sellable = False
@@ -1276,7 +1317,7 @@ class Article(object):
         self.afterLastRegeneration = 0.0
 
         self.prototypeName = safe_check_and_set(self.prototypeName, xmlNode, "Prototype")
-        self.LoadFromXML(self, xmlFile, xmlNode)
+        self.LoadFromXML(xmlFile, xmlNode, thePrototypeManager)
 
         # self.ReadDefaultCountFromPrototype(thePrototypeManager)
         # self.ReadFromPrototype(thePrototypeManager)  # whyyyyyyy second time, some stupid overwrite ???
@@ -1287,7 +1328,7 @@ class Article(object):
         #     self.priceDynamic = True
         #     self.amountDynamic = True
 
-    def LoadFromXML(self, xmlFile, xmlNode):
+    def LoadFromXML(self, xmlFile, xmlNode, thePrototypeManager):
         self.prototypeId = safe_check_and_set(self.prototypeId, xmlNode, "PrototypeId", "int")
         basePrice = safe_check_and_set(self.basePrice, xmlNode, "BasePrice", "int")
         if basePrice >= 0:
@@ -1305,7 +1346,7 @@ class Article(object):
         amount = safe_check_and_set(self.amount, xmlNode, "Amount", "int")
         if amount >= 0:
             self.amount = amount
-        self.ReadDefaultCountFromPrototype()
+        self.ReadDefaultCountFromPrototype(thePrototypeManager)
         self.maxCount = safe_check_and_set(self.maxCount, xmlNode, "MaxCount", "int")
         self.minCount = safe_check_and_set(self.minCount, xmlNode, "MinCount", "int")
         self.amountDynamic = safe_check_and_set(self.amountDynamic, xmlNode, "AmountDynamic", "int")
@@ -1339,17 +1380,61 @@ class Article(object):
         else:
             logger.error(f"Invalid prototype id: {self.prototypeId}")
 
-    def LoadArticlesFromNode(article_list, xmlFile, xmlNode):
+    def LoadArticlesFromNode(article_list, xmlFile, xmlNode, thePrototypeManager):
         articles = []
-        articles = child_from_xml_node(xmlNode, "Article")
-        for article_node in articles:
-            article = Article(xmlFile, article_node)
-            article_list.append(article)
+        articles = child_from_xml_node(xmlNode, "Article", do_not_warn=True)
+        if articles is not None:
+            for article_node in articles:
+                article = Article(xmlFile, article_node, thePrototypeManager)
+                article_list.append(article)
 
 
 class Town(Settlement):
+    # partilly implemented as in M113 version, should be roughly similar to original implementation
     def __init__(self, prototype_info_object):
         Settlement.__init__(self, prototype_info_object)
+        self.resourceIdToCoeff = {"first": None,
+                                  "second": None}
+        self.buildings = []
+        self.targetClasses = []
+        self.gateState = 0
+        self.gateTime = 0  # internal logic based on NumbercBoundedBelow, probably only matters in runtime
+        self.maxDefenders = prototype_info_object.maxDefenders
+        self.entryPath = "DummyCinematicPath"
+        self.exitPath = "DummyCinematicPath"
+        self.pointOfViewInInterface = {"x": 5.0,
+                                       "y": 20.0,
+                                       "z": 5.0}
+        self.caravanLocationsNames = []
+        self.caravanPathNames = []
+        self.treasureLocationsNames = []
+        self.reachLocationsNames = []
+        self.destroyLocationsNames = []
+        self.shouldInitializeWorkshops = True
+        self.targetClasses.append("Vehicle")
+        self.gateNode = 0
+        self.playerEnteringTownCount = 0
+        self.questsGenerated = 0
+        self.vehicleShouldBeMoved = 0
+        self.playerPathIndex = -1
+        self.newPosForVehicle = deepcopy(ZERO_VECTOR)
+        self.newDirForVehicle = deepcopy(INITIAL_OBJECTS_DIRECTION)
+        self.vehicleToBeMoved = 0
+        self.ruined = False
+        self.timeFromLastEnterTown = 0.0
+        self.oldCameraMode = 5
+        self.openGateToPlayer = True
+
+
+class Lair(Settlement):
+    def __init__(self, prototype_info_object):
+        Settlement.__init__(self, prototype_info_object)
+        self.reproductTime = 30.0  # actually NumericInRangeRegenerating object, probably only matters in runtime
+        self.maxAttackers = prototype_info_object.maxAttackers
+        self.maxDefenders = prototype_info_object.maxDefenders
+        self.flags = 4
+        self.state = 0
+        self.timeOut = 2.0
 
 
 class RepositoryObjectsGenerator(object):
