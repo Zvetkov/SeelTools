@@ -26,6 +26,7 @@ class PrototypeInfo(object):
         self.price = 0
         self.isAbstract = 0
         self.parentPrototypeName = ""
+        self.parentPrototypeName = -1
         self.protoClassObject = 0
 
     def LoadFromXML(self, xmlFile, xmlNode):
@@ -67,6 +68,13 @@ class PrototypeInfo(object):
 
     def InternalCopyFrom(self, prot_to_copy_from):
         logger.error(f"CopyFrom is not implemented for PrototypeInfo {self.prototypeName} of class {self.className}")
+
+    def PostLoad(self, prototype_manager):
+        if self.parentPrototypeName:
+            self.parentPrototypeId = prototype_manager.GetPrototypeId(self.parentPrototypeName)
+            if self.parentPrototypeId == -1:
+                logger.error(f"Invalid parent prototype: '{self.parentPrototypeName}' "
+                             f"for prototype: '{self.prototypeName}'")
 
 
 class PhysicBodyPrototypeInfo(PrototypeInfo):
@@ -360,10 +368,10 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
     def PostLoad(self, prototype_manager):
         self.explosionType = prototype_manager.theServer.theDynamicScene.GetExplosionType(self.explosionTypeName)
         self.shellPrototypeId = prototype_manager.GetPrototypeId(self.shellPrototypeName)
-        if self.shellPrototypeId is None:
+        if self.shellPrototypeId == -1:  # ??? there also exist check if sheelPrototypeName is not empty. A valid case?
             logger.error(f"Shell prototype {self.shellPrototypeId} is invalid for {self.prototypeName}")
         self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName)
-        if self.blastWavePrototypeId is None:
+        if self.blastWavePrototypeId == -1:
             logger.error(f"Unknown blastwave prototype {self.blastWavePrototypeName} for {self.prototypeName}")
 
 
@@ -1093,6 +1101,7 @@ class InfectionTeamPrototypeInfo(TeamPrototypeInfo):
         TeamPrototypeInfo.__init__(self, server)
         self.items = []
         self.vehiclesGeneratorProtoName = ""
+        self.vehiclesGeneratorProtoId = -1
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = TeamPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -1105,6 +1114,19 @@ class InfectionTeamPrototypeInfo(TeamPrototypeInfo):
                             "count": int(read_from_xml_node(vehicle, "Count"))}
                     self.items.append(item)
             return STATUS_SUCCESS
+
+    def PostLoad(self, prototype_manager):
+        TeamPrototypeInfo.PostLoad(self)
+        self.vehiclesGeneratorProtoId = prototype_manager.GetPrototypeId(self.vehiclesGeneratorProtoName)
+        if self.vehiclesGeneratorProtoId == -1:
+            if not self.items:
+                if self.vehiclesGeneratorProtoName:
+                    logger.error(f"Unknown '{self.vehiclesGeneratorProtoName}' VehiclesGenerator "
+                                 f"for infection team '{self.prototypeName}'")
+                else:
+                    logger.error(f"No vehicle generator and no vehicles for InfectionTeam '{self.prototypeName}'")
+
+
 
 
 class InfectionZonePrototypeInfo(PrototypeInfo):
@@ -2025,7 +2047,7 @@ class BulletLauncherPrototypeInfo(GunPrototypeInfo):
 class CompoundVehiclePartPrototypeInfo(VehiclePartPrototypeInfo):
     def __init__(self, server):
         VehiclePartPrototypeInfo.__init__(self, server)
-        self.partInfo = []
+        self.partInfo = {}
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -2036,11 +2058,15 @@ class CompoundVehiclePartPrototypeInfo(VehiclePartPrototypeInfo):
                 for i in range(descriptions_number):
                     part_node = parts_description_nodes[i]
                     new_part = self.TPartInfo()
-                    new_part.prototypeId = safe_check_and_set(new_part.prototypeId, part_node, "id")
+                    part_id = safe_check_and_set(new_part.prototypeId, part_node, "id")
                     new_part.prototypeName = safe_check_and_set(new_part.prototypeName, part_node, "Prototype")
                     new_part.index = i
-                    self.partInfo.append(new_part)
+                    self.partInfo[part_id] = new_part
             return STATUS_SUCCESS
+
+    def PostLoad(self, prototype_manager):
+        for tpart in self.partInfo.values():
+            tpart.prototypeId = prototype_manager.GetPrototypeId(tpart.prototypeName)
 
     class TPartInfo(object):
         def __init__(self):
@@ -2194,6 +2220,13 @@ class RocketPrototypeInfo(ShellPrototypeInfo):
             self.blastWavePrototypeName = safe_check_and_set(self.blastWavePrototypeName, xmlNode, "BlastWavePrototype")
             return STATUS_SUCCESS
 
+    def PostLoad(self, prototype_manager):
+        if self.blastWavePrototypeName:
+            self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName)
+            if self.blastWavePrototypeId == -1:
+                logger.error(f"Unknown blast wave prototype name: '{self.blastWavePrototypeName}' "
+                             f"for rocket prototype: '{self.prototypeName}'")
+
 
 class PlasmaBunchPrototypeInfo(ShellPrototypeInfo):
     def __init__(self, server):
@@ -2202,6 +2235,7 @@ class PlasmaBunchPrototypeInfo(ShellPrototypeInfo):
         self.acceleration = 1.0
         self.flyTime = 1.0
         self.blastWavePrototypeName = ""
+        self.blastWavePrototypeId = -1
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = ShellPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -2219,6 +2253,9 @@ class PlasmaBunchPrototypeInfo(ShellPrototypeInfo):
                 self.flyTime = float(flyTime)
             self.blastWavePrototypeName = safe_check_and_set(self.blastWavePrototypeName, xmlNode, "BlastWavePrototype")
             return STATUS_SUCCESS
+
+    def PostLoad(self, prototype_manager):
+        self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName)
 
 
 class MortarShellPrototypeInfo(ShellPrototypeInfo):
@@ -2238,6 +2275,11 @@ class MortarShellPrototypeInfo(ShellPrototypeInfo):
                 self.flyTime = float(flyTime)
             self.blastWavePrototypeName = safe_check_and_set(self.blastWavePrototypeName, xmlNode, "BlastWavePrototype")
             return STATUS_SUCCESS
+
+    def PostLoad(self, prototype_manager):
+        self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName)
+        if self.blastWavePrototypeId == -1 and self.blastWavePrototypeName:
+            logger.error(f"Unknown blast wave prototype name: {self.prototypeName}")
 
 
 class MinePrototypeInfo(RocketPrototypeInfo):
@@ -2589,6 +2631,11 @@ class ObjPrefabPrototypeInfo(SimplePhysicObjPrototypeInfo):
                 logger.error(f"Missing ObjectsInfo in {SimplePhysicObjPrototypeInfo.prototypeName}")
             return STATUS_SUCCESS
 
+    def PostLoad(self, prototype_manager):
+        if self.objInfos:
+            for objInfo in self.objInfos:
+                objInfo.prototypeId = prototype_manager.GetPrototypeId(objInfo.prototypeName)
+
     class ObjInfo(object):
         def __init__(self):
             self.prototypeId = -1
@@ -2597,6 +2644,10 @@ class ObjPrefabPrototypeInfo(SimplePhysicObjPrototypeInfo):
             self.scale = 1.0
             self.modelName = ""
             self.prototypeName = ""
+
+        def PostLoad(self, prototype_manager):
+            self.prototypeId = prototype_manager.GetPrototypeId(self.prototypeName)
+            logger.warning("This is not a fucking useless function after all!")
 
 
 class BarricadePrototypeInfo(ObjPrefabPrototypeInfo):
@@ -2638,6 +2689,14 @@ class RepositoryObjectsGeneratorPrototypeInfo(PrototypeInfo):
                 newDescription.prototypeId = -1
                 self.objectDescriptions.append(newDescription)
             return STATUS_SUCCESS
+
+    def PostLoad(self, prototype_manager):
+        if self.objectDescriptions:
+            for obj_description in self.objectDescriptions:
+                obj_description.prototypeId = prototype_manager.GetPrototypeId(obj_description.prototypeName)
+                if obj_description.prototypeId == -1:
+                    logger.error(f"Unknown Object prototype: '{obj_description.prototypeName}' "
+                                 f"for RepositoryObjectsGenerator: '{self.prototypeName}'")
 
     class ObjectDescription(object):
         def __init__(self):

@@ -41,25 +41,25 @@ class Server(object):
             logger.info("Skipping loading GameObjects")
             self.thePrototypeManager = PrototypeManager(self)
             self.thePrototypeManager.LoadFromXMLFile(self.theGlobalProperties.pathToGameObjects)
-            # logger.info("Initializing VehicleGeneratorInfoCache")
-            # self.theVehiclesGeneratorInfoCache = VehiclesGeneratorInfoCache()
-            # self.theVehiclesGeneratorInfoCache.EnsureInitialized()
-            # logger.info("Refreshing GameObjects")
-            # self.thePrototypeManager.RefreshFromXmlFile()  # (CStr)
-            # logger.info("Loading QuestStates")
-            # questStatesFileName = self.level.GetFullPathNameA(self.level, allowed_classes, self.level.questStatesFileName)
-            # self.theQuestStateManager = QuestStateManager()
-            # self.theQuestStateManager.LoadFromXML(a2, self, questStatesFileName)
-            # logger.info("QuestStates loaded")
-            # logger.info("Loading DynamicScene")
-            # self.theDynamicScene = DynamicScene()
-            # if xmlNode:
-            #     self.theDynamicScene.LoadSceneFromXML(xmlFile, xmlNode, allowed_classes)
-            # else:
-            #     allowedClasses = []
-            #     level_file_name = self.level.GetFullPathNameA(self.level, allowed_classes, self.level.dsSrvName)
-            #     self.theDynamicScene.LoadSceneFromXML(self.pDynamicScene, level_file_name, allowedClasses)
-            # logger.info("DynamicScene loaded")
+            logger.info("Initializing VehicleGeneratorInfoCache")
+            self.theVehiclesGeneratorInfoCache = VehiclesGeneratorInfoCache()
+            self.theVehiclesGeneratorInfoCache.EnsureInitialized()
+            logger.info("Refreshing GameObjects")
+            self.thePrototypeManager.RefreshFromXmlFile()  # (CStr)
+            logger.info("Loading QuestStates")
+            questStatesFileName = self.level.GetFullPathNameA(self.level, allowed_classes, self.level.questStatesFileName)
+            self.theQuestStateManager = QuestStateManager()
+            self.theQuestStateManager.LoadFromXML(a2, self, questStatesFileName)
+            logger.info("QuestStates loaded")
+            logger.info("Loading DynamicScene")
+            self.theDynamicScene = DynamicScene()
+            if xmlNode:
+                self.theDynamicScene.LoadSceneFromXML(xmlFile, xmlNode, allowed_classes)
+            else:
+                allowedClasses = []
+                level_file_name = self.level.GetFullPathNameA(self.level, allowed_classes, self.level.dsSrvName)
+                self.theDynamicScene.LoadSceneFromXML(self.pDynamicScene, level_file_name, allowedClasses)
+            logger.info("DynamicScene loaded")
 
     def LoadGlobalPropertiesFromXML(self, fileName):
         xmlFile = xml_to_objfy(fileName)
