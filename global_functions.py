@@ -1,5 +1,6 @@
 from constants import ACTION_TYPE
 
+
 class dMass(object):
     def __init__(self):
         self.SetZero()

@@ -1388,6 +1388,19 @@ class Article(object):
                 article = Article(xmlFile, article_node, thePrototypeManager)
                 article_list.append(article)
 
+    def PostLoad(self, prototype_manager):
+        if self.prototypeName:
+            self.prototypeId = prototype_manager.GetPrototypeId(self.prototypeName)
+            if self.prototypeId == -1:
+                logger.error(f"Unknown ware prototype name {self.prototypeName}!")
+        self.ReadFromPrototype(prototype_manager)
+        if self.randomPriceCoefficient < 0.0:
+            dispersion_percentage = self.dispersion * 0.01
+            self.randomPriceCoefficient = f"Randomized value based on dispersion: {dispersion_percentage}"
+        if self.sellable or self.buyable:
+            self.priceDynamic = True
+            self.amountDynamic = True
+
 
 class Town(Settlement):
     # partilly implemented as in M113 version, should be roughly similar to original implementation

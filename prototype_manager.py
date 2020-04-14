@@ -26,11 +26,21 @@ class PrototypeManager(object):
         logger.info(f"Checking if {prototype_info.className} is of {class_name}")
         return type(prototype_info) == thePrototypeInfoClassDict[class_name]
 
+    def GetPrototypeId(self, prototypeName):
+        prot_id = -1
+        prot_id_from_loaded = self.prototypeNamesToIds.get(prototypeName)
+        if prot_id_from_loaded is None and prototypeName:
+            logger.error(f"No prototype with name '{prototypeName}' registred by PrototypeManager!")
+        else:
+            prot_id = prot_id_from_loaded
+        return prot_id
+
     def LoadFromXMLFile(self, fileName):
         self.loadingLock += 1
         self.LoadGameObjectsFolderFromXML(fileName)
         self.loadingLock -= 1
         for prototype in self.prototypes:
+            logger.debug(f"PostLoad for prototype {prototype.prototypeName}")
             prototype.PostLoad(self)
 
     def LoadGameObjectsFolderFromXML(self, fileName):

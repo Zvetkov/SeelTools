@@ -366,7 +366,8 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
         return DamageTypeStruct.get(damage_type_name)
 
     def PostLoad(self, prototype_manager):
-        self.explosionType = prototype_manager.theServer.theDynamicScene.GetExplosionType(self.explosionTypeName)
+        self.explosionType = "DUMMY_EXPLOSION_TYPE_NOT_IMPLEMENTED_GET_EXPLOSION_TYPE"
+        # self.explosionType = prototype_manager.theServer.theDynamicScene.GetExplosionType(self.explosionTypeName)
         self.shellPrototypeId = prototype_manager.GetPrototypeId(self.shellPrototypeName)
         if self.shellPrototypeId == -1:  # ??? there also exist check if sheelPrototypeName is not empty. A valid case?
             logger.error(f"Shell prototype {self.shellPrototypeId} is invalid for {self.prototypeName}")
@@ -498,19 +499,25 @@ class WanderersGeneratorPrototypeInfo(PrototypeInfo):
                 vehicle_description.LoadFromXML(xmlFile, xmlNode)
             return STATUS_SUCCESS
 
+    def PostLoad(self, prototype_manager):
+        if self.vehicleDescriptions:
+            for vehicle_description in self.vehicleDescriptions:
+                vehicle_description.PostLoad(prototype_manager)
+
     class VehicleDescription(object):
         def __init__(self):
             self.prototype = ""
-            self.cabin = {"present": True, "prototypeNames": [], "prototypeIds": []}
-            self.basket = {"present": True, "prototypeNames": [], "prototypeIds": []}
-            self.cabinSmallGun = {"present": True, "prototypeNames": [], "prototypeIds": []}
-            self.cabinBigGun = {"present": True, "prototypeNames": [], "prototypeIds": []}
-            self.cabinSpecialWeapon = {"present": True, "prototypeNames": [], "prototypeIds": []}
-            self.basketSmallGun0 = {"present": True, "prototypeNames": [], "prototypeIds": []}
-            self.basketSmallGun1 = {"present": True, "prototypeNames": [], "prototypeIds": []}
-            self.basketBigGun0 = {"present": True, "prototypeNames": [], "prototypeIds": []}
-            self.basketBigGun1 = {"present": True, "prototypeNames": [], "prototypeIds": []}
-            self.basketSideGun = {"present": True, "prototypeNames": [], "prototypeIds": []}
+            self.prototypeId = -1
+            self.cabin = WanderersGeneratorPrototypeInfo.VehiclePartDescription()
+            self.basket = WanderersGeneratorPrototypeInfo.VehiclePartDescription()
+            self.cabinSmallGun = WanderersGeneratorPrototypeInfo.VehiclePartDescription()
+            self.cabinBigGun = WanderersGeneratorPrototypeInfo.VehiclePartDescription()
+            self.cabinSpecialWeapon = WanderersGeneratorPrototypeInfo.VehiclePartDescription()
+            self.basketSmallGun0 = WanderersGeneratorPrototypeInfo.VehiclePartDescription()
+            self.basketSmallGun1 = WanderersGeneratorPrototypeInfo.VehiclePartDescription()
+            self.basketBigGun0 = WanderersGeneratorPrototypeInfo.VehiclePartDescription()
+            self.basketBigGun1 = WanderersGeneratorPrototypeInfo.VehiclePartDescription()
+            self.basketSideGun = WanderersGeneratorPrototypeInfo.VehiclePartDescription()
 
         def LoadFromXML(self, xmlFile, xmlNode):
             self.prototype = safe_check_and_set(self.prototype, xmlNode, "Prototype")
@@ -532,6 +539,21 @@ class WanderersGeneratorPrototypeInfo(PrototypeInfo):
                 part.LoadFromXML(xmlFile, partXMLNode)
             return part
 
+        def PostLoad(self, prototype_manager):
+            self.prototypeId = prototype_manager.GetPrototypeId(self.prototype)
+            if self.prototypeId == -1:
+                logger.error(f"Unknown vehicle prototype {self.prototype} in wanderers generator!")
+            WanderersGeneratorPrototypeInfo.VehiclePartDescription.PostLoad(self.cabin, prototype_manager)
+            WanderersGeneratorPrototypeInfo.VehiclePartDescription.PostLoad(self.basket, prototype_manager)
+            WanderersGeneratorPrototypeInfo.VehiclePartDescription.PostLoad(self.cabinSmallGun, prototype_manager)
+            WanderersGeneratorPrototypeInfo.VehiclePartDescription.PostLoad(self.cabinBigGun, prototype_manager)
+            WanderersGeneratorPrototypeInfo.VehiclePartDescription.PostLoad(self.cabinSpecialWeapon, prototype_manager)
+            WanderersGeneratorPrototypeInfo.VehiclePartDescription.PostLoad(self.basketSmallGun0, prototype_manager)
+            WanderersGeneratorPrototypeInfo.VehiclePartDescription.PostLoad(self.basketSmallGun1, prototype_manager)
+            WanderersGeneratorPrototypeInfo.VehiclePartDescription.PostLoad(self.basketBigGun0, prototype_manager)
+            WanderersGeneratorPrototypeInfo.VehiclePartDescription.PostLoad(self.basketBigGun1, prototype_manager)
+            WanderersGeneratorPrototypeInfo.VehiclePartDescription.PostLoad(self.basketSideGun, prototype_manager)
+
     class VehiclePartDescription(object):
         def __init__(self):
             self.present = True
@@ -543,6 +565,13 @@ class WanderersGeneratorPrototypeInfo(PrototypeInfo):
             strPrototypes = read_from_xml_node(xmlNode, "Prototypes", do_not_warn=True)
             if strPrototypes is not None:
                 self.prototypeNames = strPrototypes.split()
+
+        def PostLoad(self, prototype_manager):
+            for prot_name in self.prototypeNames:
+                prot_id = prototype_manager.GetPrototypeId(prot_name)
+                if prot_id == -1:
+                    logger.error(f"Unknown vehicle part prototype {prot_name} in wanderers generator!")
+                self.prototypeIds.append(prot_id)
 
 
 class AffixGeneratorPrototypeInfo(PrototypeInfo):
@@ -724,7 +753,7 @@ class ComplexPhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
 
     def PostLoad(self, prototype_manager):
         for prot_name in self.partPrototypeNames:
-            self.partPrototypeIds.append(prototype_manager.GetPrototypeId(prot_name))
+            self.partPrototypeIds.append(prototype_manager.GetPrototypeId(prot_name["name"]))
         # can this replace ComplexPhysicObjPartDescription::GetPartNames?
         self.allPartNames = [part.name for part in self.partDescription]
 
@@ -817,14 +846,23 @@ class VehiclePrototypeInfo(ComplexPhysicObjPrototypeInfo):
                                                              "DurabilityRegeneration", "float")
             return STATUS_SUCCESS
 
+    def PostLoad(self, prototype_manager):
+        ComplexPhysicObjPrototypeInfo.PostLoad(self, prototype_manager)
+        for wheel_info in self.wheelInfos:
+            wheel_info.wheelPrototypeId = prototype_manager.GetPrototypeId(wheel_info.wheelPrototypeName)
+        self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName)
+
+    def InternalCopyFrom(self, prot_to_copy_from):
+        self.parent = prot_to_copy_from
+
     class WheelInfo(object):
         def __init__(self, wheelPrototypeName, steering):
             self.steering = steering
             self.wheelPrototypeName = wheelPrototypeName
             self.wheelPrototypeId = -1
 
-    def InternalCopyFrom(self, prot_to_copy_from):
-        self.parent = prot_to_copy_from
+        def PostLoad(self, prototype_manager):
+            self.wheelPrototypeId = prototype_manager.GetPrototypeId(self.wheelPrototypeName)
 
 
 class ArticulatedVehiclePrototypeInfo(VehiclePrototypeInfo):
@@ -842,7 +880,7 @@ class ArticulatedVehiclePrototypeInfo(VehiclePrototypeInfo):
         self.parent = prot_to_copy_from
 
     def PostLoad(self, prototype_manager):
-        VehiclePrototypeInfo.PostLoad(prototype_manager)
+        VehiclePrototypeInfo.PostLoad(self, prototype_manager)
         self.trailerPrototypeId = prototype_manager.GetPrototypeId(self.trailerPrototypeName)
 
 
@@ -1005,6 +1043,15 @@ class TeamTacticWithRolesPrototypeInfo(PrototypeInfo):
                 self.rolePrototypeNames.append(read_from_xml_node(role, "Prototype"))
             return STATUS_SUCCESS
 
+    def PostLoad(self, prototype_manager):
+        if self.rolePrototypeNames:
+            for role_name in self.rolePrototypeNames:
+                role_prot_id = prototype_manager.GetPrototypeId(role_name)
+                if role_prot_id == -1:  # ??? there also exist check if sheelPrototypeName is not empty. A valid case?
+                    logger.error(f"Unknown role prototype: '{self.shellPrototypeId}' for prot: '{self.prototypeName}'")
+                else:
+                    self.rolePrototypeIds.append(role_prot_id)
+
 
 class NPCMotionControllerPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
@@ -1023,6 +1070,7 @@ class TeamPrototypeInfo(PrototypeInfo):
         self.decisionMatrixName = ""  # placeholder for AIManager functionality ???
         self.removeWhenChildrenDead = True
         self.formationPrototypeName = "caravanFormation"
+        self.formationPrototypeId = -1
         self.overridesDistBetweenVehicles = False
         self.isUpdating = False
         self.formationDistBetweenVehicles = 30.0
@@ -1041,6 +1089,9 @@ class TeamPrototypeInfo(PrototypeInfo):
                     self.overridesDistBetweenVehicles = True
                     self.formationDistBetweenVehicles = float(distBetweenVehicles)
             return STATUS_SUCCESS
+
+    def PostLoad(self, prototype_manager):
+        self.formationPrototypeId = prototype_manager.GetPrototypeId(self.formationPrototypeName)
 
 
 class CaravanTeamPrototypeInfo(TeamPrototypeInfo):
@@ -1106,6 +1157,8 @@ class InfectionTeamPrototypeInfo(TeamPrototypeInfo):
     def LoadFromXML(self, xmlFile, xmlNode):
         result = TeamPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
+            self.vehiclesGeneratorProtoName = safe_check_and_set(self.vehiclesGeneratorProtoName, xmlNode,
+                                                                 "VehiclesGenerator")
             vehicles = child_from_xml_node(xmlNode, "Vehicles", do_not_warn=True)
             if vehicles is not None and len(vehicles.getchildren()) >= 1:
                 check_mono_xml_node(vehicles, "Vehicle")
@@ -1116,7 +1169,7 @@ class InfectionTeamPrototypeInfo(TeamPrototypeInfo):
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
-        TeamPrototypeInfo.PostLoad(self)
+        TeamPrototypeInfo.PostLoad(self, prototype_manager)
         self.vehiclesGeneratorProtoId = prototype_manager.GetPrototypeId(self.vehiclesGeneratorProtoName)
         if self.vehiclesGeneratorProtoId == -1:
             if not self.items:
@@ -1226,13 +1279,21 @@ class VehiclesGeneratorPrototypeInfo(PrototypeInfo):
                     self.partOfSchwartzForWares = float(partOfSchwartzForWares)
             return STATUS_SUCCESS
 
+    def PostLoad(self, prototype_manager):
+        if self.vehicleDescriptions:
+            for vehicle_description in self.vehicleDescriptions:
+                vehicle_description.PostLoad(prototype_manager)
+
     class VehicleDescription(object):
         def __init__(self, xmlFile, xmlNode):
-            self.vehiclePrototypeIds = []
-            self.waresPrototypesIds = []
-            self.vehiclePrototypeNames = []
             self.waresPrototypesNames = []
+            self.waresPrototypesIds = []
+
+            self.vehiclePrototypeNames = []
+            self.vehiclePrototypeIds = []
+
             self.gunAffixGeneratorPrototypeName = ""
+            self.gunAffixGeneratorPrototypeId = -1
             self.LoadFromXML(xmlFile, xmlNode)
 
         def LoadFromXML(self, xmlFile, xmlNode):
@@ -1255,12 +1316,33 @@ class VehiclesGeneratorPrototypeInfo(PrototypeInfo):
 
         def PostLoad(self, prototype_manager):
             for vehicle_prot_name in self.vehiclePrototypeNames:
-                vehicleProt = prototype_manager.prototypesMap.get(vehicle_prot_name)
-                if vehicleProt is None:
-                    logger.error(f"Unknown vehicle prototype name: {vehicle_prot_name}")
-                if prototype_manager.IsPrototypeOf(vehicleProt, "Vehicle"):
-                    pass  # ???
-            logger.warning("Not fully implemented PostLoad for VehiclesGeneratorPrototypeInfo VehicleDescription")
+                vehicle_prot_id = prototype_manager.GetPrototypeId(vehicle_prot_name)
+                if vehicle_prot_id == -1:
+                    logger.error(f"Unknown vehicle prototype: '{vehicle_prot_name}' found"
+                                 f" for VehiclesGenerator: '{self.prototypeName}'")
+                prot = prototype_manager.InternalGetPrototypeInfo(vehicle_prot_name)
+                if prot.className != "Vehicle":
+                    logger.error(f"Unexpected prototype with class '{prot.className}' found "
+                                 "for VehiclesGenerator's VehiclePrototypes, expected 'Vehicle'!")
+                self.vehiclePrototypeIds.append(vehicle_prot_id)
+
+            for ware_prot_name in self.waresPrototypesNames:
+                ware_prot_id = prototype_manager.GetPrototypeId(ware_prot_name)
+                if ware_prot_id == -1:
+                    logger.error(f"Unknown ware prototype: '{ware_prot_id}' found"
+                                 f" for VehiclesGenerator: '{self.prototypeName}'")
+                prot = prototype_manager.InternalGetPrototypeInfo(ware_prot_name)
+                if prot.className != "Ware":
+                    logger.error(f"Unexpected prototype with class '{prot.className}' found "
+                                 "for VehiclesGenerator's WaresPrototypes, expected 'Ware'!")
+                self.waresPrototypesIds.append(ware_prot_id)
+
+            if self.gunAffixGeneratorPrototypeName:
+                self.gunAffixGeneratorPrototypeId = \
+                    prototype_manager.GetPrototypeId(self.gunAffixGeneratorPrototypeName)
+                if self.gunAffixGeneratorPrototypeId == -1:
+                    logger.error(f"Unknown GunAffix prototype: '{self.gunAffixGeneratorPrototypeName}' found"
+                                 f" for VehiclesGenerator: '{self.prototypeName}'")
 
 
 class FormationPrototypeInfo(PrototypeInfo):
@@ -1299,8 +1381,8 @@ class FormationPrototypeInfo(PrototypeInfo):
             for i in range(len(self.polylinePoints) - 1):
                 first_point = self.polylinePoints[i]
                 second_point = self.polylinePoints[i + 1]
-                x_change = first_point.x - second_point.x
-                y_change = first_point.y - second_point.y
+                x_change = first_point['x'] - second_point['x']
+                y_change = first_point['y'] - second_point['y']
                 segmentLength = sqrt(x_change**2 + y_change**2)
                 self.polylineLength += segmentLength
                 if i < self.headPosition:
@@ -1317,7 +1399,7 @@ class FormationPrototypeInfo(PrototypeInfo):
                              "y": float(point[1])}
                     if point["x"] == 0.0 or point["y"] == 0.0:
                         if self.polylinePoints:
-                            self.headPosition = self.polylinePoints[-1]
+                            self.headPosition = len(self.polylinePoints)
                         else:
                             self.headPosition = 0
                         self.polylinePoints.append(point)
@@ -1351,6 +1433,13 @@ class SettlementPrototypeInfo(SimplePhysicObjPrototypeInfo):
             self.vehiclesPrototypeName = read_from_xml_node(xmlNode, "Vehicles")
             return STATUS_SUCCESS
 
+    def PostLoad(self, prototype_manager):
+        if self.vehiclesPrototypeName:
+            self.vehiclesPrototypeId = prototype_manager.GetPrototypeId(self.vehiclesPrototypeName)
+            if self.vehiclesPrototypeId == -1:
+                logger.error(f"Invalid vehicles prototype '{self.vehiclesPrototypeName}' "
+                             f"for settlement prototype '{self.prototypeName}'")
+
     class AuxZoneInfo(object):
         def __init__(self):
             self.action = ""
@@ -1371,8 +1460,11 @@ class TownPrototypeInfo(SettlementPrototypeInfo):
         self.articles = []
         self.resourceIdToRandomCoeffMap = []
         self.gunGeneratorPrototypeName = ""
+        self.gunGeneratorPrototypeId = -1
         self.gunAffixGeneratorPrototypeName = ""
+        self.gunAffixGeneratorPrototypeId = -1
         self.cabinsAndBasketsAffixGeneratorPrototypeName = ""
+        self.cabinsAndBasketsAffixGeneratorPrototypeId = -1
         self.collisionTrimeshAllowed = True
 
     def LoadFromXML(self, xmlFile, xmlNode):
@@ -1430,6 +1522,16 @@ class TownPrototypeInfo(SettlementPrototypeInfo):
                     coeff["second"].baseCoeff = newRandomCoeff
                     coeff["second"].baseDispersion = newRandomCoeff_4
                     self.resourceIdToRandomCoeffMap.append(coeff)
+
+    def PostLoad(self, prototype_manager):
+        SettlementPrototypeInfo.PostLoad(self, prototype_manager)
+        self.gunGeneratorPrototypeId = prototype_manager.GetPrototypeId(self.gunGeneratorPrototypeName)
+        self.gunAffixGeneratorPrototypeId = prototype_manager.GetPrototypeId(self.gunAffixGeneratorPrototypeName)
+        self.cabinsAndBasketsAffixGeneratorPrototypeId = \
+            prototype_manager.GetPrototypeId(self.cabinsAndBasketsAffixGeneratorPrototypeName)
+        if self.articles:
+            for article in self.articles:
+                article.PostLoad(prototype_manager)
 
     class RandomCoeffWithDispersion(object):
         def __init__(self):
@@ -1749,11 +1851,11 @@ class BossMetalArmPrototypeInfo(SimplePhysicObjPrototypeInfo):
     def PostLoad(self, prototype_manager):
         if self.loadPrototypeNames:
             for prot_name in self.loadPrototypeNames:
-                prot_id = prototype_manager.GetPrototypeId(self.loadPrototypeNames)
+                prot_id = prototype_manager.GetPrototypeId(prot_name)
                 if prot_id == -1:
                     logger.error("Invalid loadPrototypes/IDs for BossMetalArm prototype")
                 else:
-                    prot = prototype_manager.InternalGetPrototypeInfo(prot_id)
+                    prot = prototype_manager.InternalGetPrototypeInfo(prot_name)
                     if prot.className != "BossMetalArmLoad":
                         logger.error("Invalid class for BossMetalArm LoadPrototype, expected 'BossMetalArmLoad', but "
                                      f"'{prot.className}' given for {self.prototypeName}!")
@@ -2327,6 +2429,10 @@ class ThunderboltPrototypeInfo(PrototypeInfo):
             self.effectName = read_from_xml_node(xmlNode, "Effect")
             return STATUS_SUCCESS
 
+    def PostLoad(self, prototype_manager):
+        if self.averageSegmentLength < 0.01:
+            self.averageSegmentLength = 0.01
+
 
 class BulletPrototypeInfo(ShellPrototypeInfo):
     def __init__(self, server):
@@ -2616,11 +2722,11 @@ class ObjPrefabPrototypeInfo(SimplePhysicObjPrototypeInfo):
                     obj_info = self.ObjInfo()
                     obj_info.prototypeName = read_from_xml_node(obj_info_node, "Prototype")
                     if obj_info.prototypeName is not None:
-                        obj_info.prototypeName = parse_str_to_vector(read_from_xml_node(obj_info_node, "RelPos",
-                                                                                        do_not_warn=True))
-                        obj_info.prototypeName = parse_str_to_quaternion(read_from_xml_node(obj_info_node,
-                                                                                            "RelRot", do_not_warn=True))
-                        obj_info.prototypeName = safe_check_and_set(obj_info.prototypeName, obj_info_node, "ModelName")
+                        obj_info.relPos = parse_str_to_vector(read_from_xml_node(obj_info_node, "RelPos",
+                                                                                 do_not_warn=True))
+                        obj_info.relRot = parse_str_to_quaternion(read_from_xml_node(obj_info_node, "RelRot",
+                                                                                     do_not_warn=True))
+                        obj_info.modelName = safe_check_and_set(obj_info.prototypeName, obj_info_node, "ModelName")
                         scale = read_from_xml_node(obj_info_node, "Scale", do_not_warn=True)
                         if scale is not None:
                             obj_info.scale = float(scale)
@@ -2707,7 +2813,7 @@ class RepositoryObjectsGeneratorPrototypeInfo(PrototypeInfo):
 # dict mapping Object Classes to PrototypeInfo Classes
 thePrototypeInfoClassDict = {
     "AffixGenerator": AffixGeneratorPrototypeInfo,
-    # "ArticulatedVehicle": ArticulatedVehiclePrototypeInfo, # 
+    "ArticulatedVehicle": ArticulatedVehiclePrototypeInfo,
     "Bar": BarPrototypeInfo,
     "Barricade": BarricadePrototypeInfo,
     "Basket": BasketPrototypeInfo,
