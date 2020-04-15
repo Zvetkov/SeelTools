@@ -1,21 +1,23 @@
 import sys
 import os
 from PySide2.QtCore import Qt, QAbstractListModel, QModelIndex
-from PySide2.QtGui import QIcon, QKeySequence
+from PySide2.QtGui import QIcon, QKeySequence, QRadialGradient, QBrush, QColor
 from PySide2.QtWidgets import (QApplication, QCheckBox, QHBoxLayout, QLabel,
                                QPushButton, QSizePolicy, QWidget, QListWidget,
-                               QTextEdit, QTabWidget, QMenu, qApp, QAction,
+                               QTextEdit, QTabWidget, QMenu, QAction,
                                QMainWindow, QMessageBox, QDockWidget,
                                QListWidgetItem, QTreeWidget, QTreeWidgetItem)
 from qtmodern import styles, windows
-import dynamicscene_model
+import parsing_module
+
+from logger import logger
 
 APP_NAME = "SeelTools"
 APP_VERSION = 0.01
-DUMMY_FILE = os.path.join(os.path.dirname(__file__), "dummy_files", "clansdiz.xml")
 
 
 def main():
+    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
     app = QApplication(sys.argv)
     window = MainWindow(app)
     mw = windows.ModernWindow(window)
@@ -26,13 +28,13 @@ def main():
 class MainWindow(QMainWindow):
     def __init__(self, app):
         super(MainWindow, self).__init__()
-
         # setting up application skin and display properties
-        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+
         self.app = app
         styles.dark(self.app.instance())
         self.createIcons()
 
+        logger.debug("setupMainTabWidget")
         self.setupMainTabWidget()
         self.setCentralWidget(self.mainTabWidget)
         self.createActions()
@@ -109,6 +111,7 @@ class MainWindow(QMainWindow):
         pass
 
     def undo(self):
+        logger.debug("Undo pressed")
         pass
 
     def redo(self):
@@ -194,25 +197,25 @@ class MainWindow(QMainWindow):
                                          QSizePolicy.Preferred)
 
         tab1 = QWidget()
-        # listWidget = QListWidget()
-        treeWidget = QTreeWidget()
-        treeWidget.setColumnCount(2)
-        treeWidget.setHeaderLabels(["Name", "Prototype"])
+        listWidget = QListWidget()
+        # treeWidget = QTreeWidget()
+        # treeWidget.setColumnCount(2)
+        # treeWidget.setHeaderLabels(["Name", "Prototype"])
 
-        xml_tree = dynamicscene_model.parse_file_to_objectify()
-        for item in xml_tree.iterchildren():
-            tree_object = QTreeWidgetItem(treeWidget)
-            tree_object.setText(0, str(item))
-            # newItem = QListWidgetItem(self.redoIconLight, str(item))
-            tree_object.setToolTip(0, "Some tool tip")
-            tree_object.setStatusTip(0, "Woohoo, this is status tip!")
-            tree_object.setWhatsThis(0, "This is dummy string")
-            # listWidget.addItem(newItem)
-            treeWidget.addTopLevelItem(tree_object)
+        server = parsing_module.get_server()
+        for item in server.thePrototypeManager.prototypes:
+            # tree_object = QTreeWidgetItem(treeWidget)
+            # tree_object.setText(0, item.prototypeName)
+            newItem = QListWidgetItemPrototypeInfo(self.redoIconLight, item.prototypeName)
+            # tree_object.setToolTip(0, "Some tool tip")
+            # tree_object.setStatusTip(0, "Woohoo, this is status tip!")
+            # tree_object.setWhatsThis(0, "This is dummy string")
+            listWidget.addItem(newItem)
+            # treeWidget.addTopLevelItem(tree_object)
 
         tab1hbox = QHBoxLayout()
         tab1hbox.setContentsMargins(5, 5, 5, 5)
-        # tab1hbox.addWidget(listWidget)
+        tab1hbox.addWidget(listWidget)
         tab1.setLayout(tab1hbox)
 
         tab2 = QWidget()
@@ -232,7 +235,7 @@ class MainWindow(QMainWindow):
         tab2hbox.addWidget(textEdit)
         tab2.setLayout(tab2hbox)
 
-        self.mainTabWidget.addTab(tab1, "&Tree Explorer")
+        self.mainTabWidget.addTab(tab1, "&List Explorer")
         self.mainTabWidget.addTab(tab2, "Code &Editor")
 
 
@@ -259,9 +262,9 @@ class StringListModel(QAbstractListModel):
         if role == Qt.BackgroundRole:
             batch = (index.row() // 100) % 2
             if batch == 0:
-                return qApp.palette().base()
+                return QApplication.palette().base()
 
-            return qApp.palette().alternativeBase()
+            return QApplication.palette().alternativeBase()
         return None
 
     def headerData(self, section: int, orientation,
@@ -303,6 +306,11 @@ class StringListModel(QAbstractListModel):
 
         self.endRemoveRows()
         return True
+
+
+class QListWidgetItemPrototypeInfo(QListWidgetItem):
+    def mouseDoubleClickEvent(self, event):
+        logger.debug("MouseDoubleClickEvent")
 
 
 if __name__ == "__main__":

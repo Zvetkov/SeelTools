@@ -1,13 +1,16 @@
+from timeit import default_timer as timer
+
+from logger import logger
+
+from affix import AffixManager
 from em_parse import xml_to_objfy, read_from_xml_node, parse_str_to_bool
 from engine_config import EngineConfig
+from prototype_info import thePrototypeInfoClassDict
+from prototype_manager import PrototypeManager
 from relationship import Relationship
 from resource_manager import ResourceManager
-from prototype_manager import PrototypeManager
-from affix import AffixManager
-from logger import logger
-from prototype_info import thePrototypeInfoClassDict
 
-theResourceManager = None
+# theResourceManager = None
 
 
 class Kernel(object):
@@ -19,7 +22,7 @@ class Kernel(object):
 
 
 class Server(object):
-    def InitOnce(self, theKernel):
+    def InitOnce(self, theKernel):     
         '''Called by CMiracle3d::LoadLevel'''
         self.engine_config = theKernel.engineConfig
         self.LoadGlobalPropertiesFromXML(self.engine_config.global_properties)
@@ -28,6 +31,8 @@ class Server(object):
         self.theAffixManager.LoadFromXML(self.theGlobalProperties.pathToAffixes)
 
     def Load(self, a2: int = 0, startupMode=0, xmlFile=0, xmlNode=0, isContiniousMap=0, saveType=0):
+        start = timer()
+        logger.debug("Starting timer")
         logger.info("Loading Server")
         self.saveType = saveType
         if not isContiniousMap:
@@ -60,6 +65,8 @@ class Server(object):
             #     level_file_name = self.level.GetFullPathNameA(self.level, allowed_classes, self.level.dsSrvName)
             #     self.theDynamicScene.LoadSceneFromXML(self.pDynamicScene, level_file_name, allowedClasses)
             # logger.info("DynamicScene loaded")
+        end = timer()
+        logger.debug(f"Loading Server Total time: {end - start}")
 
     def LoadGlobalPropertiesFromXML(self, fileName):
         xmlFile = xml_to_objfy(fileName)
