@@ -197,25 +197,32 @@ class MainWindow(QMainWindow):
                                          QSizePolicy.Preferred)
 
         tab1 = QWidget()
-        listWidget = QListWidget()
-        # treeWidget = QTreeWidget()
-        # treeWidget.setColumnCount(2)
-        # treeWidget.setHeaderLabels(["Name", "Prototype"])
+        # listWidget = QListWidget()
+        treeWidget = QTreeWidget()
+        treeWidget.setColumnCount(3)
+        treeWidget.setHeaderLabels(["Name", "Prototype", "Parent"])
 
         server = parsing_module.get_server()
-        for item in server.thePrototypeManager.prototypes:
-            # tree_object = QTreeWidgetItem(treeWidget)
-            # tree_object.setText(0, item.prototypeName)
-            newItem = QListWidgetItemPrototypeInfo(self.redoIconLight, item.prototypeName)
-            # tree_object.setToolTip(0, "Some tool tip")
-            # tree_object.setStatusTip(0, "Woohoo, this is status tip!")
-            # tree_object.setWhatsThis(0, "This is dummy string")
-            listWidget.addItem(newItem)
-            # treeWidget.addTopLevelItem(tree_object)
+        prototypes = server.thePrototypeManager.prototypes
+        prototype_types = set([prototype.className for prototype in prototypes])
+        for prototype_type in prototype_types:
+            tree_object = QTreeWidgetItem(treeWidget)
+            tree_object.setText(0, "...")
+            tree_object.setText(1, prototype_type)
+            tree_object.setText(2, "-")
+            # newItem = QListWidgetItemPrototypeInfo(self.redoIconLight, item.prototypeName)
+            tree_object.setToolTip(0, "Some tool tip")
+            tree_object.setStatusTip(0, "Woohoo, this is status tip!")
+            tree_object.setWhatsThis(0, "This is dummy string")
+            # listWidget.addItem(newItem)
+            addPrototypesOfTypeToTreeItem(treeWidget, tree_object, prototypes, prototype_type)
+            tree_object.DontShowIndicatorWhenChildless
+            treeWidget.addTopLevelItem(tree_object)
 
         tab1hbox = QHBoxLayout()
         tab1hbox.setContentsMargins(5, 5, 5, 5)
-        tab1hbox.addWidget(listWidget)
+        tab1hbox.addWidget(treeWidget)
+        # tab1hbox.addWidget(listWidget)
         tab1.setLayout(tab1hbox)
 
         tab2 = QWidget()
@@ -237,6 +244,22 @@ class MainWindow(QMainWindow):
 
         self.mainTabWidget.addTab(tab1, "&List Explorer")
         self.mainTabWidget.addTab(tab2, "Code &Editor")
+
+
+def addPrototypesOfTypeToTreeItem(tree_widget: QTreeWidget, parent: QListWidgetItem, prototypes, prot_type):
+    prots_of_type = [prot for prot in prototypes if prot.className == prot_type]
+    for prot in prots_of_type:
+        tree_object = QTreeWidgetItem()
+        tree_object.setText(0, prot.prototypeName)
+        tree_object.setText(1, prot_type)
+        if hasattr(prot, 'parent'):
+            tree_object.setText(2, f"{prot.parent.className}: {prot.parent.prototypeName}")
+        else:
+            tree_object.setText(2, "-")
+        tree_object.setToolTip(0, "Some tool tip")
+        tree_object.setStatusTip(0, "Woohoo, this is status tip!")
+        tree_object.setWhatsThis(0, "This is dummy string")
+        parent.addChild(tree_object)
 
 
 class StringListModel(QAbstractListModel):
@@ -308,7 +331,10 @@ class StringListModel(QAbstractListModel):
         return True
 
 
-class QListWidgetItemPrototypeInfo(QListWidgetItem):
+class QTreeWidgetItemPrototypeInfo(QTreeWidgetItem):
+    def __init__(self):
+        QTreeWidgetItem.__init__(self)
+
     def mouseDoubleClickEvent(self, event):
         logger.debug("MouseDoubleClickEvent")
 
