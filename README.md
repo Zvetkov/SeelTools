@@ -6,7 +6,7 @@ Maintainer: [Aleksandr Parfenenkov](mailto:work.zvetkov@gmail.com)
 
 ## Features
 Tries to mimics main game module ("Server") initialisation.
-* Currently implemented / partially implemented:
+Currently implemented / partially implemented:
 * Resource Manager - loading handling resource id, names, inheritence
 * Affix Manager - loading and handling object affixes, use for weapons and vehicle parts
 * Relationship Manager - loading and handling relationship between factions
