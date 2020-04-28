@@ -11,7 +11,7 @@ from PySide2 import QtWidgets  # import (QApplication, QCheckBox, QHBoxLayout, Q
                                # QTextEdit, QTabWidget, QMenu, QAction, QTreeView,
                                # QMainWindow, QMessageBox, QDockWidget, QListWidgetItem,
                                # QTreeWidget, QTreeWidgetItem)
-from qtmodern import styles, windows
+from seeltools.qtmodern import styles, windows
 from seeltools.server import server_init
 
 from seeltools.utilities.log import logger

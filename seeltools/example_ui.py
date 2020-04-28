@@ -3,7 +3,7 @@ from PySide2.QtCore import QDateTime, Qt, QTimer
 from PySide2.QtGui import QPalette, QColor
 from PySide2.QtWidgets import (QApplication, QCheckBox, QComboBox, QHBoxLayout,
                                QDial, QDialog, QGridLayout, QGroupBox, QLabel,
-                               QDateTimeEdit,QLineEdit, QProgressBar, QSlider,
+                               QLineEdit, QProgressBar, QSlider,
                                QPushButton, QRadioButton, QScrollBar, QSpinBox,
                                QSizePolicy, QStyleFactory, QWidget, QTextEdit,
                                QTabWidget, QTableWidget, QVBoxLayout, QToolTip)
@@ -33,7 +33,7 @@ class MainWindow(QDialog):
 
         disableWidgetsCheckBox = QCheckBox("&Disable widgets")
 
-        #self.createTopLeftGroupBox()
+        # self.createTopLeftGroupBox()
         self.createTopRightGroupBox()
         self.createBottomLeftTabWidget()
         self.createBottomRightGroupBox()
@@ -41,7 +41,7 @@ class MainWindow(QDialog):
 
         styleComboBox.activated[str].connect(self.changeStyle)
         self.useStylePaletteCheckBox.toggled.connect(self.changePalette)
-        #disableWidgetsCheckBox.toggled.connect(self.topLeftGroupBox.setDisabled)
+        # disableWidgetsCheckBox.toggled.connect(self.topLeftGroupBox.setDisabled)
         disableWidgetsCheckBox.toggled.connect(self.topRightGroupBox.setDisabled)
         disableWidgetsCheckBox.toggled.connect(self.bottomLeftTabWidget.setDisabled)
         disableWidgetsCheckBox.toggled.connect(self.bottomRightGroupBox.setDisabled)
@@ -55,7 +55,7 @@ class MainWindow(QDialog):
 
         mainLayout = QGridLayout()
         mainLayout.addLayout(topLayout, 0, 0, 1, 2)
-        #mainLayout.addWidget(self.topLeftGroupBox, 1, 0)
+        # mainLayout.addWidget(self.topLeftGroupBox, 1, 0)
         mainLayout.addWidget(self.topRightGroupBox, 1, 1)
         mainLayout.addWidget(self.bottomLeftTabWidget, 2, 0)
         mainLayout.addWidget(self.bottomRightGroupBox, 2, 1)
@@ -118,7 +118,7 @@ class MainWindow(QDialog):
         layout.addWidget(radioButton3)
         layout.addWidget(checkBox)
         layout.addStretch(1)
-        self.topLeftGroupBox.setLayout(layout)    
+        self.topLeftGroupBox.setLayout(layout)
 
     def createTopRightGroupBox(self):
         self.topRightGroupBox = QGroupBox("Group 2")
@@ -142,8 +142,7 @@ class MainWindow(QDialog):
 
     def createBottomLeftTabWidget(self):
         self.bottomLeftTabWidget = QTabWidget()
-        self.bottomLeftTabWidget.setSizePolicy(QSizePolicy.Preferred,
-                QSizePolicy.Ignored)
+        self.bottomLeftTabWidget.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Ignored)
 
         tab1 = QWidget()
         tableWidget = QTableWidget(10, 10)
@@ -157,10 +156,10 @@ class MainWindow(QDialog):
         textEdit = QTextEdit()
 
         textEdit.setPlainText("Twinkle, twinkle, little star,\n"
-                              "How I wonder what you are.\n" 
+                              "How I wonder what you are.\n"
                               "Up above the world so high,\n"
                               "Like a diamond in the sky.\n"
-                              "Twinkle, twinkle, little star,\n" 
+                              "Twinkle, twinkle, little star,\n"
                               "How I wonder what you are!\n")
 
         tab2hbox = QHBoxLayout()
@@ -213,6 +212,7 @@ class MainWindow(QDialog):
         timer = QTimer(self)
         timer.timeout.connect(self.advanceProgressBar)
         timer.start(1000)
+
 
 if __name__ == "__main__":
     sys.exit(main())
