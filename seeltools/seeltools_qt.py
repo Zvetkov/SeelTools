@@ -156,40 +156,51 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def setupDockWindows(self):
         self.objectViewDock = QtWidgets.QDockWidget("Object Viewer")
+        self.objectViewDock.setMinimumWidth(150)
         self.dock_label = QtWidgets.QLabel()
         # self.objectViewDock.setAllowedAreas(QtCore.Qt.LeftDockWidgetArea | QtCore.Qt.RightDockWidgetArea)
 
         prot_grid = QtWidgets.QGridLayout()
-        self.prototype_props = QtWidgets.QLineEdit("Text something")
-        self.prototype_label = QtWidgets.QLabel("Object Description")
-        self.prototype_label.setBuddy(self.prototype_props)
-        prot_grid.addWidget(self.prototype_label, 1, 0)
-        prot_grid.addWidget(self.prototype_props, 1, 1)
+        prot_grid.setRowStretch
+        self.prototype_name_label = QtWidgets.QLabel("Prototype name:")
+        self.prototype_name = QtWidgets.QLineEdit()
+        self.prototype_name_label.setBuddy(self.prototype_name)
+        prot_grid.addWidget(self.prototype_name_label, 0, 0)
+        prot_grid.addWidget(self.prototype_name, 1, 0)
 
-        self.another_edit = QtWidgets.QLineEdit("Another text")
-        self.another_label = QtWidgets.QLabel("Object Description")
-        self.another_label.setBuddy(self.another_edit)
+        self.prototype_price_label = QtWidgets.QLabel("Price:")
+        self.prototype_price = QtWidgets.QLineEdit()
+        self.prototype_price_label.setBuddy(self.prototype_price)
+        prot_grid.addWidget(self.prototype_price_label, 2, 0)
+        prot_grid.addWidget(self.prototype_price, 3, 0)
 
-        self.some_label = QtWidgets.QLabel("Filter &syntax:")
+        self.spacer = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        prot_grid.addItem(self.spacer)
 
-        flowLayout = FlowLayout()
-        flowLayout.addChildLayout(prot_grid)
-        flowLayout.addWidget(self.another_edit)
-        flowLayout.addWidget(self.another_label)
-        flowLayout.addWidget(self.some_label)
-        self.dock_label.setLayout(flowLayout)
+        # self.another_edit = QtWidgets.QLineEdit("Another text")
+        # self.another_label = QtWidgets.QLabel("Object Description")
+        # self.another_label.setBuddy(self.another_edit)
+
+        # self.some_label = QtWidgets.QLabel("Filter &syntax:")
+
+        # flowLayout = FlowLayout()
+        # flowLayout.addChildLayout(prot_grid)
+        # flowLayout.addWidget(self.another_edit)
+        # flowLayout.addWidget(self.another_label)
+        # flowLayout.addWidget(self.some_label)
+        self.dock_label.setLayout(prot_grid)
         # self.horizontal_group_box = QtWidgets.QGroupBox("Horizontal layout")
 
         # horiz_layout = QtWidgets.QHBoxLayout()
-        # horiz_layout.addWidget(self.objectLabel)
-        # horiz_layout.addWidget(self.objectProps)
+        # flowLayout.addWidget(self.prototype_label)
+        # flowLayout.addWidget(self.prototype_name)
         # self.label.setLayout(horiz_layout)
 
         self.objectViewDock.setWidget(self.dock_label)
 
         # dock_windows_layout = QtWidgets.QGridLayout()
         # dock_windows_layout.addWidget(self.objectLabel, 0, 0)
-        # dock_windows_layout.addWidget(self.objectProps, 0, 1)
+        # dock_windows_layout.addWidget(self.prototype_name, 0, 1)
 
         # self.objectViewDock.setLayout(dock_windows_layout)
 
@@ -327,10 +338,24 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def prototype_item_selected(self, prototypeName):
         prot_name, prot_class = self.get_selected_prot_name_and_class()
+
         if prot_class is not None:
-            self.objectProps.setText(prot_name)
+            display_text = prot_name
         else:
-            self.objectProps.setText(f"Folder {prot_name}")
+            display_text = f"Folder {prot_name}"
+        self.prototype_name.setText(display_text)
+
+        prot_price = self.get_prot_price(prot_name)
+        self.prototype_price.setText(str(prot_price))
+
+        # font_metrics = self.prototype_name.fontMetrics()
+        # text_width = font_metrics.boundingRect(display_text).width()
+
+        # logger.info(text_width)
+        # if text_width < 90:
+        #     self.prototype_name.resize(100, 20)
+        # else:
+        #     self.prototype_name.resize(text_width + 10, 20)
 
     def get_selected_prot_name_and_class(self):
         indexes = self.tree_prot_explorer.selectedIndexes()
@@ -341,6 +366,13 @@ class MainWindow(QtWidgets.QMainWindow):
             return prot_name, None
         else:
             return prot_name, prot_class
+
+    def get_prot_price(self, prot_name):
+        server = server_init.get_server()
+        prototype_manager = server.thePrototypeManager
+        prot = prototype_manager.InternalGetPrototypeInfo(prot_name)
+        return prot.price
+
 
 
 def create_prototype_model(parent):
