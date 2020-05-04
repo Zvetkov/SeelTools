@@ -7,15 +7,15 @@ Maintainer: [Aleksandr Parfenenkov](mailto:work.zvetkov@gmail.com)
 ## Features
 Tries to mimics main game module ("Server") initialisation.
 Currently implemented / partially implemented:
-Resource Manager - loading handling resource id, names, inheritence
-Affix Manager - loading and handling object affixes, use for weapons and vehicle parts
-Relationship Manager - loading and handling relationship between factions
-Prototype Manager - loading and handling Prototypes from xml files, Prototypes later used to initilaised game objects
+* Resource Manager - loading handling resource id, names, inheritence
+* Affix Manager - loading and handling object affixes, use for weapons and vehicle parts
+* Relationship Manager - loading and handling relationship between factions
+* Prototype Manager - loading and handling Prototypes from xml files, Prototypes later used to initilaised game objects
 
-Game Object classes - 120 classes, subclasses and dummy classes
-Game Object Prototype classes - 111 prototype classes
+* Game Object classes - 120 classes, subclasses and dummy classes
+* Game Object Prototype classes - 111 prototype classes
 
-Displays all loaded prototype from 
+Displays all loaded prototype from game files as a tree in GUI.
 
 ## Quick start
 
