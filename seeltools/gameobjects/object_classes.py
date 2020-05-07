@@ -815,7 +815,7 @@ class Boss03Part(VehiclePart):
 class Boss03(AnimatedComplexPhysicObj):
     def __init__(self, prototype_info_object):
         AnimatedComplexPhysicObj.__init__(self, prototype_info_object)
-        self.heath = prototype_info_object.maxHealth
+        self.health = prototype_info_object.maxHealth
         self.pointsForDrones = []
         self.pointsForShooting = []
         self.pathNameForFlyingWithWings = ""
