@@ -597,7 +597,6 @@ class AffixGeneratorPrototypeInfo(PrototypeInfo):
     def InternalCopyFrom(self, prot_to_copy_from):
         self.parent = prot_to_copy_from
 
-
     # class AffixDescription(object):
     #     def __init__(self):
     #         self.affixName = ""
@@ -1182,8 +1181,6 @@ class InfectionTeamPrototypeInfo(TeamPrototypeInfo):
                                  f"for infection team '{self.prototypeName}'")
                 else:
                     logger.error(f"No vehicle generator and no vehicles for InfectionTeam '{self.prototypeName}'")
-
-
 
 
 class InfectionZonePrototypeInfo(PrototypeInfo):
@@ -2886,7 +2883,7 @@ thePrototypeInfoClassDict = {
     "RopeObj": RopeObjPrototypeInfo,
     "SgNodeObj": SgNodeObjPrototypeInfo,
     "SmokeScreenLocation": SmokeScreenLocationPrototypeInfo,
-    "StaticAutoGun": StaticAutoGunPrototypeInfo,  # def InternalCopyFrom(self, prot_to_copy_from): self.parent = prot_to_copy_from
+    "StaticAutoGun": StaticAutoGunPrototypeInfo,
     "Submarine": SubmarinePrototypeInfo,
     "Team": TeamPrototypeInfo,
     "TeamTacticWithRoles": TeamTacticWithRolesPrototypeInfo,

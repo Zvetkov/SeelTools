@@ -1,8 +1,8 @@
 import os
 
-WORKING_DIRECTORY = "D:/Steam/steamapps/common/Hard Truck Apocalypse"
+FALLBACK_WORKING_DIRECTORY = "D:/Steam/steamapps/common/Hard Truck Apocalypse 2"
 
-MAP_NAME = "r1m3"
+# MAP_NAME = "r1m3"
 
 # gamedata folder
 
@@ -83,17 +83,17 @@ SIDE_GUNS_XML = os.path.join("data", "gamedata", "gameobjects",
 GUNS_XML_DICT = {"small_guns": SMALL_GUNS_XML, "big_guns": BIG_GUNS_XML,
                  "giant_guns": GIANT_GUNS_XML, "side_guns": SIDE_GUNS_XML}
 
-# maps folder
-DYNAMIC_SCENE_XML = os.path.join("data", "maps", MAP_NAME,
-                                 "dynamicscene.xml")  # data/maps/r1m1/dynamicscene.xml
-OBJECT_NAMES_XML = os.path.join("data", "maps", MAP_NAME,
-                                "object_names.xml")  # data/maps/r1m1/object_names.xml
-TOWN_BACKGROUND_XML = os.path.join("data", "maps", MAP_NAME,
-                                   "icons.xml")  # data/maps/r1m1/icons.xml
-TRIGGERS_XML = os.path.join("data", "maps", MAP_NAME,
-                            "triggers.xml")  # data/maps/r1m1/triggers.xml
-CINEMA_TRIGGERS_XML = os.path.join("data", "maps", MAP_NAME,
-                                   "cinematriggers.xml")  # data/maps/r1m1/cinematriggers.xml
+# # maps folder
+# DYNAMIC_SCENE_XML = os.path.join("data", "maps", MAP_NAME,
+#                                  "dynamicscene.xml")  # data/maps/r1m1/dynamicscene.xml
+# OBJECT_NAMES_XML = os.path.join("data", "maps", MAP_NAME,
+#                                 "object_names.xml")  # data/maps/r1m1/object_names.xml
+# TOWN_BACKGROUND_XML = os.path.join("data", "maps", MAP_NAME,
+#                                    "icons.xml")  # data/maps/r1m1/icons.xml
+# TRIGGERS_XML = os.path.join("data", "maps", MAP_NAME,
+#                             "triggers.xml")  # data/maps/r1m1/triggers.xml
+# CINEMA_TRIGGERS_XML = os.path.join("data", "maps", MAP_NAME,
+#                                    "cinematriggers.xml")  # data/maps/r1m1/cinematriggers.xml
 
 # models folder
 BELONG_LOGO_XML = os.path.join("data", "models",

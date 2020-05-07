@@ -1,23 +1,21 @@
-import sys
-sys.path.append('..')
-
 import os
+import sys
+
 from pathlib import Path
 
-from PySide2 import QtCore  # import # Qt, QAbstractListModel, QModelIndex, QSortFilterProxyModel, QRegExp
-from PySide2 import QtGui  # import QIcon, QKeySequence, QRadialGradient, QBrush, QColor
-from PySide2 import QtWidgets  # import (QApplication, QCheckBox, QHBoxLayout, QLabel, QTreeView,
-                               # QPushButton, QSizePolicy, QWidget, QListWidget,
-                               # QTextEdit, QTabWidget, QMenu, QAction, QTreeView,
-                               # QMainWindow, QMessageBox, QDockWidget, QListWidgetItem,
-                               # QTreeWidget, QTreeWidgetItem)
+from PySide2 import QtCore
+from PySide2 import QtGui
+from PySide2 import QtWidgets
+
+sys.path.append('..')  # temp workaround to allow running application from this entry point instead on __maim__.py
+
 from seeltools.qtmodern import styles, windows
 from seeltools.server import server_init
-
 from seeltools.utilities.log import logger
+from seeltools.utilities.game_path import WORKING_DIRECTORY
 
 APP_NAME = "SeelTools"
-APP_VERSION = 0.01
+APP_VERSION = 0.02
 
 
 def main():
@@ -34,6 +32,8 @@ def main():
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, app):
         super(MainWindow, self).__init__()
+        some = WORKING_DIRECTORY
+
         # setting up application skin and display properties
         self.app = app
         styles.dark(self.app.instance())
@@ -88,8 +88,8 @@ class MainWindow(QtWidgets.QMainWindow):
                                                       statusTip="Open folder where Ex Machina is installed",
                                                       triggered=self.openGameFolder)
 
-        self.saveAction = QtWidgets.QAction(QtGui.QIcon.fromTheme('document-save', self.saveIconLight), "&Save...", self,
-                                            shortcut=QtGui.QKeySequence.Save,
+        self.saveAction = QtWidgets.QAction(QtGui.QIcon.fromTheme('document-save', self.saveIconLight), "&Save...",
+                                            self, shortcut=QtGui.QKeySequence.Save,
                                             statusTip="Save all changes", triggered=self.save)
 
         self.quitAction = QtWidgets.QAction("&Quit", self, shortcut="Ctrl+Q", statusTip="Quit the application",
@@ -368,11 +368,13 @@ class MainWindow(QtWidgets.QMainWindow):
             return prot_name, prot_class
 
     def get_prot_price(self, prot_name):
-        server = server_init.get_server()
+        server = server_init.theServer
         prototype_manager = server.thePrototypeManager
         prot = prototype_manager.InternalGetPrototypeInfo(prot_name)
-        return prot.price
-
+        if hasattr(prot, "price"):
+            return prot.price
+        else:
+            return "-"
 
 
 def create_prototype_model(parent):
@@ -382,7 +384,7 @@ def create_prototype_model(parent):
     model.setHeaderData(1, QtCore.Qt.Horizontal, "Class")
     model.setHeaderData(2, QtCore.Qt.Horizontal, "Parent Name")
 
-    server = server_init.get_server()
+    server = server_init.theServer
     prototypes = server.thePrototypeManager.prototypes
     prototype_types = set([prototype.className for prototype in prototypes])
 
@@ -484,8 +486,10 @@ class FlowLayout(QtWidgets.QLayout):
 
         for item in self.itemList:
             wid = item.widget()
-            spaceX = self.spacing() + wid.style().layoutSpacing(QtWidgets.QSizePolicy.PushButton, QtWidgets.QSizePolicy.PushButton, QtCore.Qt.Horizontal)
-            spaceY = self.spacing() + wid.style().layoutSpacing(QtWidgets.QSizePolicy.PushButton, QtWidgets.QSizePolicy.PushButton, QtCore.Qt.Vertical)
+            spaceX = self.spacing() + wid.style().layoutSpacing(QtWidgets.QSizePolicy.PushButton,
+                                                                QtWidgets.QSizePolicy.PushButton, QtCore.Qt.Horizontal)
+            spaceY = self.spacing() + wid.style().layoutSpacing(QtWidgets.QSizePolicy.PushButton,
+                                                                QtWidgets.QSizePolicy.PushButton, QtCore.Qt.Vertical)
             nextX = x + item.sizeHint().width() + spaceX
             if nextX - spaceX > rect.right() and lineHeight > 0:
                 x = rect.x()
