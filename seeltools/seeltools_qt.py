@@ -12,6 +12,7 @@ sys.path.append('..')  # temp workaround to allow running application from this 
 from seeltools.qtmodern import styles, windows
 from seeltools.server import server_init
 from seeltools.utilities.log import logger
+from seeltools.utilities.game_path import WORKING_DIRECTORY
 
 APP_NAME = "SeelTools"
 APP_VERSION = 0.02
@@ -31,6 +32,8 @@ def main():
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, app):
         super(MainWindow, self).__init__()
+        some = WORKING_DIRECTORY
+
         # setting up application skin and display properties
         self.app = app
         styles.dark(self.app.instance())

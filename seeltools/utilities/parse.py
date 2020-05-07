@@ -3,7 +3,7 @@ from lxml import etree, objectify
 from html import unescape
 from urllib.parse import unquote
 
-from seeltools.utilities.constants import WORKING_DIRECTORY
+from seeltools.utilities.game_path import WORKING_DIRECTORY
 from seeltools.utilities.log import logger
 
 ENCODING = 'windows-1251'
