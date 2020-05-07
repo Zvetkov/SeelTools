@@ -30,7 +30,8 @@ Additional libs:
 
 ### Installation and execution:
 
-Change path to game directory in `seeltools/utilities/constants.py`:
+Tool tries to find game working directory in Steam libraries. If suitable install not found, it will fallback to hardcoded path.
+Fallback path to game directory in `seeltools/utilities/constants.py`:
 ```py
 WORKING_DIRECTORY = "D:/Steam/steamapps/common/Hard Truck Apocalypse"
 ```
