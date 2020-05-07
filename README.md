@@ -52,7 +52,7 @@ Maximum line length: 120 characters
 
 Naming:
 * We use Targem style(camelCase, TitleCase) for functions, classes and variables taken from original game.
-* We use pythonic style(snake_case, TitleCase, CAPS_CASE) for all other new native variables created for use in tool.
+* We use pythonic style(snake_case, TitleCase, CAPS_CASE) for all other new native entities created for use in tool.
 
 When possible for Targem vars/funcs/classes we try to save original names, for new entities use 1) descriptive, 2) short names  - in that order of priorities.
  
