@@ -45,3 +45,20 @@ Run entry point script `seeltools_qt.py` or run as module from repository root:
 ```bash
 python -m seeltools
 ```
+
+### Code style:
+Maximum line length: 120 characters
+
+We use both Targem style(camelCase, TitleCase) for functions, classes and variables taken from original game.
+We use pythonic style(snake_case, TitleCase, CAPS_CASE) for all other new native variables created for use in tool.
+When possible for Targem vars/funcs/classes we try to save original names, for new entities use 1) descriptive, 2) short names  - in that order of priorities.
+ 
+ Taken from game:
+ variablesInCamelCase (remove "m_", "b_" etc and replace TitleCase if found in original variables)
+ ClassesInTitleCase, FunctionsInTileCase
+ 
+ Native:
+snake_case - variable names, function names, method names, and module or package (i.e. file) names
+TitleCase - class names
+CAPITALIZED_NAMES - constants 
+Also see: https://www.python.org/dev/peps/pep-0008/ and https://visualgit.readthedocs.io/en/latest/pages/naming_convention.html
