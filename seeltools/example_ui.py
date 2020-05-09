@@ -3,7 +3,7 @@ from PySide2.QtCore import QDateTime, Qt, QTimer
 from PySide2.QtGui import QPalette, QColor
 from PySide2.QtWidgets import (QApplication, QCheckBox, QComboBox, QHBoxLayout,
                                QDial, QDialog, QGridLayout, QGroupBox, QLabel,
-                               QLineEdit, QProgressBar, QSlider,
+                               QLineEdit, QProgressBar, QSlider, QDateTimeEdit,
                                QPushButton, QRadioButton, QScrollBar, QSpinBox,
                                QSizePolicy, QStyleFactory, QWidget, QTextEdit,
                                QTabWidget, QTableWidget, QVBoxLayout, QToolTip)
@@ -66,7 +66,7 @@ class MainWindow(QDialog):
         mainLayout.setColumnStretch(1, 1)
         self.setLayout(mainLayout)
 
-        self.setWindowTitle("SeelTools")
+        self.setWindowTitle("Example Window")
         self.changeStyle('Fusion')
 
     def changeStyle(self, styleName):

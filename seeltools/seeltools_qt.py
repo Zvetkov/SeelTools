@@ -155,7 +155,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.statusBar().showMessage("Ready")
 
     def setupDockWindows(self):
-        self.objectViewDock = QtWidgets.QDockWidget("Object Viewer")
+        self.objectViewDock = QtWidgets.QDockWidget("QuickLook")
         self.objectViewDock.setMinimumWidth(150)
         self.dock_label = QtWidgets.QLabel()
         # self.objectViewDock.setAllowedAreas(QtCore.Qt.LeftDockWidgetArea | QtCore.Qt.RightDockWidgetArea)
@@ -340,13 +340,15 @@ class MainWindow(QtWidgets.QMainWindow):
         prot_name, prot_class = self.get_selected_prot_name_and_class()
 
         if prot_class is not None:
-            display_text = prot_name
+            label_text = "Prototype name:"
         else:
-            display_text = f"Folder {prot_name}"
-        self.prototype_name.setText(display_text)
+            label_text = "Folder name:"
+        self.prototype_name.setText(prot_name)
+        self.prototype_name_label.setText(label_text)
+
 
         prot_price = self.get_prot_price(prot_name)
-        self.prototype_price.setText(str(prot_price))
+        self.prototype_price.setText(prot_price)
 
         # font_metrics = self.prototype_name.fontMetrics()
         # text_width = font_metrics.boundingRect(display_text).width()
@@ -372,7 +374,7 @@ class MainWindow(QtWidgets.QMainWindow):
         prototype_manager = server.thePrototypeManager
         prot = prototype_manager.InternalGetPrototypeInfo(prot_name)
         if hasattr(prot, "price"):
-            return prot.price
+            return str(prot.price)
         else:
             return "-"
 

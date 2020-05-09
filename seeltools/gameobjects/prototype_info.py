@@ -80,6 +80,9 @@ class PrototypeInfo(object):
                 logger.error(f"Invalid parent prototype: '{self.parentPrototypeName}' "
                              f"for prototype: '{self.prototypeName}'")
 
+    def get_dict_representation(self):
+        pass
+
 
 class PhysicBodyPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
