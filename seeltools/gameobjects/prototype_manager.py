@@ -8,6 +8,11 @@ from seeltools.utilities.constants import STATUS_SUCCESS
 from seeltools.gameobjects.prototype_info import PrototypeInfo, thePrototypeInfoClassDict
 
 
+from seeltools.utilities.game_path import WORKING_DIRECTORY
+from seeltools.utilities.file_ops import save_to_file
+from lxml import etree
+
+
 class PrototypeManager(object):
     def __init__(self, server):
         # self.Clear()
@@ -18,6 +23,7 @@ class PrototypeManager(object):
         self.prototypeFullNamesLocalizedForms = {}  # unsgn_int:unsgn_int
         self.prototypeFullNames = {}  # str:str
         self.loadingLock = 0
+        self.prototypeClasses = []
 
     def InternalGetPrototypeInfo(self, prototypeName):
         return self.prototypesMap.get(prototypeName)  # might be best to completely replace method with direct dict get
@@ -89,6 +95,8 @@ class PrototypeManager(object):
                     self.prototypeNamesToIds[prototype_info.prototypeName] = prototype_info.prototypeId
                     self.prototypes.append(prototype_info)
                     self.prototypesMap[prototype_info.prototypeName] = prototype_info
+                    if prototype_info.className not in self.prototypeClasses:
+                        self.prototypeClasses.append(prototype_info.className)
                     return 1
             else:
                 logger.error(f"Prototype {prototype_info.prototypeName} "
@@ -97,3 +105,41 @@ class PrototypeManager(object):
         else:
             logger.error("Invalid class name: <{class_name}>!")
             return 0
+
+    def save_to_xml(self, gameObjectsFilePath):
+        full_path = path.join(WORKING_DIRECTORY, gameObjectsFilePath)
+        full_path = self.tempFuncRenameFile(full_path)
+        folder_path = path.split(full_path)[0]
+
+        self.generateGameObjectsFile(full_path)
+        for prototype_class in self.prototypeClasses:
+            self.generateSpecificPrototypesFile(prototype_class, folder_path)
+
+    def generateGameObjectsFile(self, fullPath):
+        prototypesTree = etree.Element("Prototypes")
+
+        for prototype_class in self.prototypeClasses:
+            folder = etree.Element("Folder")
+            folder.set("Name", prototype_class)
+            folder.set("Path", 'new_%s.xml' % prototype_class)
+            prototypesTree.append(folder)
+
+        save_to_file(prototypesTree, fullPath)
+
+    def generateSpecificPrototypesFile(self, className, pathToFolder):
+        filename = 'new_%s.xml' % className
+        fullPath = path.join(pathToFolder, filename)
+
+        prototypesTree = etree.Element("Prototypes")
+        filteredPrototypes = [x for x in self.prototypes if x.className == className]
+        filteredPrototypes.sort(key=lambda x: x.prototypeName, reverse=False)
+        for prototype in filteredPrototypes:
+            prototypesTree.append(prototype.get_etree_prototype())
+        save_to_file(prototypesTree, fullPath)
+
+    def tempFuncRenameFile(self, docfile):
+        pathN, filename = path.split(docfile)
+        filename = path.splitext(filename)[0]
+        newfilename = 'new_%s.xml' % filename
+        newpath = path.join(pathN, newfilename)
+        return newpath

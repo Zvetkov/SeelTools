@@ -10,9 +10,7 @@ def save_to_file(objectify_tree: objectify.ObjectifiedElement, path,
     '''
     xml_string = etree.tostring(objectify_tree,
                                 pretty_print=True,
-                                xml_declaration=True,
-                                encoding='windows-1251',
-                                standalone=True)
+                                doctype='<?xml version="1.0" encoding="windows-1251" standalone="yes" ?>')
     with open(path, "wb") as writer:
         if machina_beautify:
             writer.write(machina_xml_beautify(xml_string))

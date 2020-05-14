@@ -86,6 +86,9 @@ class Server(object):
             class_refference(self)
         return class_refference
 
+    def save_all(self):
+        self.thePrototypeManager.save_to_xml(self.theGlobalProperties.pathToGameObjects)
+
 
 theKernel = Kernel()
 theServer = Server()

@@ -117,7 +117,7 @@ class MainWindow(QtWidgets.QMainWindow):
         pass
 
     def save(self):
-        pass
+        server_init.theServer.save_all()
 
     def closeApplication(self):
         pass

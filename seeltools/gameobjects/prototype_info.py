@@ -1,6 +1,6 @@
 from math import pi, sqrt
 from copy import deepcopy
-from lxml import objectify
+from lxml import objectify, etree
 
 from seeltools.utilities.log import logger
 
@@ -12,6 +12,8 @@ from seeltools.utilities.constants import (STATUS_SUCCESS, DEFAULT_TURNING_SPEED
                                            ZERO_VECTOR, IDENTITY_QUATERNION)
 
 from seeltools.utilities.global_functions import GetActionByName  # , AIParam
+
+from seeltools.utilities.mutator import add_etree_attribute_if_propery_exist
 
 from seeltools.gameobjects.object_classes import *
 
@@ -30,7 +32,7 @@ class PrototypeInfo(object):
         self.price = 0
         self.isAbstract = 0
         self.parentPrototypeName = ""
-        self.parentPrototypeName = -1
+        self.parentPrototypeId = -1
         self.protoClassObject = 0
 
     def LoadFromXML(self, xmlFile, xmlNode):
@@ -80,6 +82,19 @@ class PrototypeInfo(object):
                 logger.error(f"Invalid parent prototype: '{self.parentPrototypeName}' "
                              f"for prototype: '{self.prototypeName}'")
 
+    def get_etree_prototype(self):
+        result = etree.Element("Prototype")
+        if self.resourceId != -1:
+            result.set("ResourceType", self.theServer.theResourceManager.GetResourceName(self.resourceId))
+        add_etree_attribute_if_propery_exist(result, "Class", "className", self)
+        add_etree_attribute_if_propery_exist(result, "Name", "prototypeName", self)
+        add_etree_attribute_if_propery_exist(result, "VisibleInEncyclopedia", "visibleInEncyclopedia", self)
+        add_etree_attribute_if_propery_exist(result, "ApplyAffixes", "applyAffixes", self)
+        add_etree_attribute_if_propery_exist(result, "Price", "price", self)
+        add_etree_attribute_if_propery_exist(result, "Abstract", "isAbstract", self)
+        add_etree_attribute_if_propery_exist(result, "ParentPrototype", "parentPrototypeName", self)
+        return result
+
 
 class PhysicBodyPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
@@ -105,9 +120,9 @@ class PhysicBodyPrototypeInfo(PrototypeInfo):
             return STATUS_SUCCESS
 
 
-class SimplePhysicBodyPrototypeInfo(PhysicBodyPrototypeInfo):
-    def __init__(self, server):
-        PhysicBodyPrototypeInfo.__init__(self, server)
+# class SimplePhysicBodyPrototypeInfo(PhysicBodyPrototypeInfo):
+#     def __init__(self, server):
+#         PhysicBodyPrototypeInfo.__init__(self, server)
 
 
 class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
@@ -169,7 +184,7 @@ class ChassisPrototypeInfo(VehiclePartPrototypeInfo):
         self.gearShiftSoundName = ""
 
     def LoadFromXML(self, xmlFile, xmlNode):
-        result = PhysicBodyPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             maxHealth = read_from_xml_node(xmlNode, "MaxHealth", do_not_warn=True)
             if maxHealth is not None:
@@ -198,7 +213,7 @@ class CabinPrototypeInfo(VehiclePartPrototypeInfo):
         self.engineLowSoundName = ""
 
     def LoadFromXML(self, xmlFile, xmlNode):
-        result = PhysicBodyPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             maxPower = read_from_xml_node(xmlNode, "MaxPower", do_not_warn=True)
             if maxPower is not None:
@@ -244,7 +259,7 @@ class BasketPrototypeInfo(VehiclePartPrototypeInfo):
         self.repositorySize = {"x": 10, "y": 10}
 
     def LoadFromXML(self, xmlFile, xmlNode):
-        result = PhysicBodyPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             repositoryDescriptions = child_from_xml_node(xmlNode, "RepositoryDescription")
             repositorySize = read_from_xml_node(repositoryDescriptions, "RepositorySize")
@@ -2600,8 +2615,14 @@ class QuestItemPrototypeInfo(PrototypeInfo):
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.modelName = safe_check_and_set(self.modelName, xmlNode, "ModelName")
+            self.modelName = safe_check_and_set(self.modelName, xmlNode, "ModelFile")
             return STATUS_SUCCESS
+
+    def get_etree_prototype(self):
+        result = PrototypeInfo.get_etree_prototype(self)
+        if result is not None:
+            add_etree_attribute_if_propery_exist(result, "ModelFile", "modelName", self)
+            return result
 
 
 class BreakableObjectPrototypeInfo(SimplePhysicObjPrototypeInfo):
