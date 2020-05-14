@@ -30,7 +30,7 @@ class PrototypeInfo(object):
         self.visibleInEncyclopedia = True
         self.applyAffixes = True
         self.price = 0
-        self.isAbstract = True
+        self.isAbstract = False
         self.parentPrototypeName = ""
         self.parentPrototypeId = -1
         self.protoClassObject = 0
