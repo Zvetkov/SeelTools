@@ -26,11 +26,11 @@ class PrototypeInfo(object):
         self.prototypeName = ""
         self.prototypeId = -1
         self.resourceId = -1
-        self.isUpdating = 1
-        self.visibleInEncyclopedia = 1
-        self.applyAffixes = 1
+        self.isUpdating = True
+        self.visibleInEncyclopedia = True
+        self.applyAffixes = True
         self.price = 0
-        self.isAbstract = 0
+        self.isAbstract = True
         self.parentPrototypeName = ""
         self.parentPrototypeId = -1
         self.protoClassObject = 0
@@ -41,7 +41,8 @@ class PrototypeInfo(object):
             self.className = read_from_xml_node(xmlNode, "Class")
             self.protoClassObject = globals()[self.className]  # getting class object by name
             strResType = read_from_xml_node(xmlNode, "ResourceType", do_not_warn=True)
-            self.isUpdating = parse_str_to_bool(read_from_xml_node(xmlNode, "IsUpdating", do_not_warn=True))
+            self.isUpdating = parse_str_to_bool(self.isUpdating, read_from_xml_node(xmlNode, "IsUpdating",
+                                                                                    do_not_warn=True))
             if strResType is not None:
                 self.resourceId = self.theServer.theResourceManager.GetResourceId(strResType)
             if strResType is not None and self.resourceId == -1:
@@ -51,14 +52,16 @@ class PrototypeInfo(object):
                     logger.info(f"Invalid ResourceType: {strResType} for prototype {self.prototypeName} "
                                 f" and its parent {self.parent.prototypeName}")
 
-            self.visibleInEncyclopedia = parse_str_to_bool(read_from_xml_node(xmlNode,
-                                                                              "VisibleInEncyclopedia",
+            self.visibleInEncyclopedia = parse_str_to_bool(self.visibleInEncyclopedia,
+                                                           read_from_xml_node(xmlNode, "VisibleInEncyclopedia",
                                                                               do_not_warn=True))
-            self.applyAffixes = parse_str_to_bool(read_from_xml_node(xmlNode, "ApplyAffixes", do_not_warn=True))
+            self.applyAffixes = parse_str_to_bool(self.applyAffixes, read_from_xml_node(xmlNode, "ApplyAffixes",
+                                                                                        do_not_warn=True))
             price = read_from_xml_node(xmlNode, "Price", do_not_warn=True)
             if price is not None:
                 self.price = int(price)
-            self.isAbstract = parse_str_to_bool(read_from_xml_node(xmlNode, "Abstract", do_not_warn=True))
+            self.isAbstract = parse_str_to_bool(self.isAbstract, read_from_xml_node(xmlNode, "Abstract",
+                                                                                    do_not_warn=True))
             # ??? maybe should fallback to "" instead None
             self.parentPrototypeName = read_from_xml_node(xmlNode, "ParentPrototype", do_not_warn=True)
             return STATUS_SUCCESS
@@ -111,7 +114,8 @@ class PhysicBodyPrototypeInfo(PrototypeInfo):
             if self.engineModelName is None and not issubclass(type(self), CompoundVehiclePartPrototypeInfo):
                 logger.error(f"No model file is provided for prototype {self.prototypeName}")
             mass = read_from_xml_node(xmlNode, "Mass", do_not_warn=True)
-            self.collisionTrimeshAllowed = parse_str_to_bool(read_from_xml_node(xmlNode, "CollisionTrimeshAllowed",
+            self.collisionTrimeshAllowed = parse_str_to_bool(self.collisionTrimeshAllowed,
+                                                             read_from_xml_node(xmlNode, "CollisionTrimeshAllowed",
                                                                                 do_not_warn=True))
             if mass is not None:
                 self.massValue = float(mass)
@@ -169,7 +173,8 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
             if repairCoef is not None:
                 self.repairCoef = float(repairCoef)
 
-            self.canBeUsedInAutogenerating = parse_str_to_bool(read_from_xml_node(xmlNode, "CanBeUsedInAutogenerating",
+            self.canBeUsedInAutogenerating = parse_str_to_bool(self.canBeUsedInAutogenerating,
+                                                               read_from_xml_node(xmlNode, "CanBeUsedInAutogenerating",
                                                                                   do_not_warn=True))
             return STATUS_SUCCESS
 
@@ -344,7 +349,8 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
             if self.damageType is None:
                 logger.warning(f"Unknown damage type: {self.damageType}")
 
-            self.withCharging = parse_str_to_bool(read_from_xml_node(xmlNode, "WithCharging", do_not_warn=True))
+            self.withCharging = parse_str_to_bool(self.withCharging, read_from_xml_node(xmlNode, "WithCharging",
+                                                                                        do_not_warn=True))
 
             chargeSize = read_from_xml_node(xmlNode, "ChargeSize", do_not_warn=True)
             if chargeSize is not None:
@@ -363,10 +369,11 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
                 if shellsPoolSize > 0:
                     self.shellsPoolSize = shellsPoolSize
                 if shellsPoolSize <= 0:
-                    self.withShellsPoolLimit = 0
+                    self.withShellsPoolLimit = False
                     self.shellsPoolSize = 12
 
-            self.withShellsPoolLimit = parse_str_to_bool(read_from_xml_node(xmlNode, "WithShellsPoolLimit",
+            self.withShellsPoolLimit = parse_str_to_bool(self.withShellsPoolLimit,
+                                                         read_from_xml_node(xmlNode, "WithShellsPoolLimit",
                                                                             do_not_warn=True))
 
             turningSpeed = read_from_xml_node(xmlNode, "TurningSpeed", do_not_warn=True)
@@ -374,7 +381,8 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
                 self.turningSpeed = float(turningSpeed)
             self.turningSpeed *= pi / 180  # convert to rads
             self.engineModelName += "Gun"  # ??? is this really what's happening?
-            self.ignoreStopAnglesWhenFire = parse_str_to_bool(read_from_xml_node(xmlNode, "IgnoreStopAnglesWhenFire",
+            self.ignoreStopAnglesWhenFire = parse_str_to_bool(self.ignoreStopAnglesWhenFire,
+                                                              read_from_xml_node(xmlNode, "IgnoreStopAnglesWhenFire",
                                                                                  do_not_warn=True))
             return STATUS_SUCCESS
 
@@ -580,7 +588,7 @@ class WanderersGeneratorPrototypeInfo(PrototypeInfo):
             self.prototypeIds = []
 
         def LoadFromXML(self, xmlFile, xmlNode):
-            self.present = parse_str_to_bool(read_from_xml_node(xmlNode, "Present", do_not_warn=True))
+            self.present = parse_str_to_bool(self.present, read_from_xml_node(xmlNode, "Present", do_not_warn=True))
             strPrototypes = read_from_xml_node(xmlNode, "Prototypes", do_not_warn=True)
             if strPrototypes is not None:
                 self.prototypeNames = strPrototypes.split()
@@ -645,7 +653,7 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
     def __init__(self, server):
         PhysicObjPrototypeInfo.__init__(self, server)
         self.collisionInfos = []
-        self.collisionTrimeshAllowed = 0
+        self.collisionTrimeshAllowed = False
         self.geomType = 0
         self.engineModelName = ""
         self.size = deepcopy(ZERO_VECTOR)
@@ -660,8 +668,8 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
                 self.massValue = float(mass)
             # ??? maybe should fallback to "" instead None
             self.engineModelName = read_from_xml_node(xmlNode, "ModelFile", do_not_warn=True)
-            self.collisionTrimeshAllowed = parse_str_to_bool(read_from_xml_node(xmlNode,
-                                                                                "CollisionTrimeshAllowed",
+            self.collisionTrimeshAllowed = parse_str_to_bool(self.collisionTrimeshAllowed,
+                                                             read_from_xml_node(xmlNode, "CollisionTrimeshAllowed",
                                                                                 do_not_warn=True))
             return STATUS_SUCCESS
 
@@ -1097,7 +1105,8 @@ class TeamPrototypeInfo(PrototypeInfo):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             self.decisionMatrixName = read_from_xml_node(xmlNode, "DecisionMatrix")
-            self.removeWhenChildrenDead = parse_str_to_bool(read_from_xml_node(xmlNode, "RemoveWhenChildrenDead",
+            self.removeWhenChildrenDead = parse_str_to_bool(self.removeWhenChildrenDead, 
+                                                            read_from_xml_node(xmlNode, "RemoveWhenChildrenDead",
                                                                                do_not_warn=True))
             formation = child_from_xml_node(xmlNode, "Formation", do_not_warn=True)
             if formation is not None:
@@ -2208,7 +2217,8 @@ class RocketLauncherPrototypeInfo(GunPrototypeInfo):
     def LoadFromXML(self, xmlFile, xmlNode):
         result = GunPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.withAngleLimit = parse_str_to_bool(read_from_xml_node(xmlNode, "WithAngleLimit", do_not_warn=True))
+            self.withAngleLimit = parse_str_to_bool(self.withAngleLimit, read_from_xml_node(xmlNode, "WithAngleLimit",
+                                                                                            do_not_warn=True))
             return STATUS_SUCCESS
 
 

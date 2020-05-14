@@ -1343,8 +1343,8 @@ class Article(object):
                                                            "ExternalPriceCoefficient", "float")
         self.randomPriceCoefficient = safe_check_and_set(self.randomPriceCoefficient, xmlNode,
                                                          "RandomPriceCoefficient", "float")
-        self.sellable = parse_str_to_bool(read_from_xml_node(xmlNode, "Export"))
-        self.buyable = parse_str_to_bool(read_from_xml_node(xmlNode, "Import"))
+        self.sellable = parse_str_to_bool(self.sellable, read_from_xml_node(xmlNode, "Export"))
+        self.buyable = parse_str_to_bool(self.buyable, read_from_xml_node(xmlNode, "Import"))
         amount = safe_check_and_set(self.amount, xmlNode, "Amount", "int")
         if amount >= 0:
             self.amount = amount

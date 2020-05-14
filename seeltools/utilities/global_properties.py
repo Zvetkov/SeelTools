@@ -63,7 +63,7 @@ class GlobalProperties(object):
         self.unlockRegion_x = 100.0
         self.unlockRegion_y = 100.0
         self.vehicleAiFiringRangeMult = 1.0
-        self.vehiclesDropChests = 1
+        self.vehiclesDropChests = True
         self.zoneDefaultFirstSpawnTime = 10.0
         self.zoneRespawnTimeOutIncreaseCoeff = 1.1
 
@@ -118,8 +118,8 @@ class GlobalProperties(object):
         self.splintersAutoDisableNumSteps = \
             int(read_from_xml_node(xmlNode["BreakableObjectSplinters"], "AutoDisableNumSteps"))
 
-        self.vehiclesDropChests = \
-            parse_str_to_bool(read_from_xml_node(xmlNode["Vehicles"], "VehiclesDropChests"))
+        self.vehiclesDropChests = parse_str_to_bool(self.vehiclesDropChests,
+                                                    read_from_xml_node(xmlNode["Vehicles"], "VehiclesDropChests"))
         maxSpeedWithNoFuel = float(read_from_xml_node(xmlNode["Vehicles"], "MaxSpeedWithNoFuel"))
         # ??? why? Is this working?
         self.maxSpeedWithNoFuel = maxSpeedWithNoFuel * 0.27777779  # 5/18 = 0.2(7) ???

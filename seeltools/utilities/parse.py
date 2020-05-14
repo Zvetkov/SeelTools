@@ -113,9 +113,9 @@ def log_comment(comment_node: objectify.ObjectifiedElement, parent_node: objecti
                  f"in file: {path}.")
 
 
-def parse_str_to_bool(string: str):
+def parse_str_to_bool(original_value, string: str):
     if string is None:
-        return False
+        return original_value
     if string.lower() == "true" or string == "1":
         return True
     elif string.lower() == "false" or string == "0":
