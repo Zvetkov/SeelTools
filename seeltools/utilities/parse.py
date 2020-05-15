@@ -113,7 +113,7 @@ def log_comment(comment_node: objectify.ObjectifiedElement, parent_node: objecti
                  f"in file: {path}.")
 
 
-def parse_str_to_bool(original_value, string: str):
+def parse_str_to_bool(original_value, string: str, is_striped=False):
     if string is None:
         return original_value
     if string.lower() == "true" or string == "1":
@@ -121,8 +121,11 @@ def parse_str_to_bool(original_value, string: str):
     elif string.lower() == "false" or string == "0":
         return False
     else:
-        logger.warning(f"Invalid str passed to parse to bool: '{string}'")
-        return False
+        if not is_striped:
+            logger.warning(f"Invalid str passed to parse to bool: '{string}'")
+            return parse_str_to_bool(original_value, string.strip(), True)
+        else:
+            return False
 
 
 def parse_str_to_vector(string: str):
