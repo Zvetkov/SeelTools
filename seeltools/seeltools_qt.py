@@ -117,7 +117,9 @@ class MainWindow(QtWidgets.QMainWindow):
         pass
 
     def save(self):
+        logger.info(f"Save stared")
         server_init.theServer.save_all()
+        logger.info(f"Saved finished")
 
     def closeApplication(self):
         pass

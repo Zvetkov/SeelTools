@@ -96,7 +96,7 @@ class PrototypeManager(object):
                     self.prototypes.append(prototype_info)
                     self.prototypesMap[prototype_info.prototypeName.value] = prototype_info
                     if prototype_info.className not in self.prototypeClasses:
-                        self.prototypeClasses.append(prototype_info.className)
+                        self.prototypeClasses.append(prototype_info.className.value)
 
                     return 1
             else:
@@ -132,8 +132,8 @@ class PrototypeManager(object):
         fullPath = path.join(pathToFolder, filename)
 
         prototypesTree = etree.Element("Prototypes")
-        filteredPrototypes = [x for x in self.prototypes if x.className == className]
-        filteredPrototypes.sort(key=lambda x: x.prototypeName, reverse=False)
+        filteredPrototypes = [x for x in self.prototypes if x.className.value == className]
+        filteredPrototypes.sort(key=lambda x: x.prototypeName.value, reverse=False)
         for prototype in filteredPrototypes:
             prototypesTree.append(prototype.get_etree_prototype())
         save_to_file(prototypesTree, fullPath)

@@ -13,8 +13,8 @@ from seeltools.utilities.constants import (STATUS_SUCCESS, DEFAULT_TURNING_SPEED
 
 from seeltools.utilities.global_functions import GetActionByName  # , AIParam
 
-from seeltools.utilities.mutator import add_etree_attribute_if_propery_exist
 from seeltools.utilities.value_classes import AnnotatedValue, DisplayType, SystemType
+from seeltools.utilities.helper_functions import value_equel_default
 
 from seeltools.gameobjects.object_classes import *
 
@@ -23,7 +23,8 @@ class PrototypeInfo(object):
     '''Base Prototype information class'''
     def __init__(self, server):
         self.theServer = server
-        self.className = AnnotatedValue("", "Class", system_type=SystemType.PRIMARY, display_type=DisplayType.CLASS_NAME)
+        self.className = AnnotatedValue("", "Class", system_type=SystemType.PRIMARY,
+                                        display_type=DisplayType.CLASS_NAME)
         self.prototypeName = AnnotatedValue("", "Name", system_type=SystemType.PRIMARY)
         self.prototypeId = AnnotatedValue(-1, "ProtId", system_type=SystemType.INTERNAL, read_only=True)
         self.resourceId = AnnotatedValue(-1, "ResourceType", display_type=DisplayType.RESOURCE_ID)
@@ -43,8 +44,8 @@ class PrototypeInfo(object):
             self.className.value = read_from_xml_node(xmlNode, "Class")
             self.protoClassObject = globals()[self.className.value]  # getting class object by name
             strResType = read_from_xml_node(xmlNode, "ResourceType", do_not_warn=True)
-            self.isUpdating.value = parse_str_to_bool(self.isUpdating.value, read_from_xml_node(xmlNode, "IsUpdating",
-                                                                                    do_not_warn=True))
+            self.isUpdating.value = parse_str_to_bool(self.isUpdating.value,
+                                                      read_from_xml_node(xmlNode, "IsUpdating", do_not_warn=True))
             if strResType is not None:
                 self.resourceId.value = self.theServer.theResourceManager.GetResourceId(strResType)
             if strResType is not None and self.resourceId.value == -1:
@@ -55,16 +56,16 @@ class PrototypeInfo(object):
                                 f" and its parent {self.parent.prototypeName.value}")
 
             self.visibleInEncyclopedia.value = parse_str_to_bool(self.visibleInEncyclopedia.value,
-                                                           read_from_xml_node(xmlNode, "VisibleInEncyclopedia",
-                                                                              do_not_warn=True))
-            self.applyAffixes.value = parse_str_to_bool(self.applyAffixes.value, read_from_xml_node(xmlNode, "ApplyAffixes",
-                                                                                        do_not_warn=True))
+                                                                 read_from_xml_node(xmlNode,
+                                                                                    "VisibleInEncyclopedia",
+                                                                                    do_not_warn=True))
+            self.applyAffixes.value = parse_str_to_bool(self.applyAffixes.value,
+                                                        read_from_xml_node(xmlNode, "ApplyAffixes", do_not_warn=True))
             price = read_from_xml_node(xmlNode, "Price", do_not_warn=True)
             if price is not None:
                 self.price.value = int(price)
-            self.isAbstract.value = parse_str_to_bool(self.isAbstract.value, read_from_xml_node(xmlNode, "Abstract",
-                                                                                    do_not_warn=True))
-            # ??? maybe should fallback to "" instead None
+            self.isAbstract.value = parse_str_to_bool(self.isAbstract.value,
+                                                      read_from_xml_node(xmlNode, "Abstract", do_not_warn=True))
             self.parentPrototypeName.value = read_from_xml_node(xmlNode, "ParentPrototype", do_not_warn=True)
             return STATUS_SUCCESS
         else:
@@ -90,15 +91,19 @@ class PrototypeInfo(object):
 
     def get_etree_prototype(self):
         result = etree.Element("Prototype")
-        if self.resourceId != -1:
-            result.set("ResourceType", self.theServer.theResourceManager.GetResourceName(self.resourceId))
-        add_etree_attribute_if_propery_exist(result, "Class", "className", self)
-        add_etree_attribute_if_propery_exist(result, "Name", "prototypeName", self)
-        add_etree_attribute_if_propery_exist(result, "VisibleInEncyclopedia", "visibleInEncyclopedia", self)
-        add_etree_attribute_if_propery_exist(result, "ApplyAffixes", "applyAffixes", self)
-        add_etree_attribute_if_propery_exist(result, "Price", "price", self)
-        add_etree_attribute_if_propery_exist(result, "Abstract", "isAbstract", self)
-        add_etree_attribute_if_propery_exist(result, "ParentPrototype", "parentPrototypeName", self)
+
+        prot_attribs = vars(self)
+        for attrib in prot_attribs.values():
+            if isinstance(attrib, AnnotatedValue):
+                if (
+                    attrib.system_type != SystemType.INTERNAL
+                    and not value_equel_default(attrib.value, attrib.default_value)
+                ):
+
+                    if attrib.name == "ResourceType":
+                        result.set(attrib.name, self.theServer.theResourceManager.GetResourceName(attrib.value))
+                    else:
+                        result.set(attrib.name, str(attrib.value))
         return result
 
 
@@ -2632,12 +2637,6 @@ class QuestItemPrototypeInfo(PrototypeInfo):
         if result == STATUS_SUCCESS:
             self.modelName.value = safe_check_and_set(self.modelName.value, xmlNode, "ModelFile")
             return STATUS_SUCCESS
-
-    def get_etree_prototype(self):
-        result = PrototypeInfo.get_etree_prototype(self)
-        if result is not None:
-            add_etree_attribute_if_propery_exist(result, "ModelFile", "modelName", self)
-            return result
 
 
 class BreakableObjectPrototypeInfo(SimplePhysicObjPrototypeInfo):
