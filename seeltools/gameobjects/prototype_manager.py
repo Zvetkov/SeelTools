@@ -29,8 +29,8 @@ class PrototypeManager(object):
         return self.prototypesMap.get(prototypeName)  # might be best to completely replace method with direct dict get
 
     def IsPrototypeOf(prototype_info: PrototypeInfo, class_name):
-        logger.info(f"Checking if {prototype_info.className} is of {class_name}")
-        return type(prototype_info) == thePrototypeInfoClassDict[class_name]
+        logger.info(f"Checking if {prototype_info.className.value} is of {class_name}")
+        return isinstance(prototype_info, thePrototypeInfoClassDict[class_name])
 
     def GetPrototypeId(self, prototypeName):
         prot_id = -1
@@ -76,7 +76,7 @@ class PrototypeManager(object):
         logger.debug(f"Loading {class_name} prototype from {xmlNode.base}")
         prototype_info = self.theServer.CreatePrototypeInfoByClassName(class_name)(self.theServer)
         if prototype_info:
-            prototype_info.className = class_name
+            prototype_info.className.value = class_name
             parent_prot_name = read_from_xml_node(xmlNode, "ParentPrototype", do_not_warn=True)
             if parent_prot_name is not None:
                 parent_prot_info = self.InternalGetPrototypeInfo(parent_prot_name)
@@ -86,21 +86,22 @@ class PrototypeManager(object):
                     parent_prot_info = dummy
                 prototype_info.CopyFrom(parent_prot_info)
             prototypes_length = len(self.prototypes)
-            prototype_info.prototypeId = prototypes_length
+            prototype_info.prototypeId.value = prototypes_length
             if prototype_info.LoadFromXML(xmlFile, xmlNode) == STATUS_SUCCESS:
-                if self.prototypeNamesToIds.get(prototype_info.prototypeName) is not None:
-                    logger.critical(f"Duplicate prototype in game objects: {prototype_info.prototypeName}")
+                if self.prototypeNamesToIds.get(prototype_info.prototypeName.value) is not None:
+                    logger.critical(f"Duplicate prototype in game objects: {prototype_info.prototypeName.value}")
                     raise AttributeError("Duplicate prototype, critical error!")
                 else:
-                    self.prototypeNamesToIds[prototype_info.prototypeName] = prototype_info.prototypeId
+                    self.prototypeNamesToIds[prototype_info.prototypeName.value] = prototype_info.prototypeId.value
                     self.prototypes.append(prototype_info)
-                    self.prototypesMap[prototype_info.prototypeName] = prototype_info
+                    self.prototypesMap[prototype_info.prototypeName.value] = prototype_info
                     if prototype_info.className not in self.prototypeClasses:
                         self.prototypeClasses.append(prototype_info.className)
+
                     return 1
             else:
-                logger.error(f"Prototype {prototype_info.prototypeName} "
-                             f"of class {prototype_info.className} was not loaded!")
+                logger.error(f"Prototype {prototype_info.prototypeName.value} "
+                             f"of class {prototype_info.className.value} was not loaded!")
                 return 0
         else:
             logger.error("Invalid class name: <{class_name}>!")

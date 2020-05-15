@@ -14,6 +14,7 @@ from seeltools.utilities.constants import (STATUS_SUCCESS, DEFAULT_TURNING_SPEED
 from seeltools.utilities.global_functions import GetActionByName  # , AIParam
 
 from seeltools.utilities.mutator import add_etree_attribute_if_propery_exist
+from seeltools.utilities.value_classes import AnnotatedValue, DisplayType, SystemType
 
 from seeltools.gameobjects.object_classes import *
 
@@ -22,68 +23,70 @@ class PrototypeInfo(object):
     '''Base Prototype information class'''
     def __init__(self, server):
         self.theServer = server
-        self.className = ""
-        self.prototypeName = ""
-        self.prototypeId = -1
-        self.resourceId = -1
-        self.isUpdating = True
-        self.visibleInEncyclopedia = True
-        self.applyAffixes = True
-        self.price = 0
-        self.isAbstract = False
-        self.parentPrototypeName = ""
+        self.className = AnnotatedValue("", "Class", system_type=SystemType.PRIMARY, display_type=DisplayType.CLASS_NAME)
+        self.prototypeName = AnnotatedValue("", "Name", system_type=SystemType.PRIMARY)
+        self.prototypeId = AnnotatedValue(-1, "ProtId", system_type=SystemType.INTERNAL, read_only=True)
+        self.resourceId = AnnotatedValue(-1, "ResourceType", display_type=DisplayType.RESOURCE_ID)
+        self.isUpdating = AnnotatedValue(True, "IsUpdating", system_type=SystemType.SECONDARY)
+        self.visibleInEncyclopedia = AnnotatedValue(True, "VisibleInEncyclopedia", system_type=SystemType.SECONDARY)
+        self.applyAffixes = AnnotatedValue(True, "ApplyAffixes", system_type=SystemType.SECONDARY)
+        self.price = AnnotatedValue(0, "Price", system_type=SystemType.SECONDARY)
+        self.isAbstract = AnnotatedValue(False, "Abstract", system_type=SystemType.SECONDARY)
+        self.parentPrototypeName = AnnotatedValue("", "ParentPrototype", system_type=SystemType.PRIMARY,
+                                                  display_type=DisplayType.PROTOTYPE_NAME)
         self.parentPrototypeId = -1
         self.protoClassObject = 0
 
     def LoadFromXML(self, xmlFile, xmlNode):
         if xmlNode.tag == "Prototype":
-            self.prototypeName = read_from_xml_node(xmlNode, "Name")
-            self.className = read_from_xml_node(xmlNode, "Class")
-            self.protoClassObject = globals()[self.className]  # getting class object by name
+            self.prototypeName.value = read_from_xml_node(xmlNode, "Name")
+            self.className.value = read_from_xml_node(xmlNode, "Class")
+            self.protoClassObject = globals()[self.className.value]  # getting class object by name
             strResType = read_from_xml_node(xmlNode, "ResourceType", do_not_warn=True)
-            self.isUpdating = parse_str_to_bool(self.isUpdating, read_from_xml_node(xmlNode, "IsUpdating",
+            self.isUpdating.value = parse_str_to_bool(self.isUpdating.value, read_from_xml_node(xmlNode, "IsUpdating",
                                                                                     do_not_warn=True))
             if strResType is not None:
-                self.resourceId = self.theServer.theResourceManager.GetResourceId(strResType)
-            if strResType is not None and self.resourceId == -1:
-                if not self.parentPrototypeName:
-                    logger.info(f"Invalid ResourceType: {strResType} for prototype {self.prototypeName}")
+                self.resourceId.value = self.theServer.theResourceManager.GetResourceId(strResType)
+            if strResType is not None and self.resourceId.value == -1:
+                if not self.parentPrototypeName.value:
+                    logger.info(f"Invalid ResourceType: {strResType} for prototype {self.prototypeName.value}")
                 elif self.parent.resourceId == -1:
-                    logger.info(f"Invalid ResourceType: {strResType} for prototype {self.prototypeName} "
-                                f" and its parent {self.parent.prototypeName}")
+                    logger.info(f"Invalid ResourceType: {strResType} for prototype {self.prototypeName.value} "
+                                f" and its parent {self.parent.prototypeName.value}")
 
-            self.visibleInEncyclopedia = parse_str_to_bool(self.visibleInEncyclopedia,
+            self.visibleInEncyclopedia.value = parse_str_to_bool(self.visibleInEncyclopedia.value,
                                                            read_from_xml_node(xmlNode, "VisibleInEncyclopedia",
                                                                               do_not_warn=True))
-            self.applyAffixes = parse_str_to_bool(self.applyAffixes, read_from_xml_node(xmlNode, "ApplyAffixes",
+            self.applyAffixes.value = parse_str_to_bool(self.applyAffixes.value, read_from_xml_node(xmlNode, "ApplyAffixes",
                                                                                         do_not_warn=True))
             price = read_from_xml_node(xmlNode, "Price", do_not_warn=True)
             if price is not None:
-                self.price = int(price)
-            self.isAbstract = parse_str_to_bool(self.isAbstract, read_from_xml_node(xmlNode, "Abstract",
+                self.price.value = int(price)
+            self.isAbstract.value = parse_str_to_bool(self.isAbstract.value, read_from_xml_node(xmlNode, "Abstract",
                                                                                     do_not_warn=True))
             # ??? maybe should fallback to "" instead None
-            self.parentPrototypeName = read_from_xml_node(xmlNode, "ParentPrototype", do_not_warn=True)
+            self.parentPrototypeName.value = read_from_xml_node(xmlNode, "ParentPrototype", do_not_warn=True)
             return STATUS_SUCCESS
         else:
             logger.warning(f"XML Node with unexpected tag {xmlNode.tag} given for PrototypeInfo loading")
 
     def CopyFrom(self, prot_to_copy_from):
-        if self.className == prot_to_copy_from.className:
+        if self.className.value == prot_to_copy_from.className.value:
             self.InternalCopyFrom(prot_to_copy_from)
         else:
-            logger.error(f"Unexpected parent prototype class for {self.prototypeName}: "
-                         f"expected {self.className}, got {prot_to_copy_from.className}")
+            logger.error(f"Unexpected parent prototype class for {self.prototypeName.value}: "
+                         f"expected {self.className.value}, got {prot_to_copy_from.className.value}")
 
     def InternalCopyFrom(self, prot_to_copy_from):
-        logger.error(f"CopyFrom is not implemented for PrototypeInfo {self.prototypeName} of class {self.className}")
+        logger.error(f"CopyFrom is not implemented for PrototypeInfo {self.prototypeName.value}"
+                     f" of class {self.className.value}")
 
     def PostLoad(self, prototype_manager):
-        if self.parentPrototypeName:
-            self.parentPrototypeId = prototype_manager.GetPrototypeId(self.parentPrototypeName)
-            if self.parentPrototypeId == -1:
-                logger.error(f"Invalid parent prototype: '{self.parentPrototypeName}' "
-                             f"for prototype: '{self.prototypeName}'")
+        if self.parentPrototypeName.value:
+            self.parentPrototypeId.value = prototype_manager.GetPrototypeId(self.parentPrototypeName.value)
+            if self.parentPrototypeId.value == -1:
+                logger.error(f"Invalid parent prototype: '{self.parentPrototypeName.value}' "
+                             f"for prototype: '{self.prototypeName.value}'")
 
     def get_etree_prototype(self):
         result = etree.Element("Prototype")
@@ -112,7 +115,7 @@ class PhysicBodyPrototypeInfo(PrototypeInfo):
         if result == STATUS_SUCCESS:
             self.engineModelName = safe_check_and_set(self.engineModelName, xmlNode, "ModelFile")
             if self.engineModelName is None and not issubclass(type(self), CompoundVehiclePartPrototypeInfo):
-                logger.error(f"No model file is provided for prototype {self.prototypeName}")
+                logger.error(f"No model file is provided for prototype {self.prototypeName.value}")
             mass = read_from_xml_node(xmlNode, "Mass", do_not_warn=True)
             self.collisionTrimeshAllowed = parse_str_to_bool(self.collisionTrimeshAllowed,
                                                              read_from_xml_node(xmlNode, "CollisionTrimeshAllowed",
@@ -120,7 +123,7 @@ class PhysicBodyPrototypeInfo(PrototypeInfo):
             if mass is not None:
                 self.massValue = float(mass)
             if self.massValue < 0.001:
-                logger.error(f"Mass is too low for prototype {self.prototypeName}")
+                logger.error(f"Mass is too low for prototype {self.prototypeName.value}")
             return STATUS_SUCCESS
 
 
@@ -159,7 +162,7 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
                 self.durabilityCoeffsForDamageTypes = [float(coeff) for coeff in strDurabilityCoeffs.split()]
                 for coeff in self.durabilityCoeffsForDamageTypes:
                     if coeff < -25.1 or coeff > 25.0:
-                        logger.error(f"Invalif DurCoeffsForDamageTypes:{coeff} for {self.prototypeName}, "
+                        logger.error(f"Invalif DurCoeffsForDamageTypes:{coeff} for {self.prototypeName.value}, "
                                      "should be between -25.0 and 25.0")
 
             loadPoints = read_from_xml_node(xmlNode, "LoadPoints", do_not_warn=True)
@@ -397,10 +400,10 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
         # self.explosionType = prototype_manager.theServer.theDynamicScene.GetExplosionType(self.explosionTypeName)
         self.shellPrototypeId = prototype_manager.GetPrototypeId(self.shellPrototypeName)
         if self.shellPrototypeId == -1:  # ??? there also exist check if sheelPrototypeName is not empty. A valid case?
-            logger.error(f"Shell prototype {self.shellPrototypeId} is invalid for {self.prototypeName}")
+            logger.error(f"Shell prototype {self.shellPrototypeId} is invalid for {self.prototypeName.value}")
         self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName)
         if self.blastWavePrototypeId == -1:
-            logger.error(f"Unknown blastwave prototype {self.blastWavePrototypeName} for {self.prototypeName}")
+            logger.error(f"Unknown blastwave prototype {self.blastWavePrototypeName} for {self.prototypeName.value}")
 
 
 class GadgetPrototypeInfo(PrototypeInfo):
@@ -409,7 +412,7 @@ class GadgetPrototypeInfo(PrototypeInfo):
         self.modifications = []
         self.modelName = ""
         self.skinNum = 0
-        self.isUpdating = False
+        self.isUpdating = AnnotatedValue(False, "IsUpdating", system_type=SystemType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -445,10 +448,10 @@ class GadgetPrototypeInfo(PrototypeInfo):
                     else:
                         logger.error("Unexpected gadget modification token format. "
                                      "For 4-part token format third part should be '+='. "
-                                     f"Given tokens: '{tokens}' for prototype: {prot_info.prototypeName}")
+                                     f"Given tokens: '{tokens}' for prototype: {prot_info.prototypeName.value}")
                 elif tokens_size != 3:
                     logger.error("Expected tokens list with size equal to 3 or 4. "
-                                 f"Given tokens: '{tokens}' for prototype: {prot_info.prototypeName}")
+                                 f"Given tokens: '{tokens}' for prototype: {prot_info.prototypeName.value}")
 
                 token_resource_id = prot_info.theServer.theResourceManager.GetResourceId(token_parts[0])
                 if token_parts[0] == "VEHICLE":
@@ -458,7 +461,7 @@ class GadgetPrototypeInfo(PrototypeInfo):
                     self.applierInfo["targetFiringType"] = GunPrototypeInfo.Str2FiringType(token_parts[0])
                     if self.applierInfo["targetFiringType"] is None:
                         logger.warning(f"Unknown firing type '{token_parts[0]}' "
-                                       f"for modification token of prototype: {prot_info.prototypeName}")
+                                       f"for modification token of prototype: {prot_info.prototypeName.value}")
                 else:
                     self.applierInfo["applierType"] = 1
                     self.applierInfo["targetResourceId"] = token_resource_id
@@ -469,7 +472,7 @@ class GadgetPrototypeInfo(PrototypeInfo):
                         self.value_type = 5
                     else:
                         logger.error(f"Unexpected modificationType for ModificationInfo '{tokens}'' "
-                                     f"of {prot_info.prototypeName}")
+                                     f"of {prot_info.prototypeName.value}")
                 else:
                     value = float(token_parts[token_value_part]) * 0.01
                     self.value = value
@@ -510,14 +513,14 @@ class WanderersGeneratorPrototypeInfo(PrototypeInfo):
                     self.desiredCountLow = int(tokensDesiredCount[0])
                     self.desiredCountHigh = self.desiredCountLow
                 else:
-                    logger.error(f"WanderersGenerator {self.prototypeName} attrib DesiredCount range "
+                    logger.error(f"WanderersGenerator {self.prototypeName.value} attrib DesiredCount range "
                                  f"should contain one or two numbers but contains {len(tokensDesiredCount)}")
                 if self.desiredCountLow > self.desiredCountHigh:
-                    logger.error(f"WanderersGenerator {self.prototypeName} attrib DesiredCount range invalid: "
+                    logger.error(f"WanderersGenerator {self.prototypeName.value} attrib DesiredCount range invalid: "
                                  f"{self.desiredCountLow}-{self.desiredCountHigh}, "
                                  "should be from lesser to higher number")
                 if self.desiredCountHigh > 5:
-                    logger.error(f"WanderersGenerator {self.prototypeName} attrib DesiredCount high value: "
+                    logger.error(f"WanderersGenerator {self.prototypeName.value} attrib DesiredCount high value: "
                                  f"{self.desiredCountHigh} is higher than permitted MAX_VEHICLES_IN_TEAM: 5")
             vehicles = child_from_xml_node(xmlNode, "Vehicles")
             check_mono_xml_node(vehicles, "Vehicle")
@@ -688,7 +691,7 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
             collision_info.geomType = 2
             collision_info.radius = self.radius
         elif self.geomType == 5:
-            logger.warning(f"Obsolete GeomType: TriMesh! in {self.prototypeName}")
+            logger.warning(f"Obsolete GeomType: TriMesh! in {self.prototypeName.value}")
         self.collisionInfos.append(collision_info)
 
 
@@ -758,7 +761,7 @@ class ComplexPhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
                 self.partPrototypeDescriptions = partPrototypeDescriptions
             else:
                 if self.parent.partPrototypeDescriptions is None:
-                    logger.warning(f"Parts description is missing for prototype {self.prototypeName}")
+                    logger.warning(f"Parts description is missing for prototype {self.prototypeName.value}")
             parts_node = child_from_xml_node(xmlNode, "Parts")
             if parts_node is not None:
                 check_mono_xml_node(parts_node, "Part")
@@ -793,7 +796,7 @@ class StaticAutoGunPrototypeInfo(ComplexPhysicObjPrototypeInfo):
     def LoadFromXML(self, xmlFile, xmlNode):
         result = ComplexPhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            if self.parentPrototypeName is None:
+            if self.parentPrototypeName.value is None:
                 self.maxHealth = safe_check_and_set(self.maxHealth, xmlNode, "MaxHealth", "float")
                 self.destroyedModelName = safe_check_and_set(self.destroyedModelName, xmlNode, "DestroyedModel")
             return STATUS_SUCCESS
@@ -823,7 +826,7 @@ class VehiclePrototypeInfo(ComplexPhysicObjPrototypeInfo):
         self.healthRegeneration = 0.0
         self.durabilityRegeneration = 0.0
         self.blastWavePrototypeName = ""
-        self.visibleInEncyclopedia = False
+        self.visibleInEncyclopedia = AnnotatedValue(False, "VisibleInEncyclopedia", system_type=SystemType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = ComplexPhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -849,11 +852,11 @@ class VehiclePrototypeInfo(ComplexPhysicObjPrototypeInfo):
                 if destroyEffectNames[i] is not None:
                     self.destroyEffectNames[i] = destroyEffectNames[i]
             wheels_info = child_from_xml_node(xmlNode, "Wheels", do_not_warn=True)
-            if self.parentPrototypeName is not None and wheels_info is not None:
-                logger.error(f"Wheels info is present for inherited vehicle {self.prototypeName}")
-            elif self.parentPrototypeName is None and wheels_info is None:
-                logger.error(f"Wheels info is not present for parent vehicle {self.prototypeName}")
-            elif self.parentPrototypeName is None and wheels_info is not None:
+            if self.parentPrototypeName.value is not None and wheels_info is not None:
+                logger.error(f"Wheels info is present for inherited vehicle {self.prototypeName.value}")
+            elif self.parentPrototypeName.value is None and wheels_info is None:
+                logger.error(f"Wheels info is not present for parent vehicle {self.prototypeName.value}")
+            elif self.parentPrototypeName.value is None and wheels_info is not None:
                 check_mono_xml_node(wheels_info, "Wheel")
                 for wheel_node in wheels_info.iterchildren(tag="Wheel"):
                     steering = read_from_xml_node(wheel_node, "steering", do_not_warn=True)
@@ -1074,7 +1077,8 @@ class TeamTacticWithRolesPrototypeInfo(PrototypeInfo):
             for role_name in self.rolePrototypeNames:
                 role_prot_id = prototype_manager.GetPrototypeId(role_name)
                 if role_prot_id == -1:  # ??? there also exist check if sheelPrototypeName is not empty. A valid case?
-                    logger.error(f"Unknown role prototype: '{self.shellPrototypeId}' for prot: '{self.prototypeName}'")
+                    logger.error(f"Unknown role prototype: '{self.shellPrototypeId}' for prot: "
+                                 f"'{self.prototypeName.value}'")
                 else:
                     self.rolePrototypeIds.append(role_prot_id)
 
@@ -1098,7 +1102,7 @@ class TeamPrototypeInfo(PrototypeInfo):
         self.formationPrototypeName = TEAM_DEFAULT_FORMATION_PROTOTYPE
         self.formationPrototypeId = -1
         self.overridesDistBetweenVehicles = False
-        self.isUpdating = False
+        self.isUpdating = AnnotatedValue(False, "IsUpdating", system_type=SystemType.SECONDARY)
         self.formationDistBetweenVehicles = 30.0
 
     def LoadFromXML(self, xmlFile, xmlNode):
@@ -1143,7 +1147,7 @@ class CaravanTeamPrototypeInfo(TeamPrototypeInfo):
                 self.waresPrototypes = waresPrototypes.split()
             if self.tradersGeneratorPrototypeName is not None:
                 if self.waresPrototypes is None:
-                    logger.error(f"No wares for caravan with traders: {self.prototypeName}")
+                    logger.error(f"No wares for caravan with traders: {self.prototypeName.value}")
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
@@ -1151,12 +1155,12 @@ class CaravanTeamPrototypeInfo(TeamPrototypeInfo):
         self.tradersGeneratorPrototypeId = prototype_manager.GetPrototypeId(self.tradersGeneratorPrototypeName)
         if self.tradersGeneratorPrototypeId == -1:
             logger.error(f"Unknown VehiclesGenerator '{self.tradersGeneratorPrototypeName}' "
-                         f"for traders of CaravanTeam {self.prototypeName}")
+                         f"for traders of CaravanTeam {self.prototypeName.value}")
 
         self.guardsGeneratorPrototypeId = prototype_manager.GetPrototypeId(self.guardsGeneratorPrototypeName)
         if self.guardsGeneratorPrototypeId == -1:
             logger.error(f"Unknown VehiclesGenerator '{self.guardsGeneratorPrototypeName}' "
-                         f"for guards of CaravanTeam {self.prototypeName}")
+                         f"for guards of CaravanTeam {self.prototypeName.value}")
 
 
 class VagabondTeamPrototypeInfo(TeamPrototypeInfo):
@@ -1202,9 +1206,9 @@ class InfectionTeamPrototypeInfo(TeamPrototypeInfo):
             if not self.items:
                 if self.vehiclesGeneratorProtoName:
                     logger.error(f"Unknown '{self.vehiclesGeneratorProtoName}' VehiclesGenerator "
-                                 f"for infection team '{self.prototypeName}'")
+                                 f"for infection team '{self.prototypeName.value}'")
                 else:
-                    logger.error(f"No vehicle generator and no vehicles for InfectionTeam '{self.prototypeName}'")
+                    logger.error(f"No vehicle generator and no vehicles for InfectionTeam '{self.prototypeName.value}'")
 
 
 class InfectionZonePrototypeInfo(PrototypeInfo):
@@ -1267,14 +1271,14 @@ class VehiclesGeneratorPrototypeInfo(PrototypeInfo):
                     self.desiredCountLow = int(tokensDesiredCount[0])
                     self.desiredCountHigh = self.desiredCountLow
                 else:
-                    logger.error(f"VehicleGenerator {self.prototypeName} attrib DesiredCount range "
+                    logger.error(f"VehicleGenerator {self.prototypeName.value} attrib DesiredCount range "
                                  f"should contain one or two numbers but contains {len(tokensDesiredCount)}")
                 if self.desiredCountLow > self.desiredCountHigh:
-                    logger.error(f"VehicleGenerator {self.prototypeName} attrib DesiredCount range invalid: "
+                    logger.error(f"VehicleGenerator {self.prototypeName.value} attrib DesiredCount range invalid: "
                                  f"{self.desiredCountLow}-{self.desiredCountHigh}, "
                                  "should be from lesser to higher number")
                 if self.desiredCountHigh > 5:
-                    logger.error(f"VehicleGenerator {self.prototypeName} attrib DesiredCount high value: "
+                    logger.error(f"VehicleGenerator {self.prototypeName.value} attrib DesiredCount high value: "
                                  f"{self.desiredCountHigh} is higher than permitted MAX_VEHICLES_IN_TEAM: 5")
 
                 if len(xmlNode.getchildren()) > 1:
@@ -1344,10 +1348,10 @@ class VehiclesGeneratorPrototypeInfo(PrototypeInfo):
                 vehicle_prot_id = prototype_manager.GetPrototypeId(vehicle_prot_name)
                 if vehicle_prot_id == -1:
                     logger.error(f"Unknown vehicle prototype: '{vehicle_prot_name}' found"
-                                 f" for VehiclesGenerator: '{self.prototypeName}'")
+                                 f" for VehiclesGenerator: '{self.prototypeName.value}'")
                 prot = prototype_manager.InternalGetPrototypeInfo(vehicle_prot_name)
-                if prot.className != "Vehicle":
-                    logger.error(f"Unexpected prototype with class '{prot.className}' found "
+                if prot.className.value != "Vehicle":
+                    logger.error(f"Unexpected prototype with class '{prot.className.value}' found "
                                  "for VehiclesGenerator's VehiclePrototypes, expected 'Vehicle'!")
                 self.vehiclePrototypeIds.append(vehicle_prot_id)
 
@@ -1355,10 +1359,10 @@ class VehiclesGeneratorPrototypeInfo(PrototypeInfo):
                 ware_prot_id = prototype_manager.GetPrototypeId(ware_prot_name)
                 if ware_prot_id == -1:
                     logger.error(f"Unknown ware prototype: '{ware_prot_id}' found"
-                                 f" for VehiclesGenerator: '{self.prototypeName}'")
+                                 f" for VehiclesGenerator: '{self.prototypeName.value}'")
                 prot = prototype_manager.InternalGetPrototypeInfo(ware_prot_name)
-                if prot.className != "Ware":
-                    logger.error(f"Unexpected prototype with class '{prot.className}' found "
+                if prot.className.value != "Ware":
+                    logger.error(f"Unexpected prototype with class '{prot.className.value}' found "
                                  "for VehiclesGenerator's WaresPrototypes, expected 'Ware'!")
                 self.waresPrototypesIds.append(ware_prot_id)
 
@@ -1367,7 +1371,7 @@ class VehiclesGeneratorPrototypeInfo(PrototypeInfo):
                     prototype_manager.GetPrototypeId(self.gunAffixGeneratorPrototypeName)
                 if self.gunAffixGeneratorPrototypeId == -1:
                     logger.error(f"Unknown GunAffix prototype: '{self.gunAffixGeneratorPrototypeName}' found"
-                                 f" for VehiclesGenerator: '{self.prototypeName}'")
+                                 f" for VehiclesGenerator: '{self.prototypeName.value}'")
 
 
 class FormationPrototypeInfo(PrototypeInfo):
@@ -1379,7 +1383,7 @@ class FormationPrototypeInfo(PrototypeInfo):
         self.headOffset = 0.0
         self.linearVelocity = 100.0
         self.headPosition = 0
-        self.isUpdating = False
+        self.isUpdating = AnnotatedValue(False, "IsUpdating", system_type=SystemType.SECONDARY)
         self.angularVelocity = 0.5
 
     def LoadFromXML(self, xmlFile, xmlNode):
@@ -1429,7 +1433,8 @@ class FormationPrototypeInfo(PrototypeInfo):
                             self.headPosition = 0
                         self.polylinePoints.append(point)
                 else:
-                    logger.error(f"Unexpected coordinate format for Formation {self.prototypeName}, expect two numbers")
+                    logger.error(f"Unexpected coordinate format for Formation {self.prototypeName.value}, "
+                                 "expected two numbers")
 
 
 class SettlementPrototypeInfo(SimplePhysicObjPrototypeInfo):
@@ -1463,7 +1468,7 @@ class SettlementPrototypeInfo(SimplePhysicObjPrototypeInfo):
             self.vehiclesPrototypeId = prototype_manager.GetPrototypeId(self.vehiclesPrototypeName)
             if self.vehiclesPrototypeId == -1:
                 logger.error(f"Invalid vehicles prototype '{self.vehiclesPrototypeName}' "
-                             f"for settlement prototype '{self.prototypeName}'")
+                             f"for settlement prototype '{self.prototypeName.value}'")
 
     class AuxZoneInfo(object):
         def __init__(self):
@@ -1500,7 +1505,7 @@ class TownPrototypeInfo(SettlementPrototypeInfo):
             self.gateModelName = safe_check_and_set(self.gateModelName, xmlNode, "GateModelFile")
             self.maxDefenders = safe_check_and_set(self.maxDefenders, xmlNode, "MaxDefenders", "int")
             if self.maxDefenders > 5:
-                logger.error(f"For Town prototype '{self.prototypeName}' maxDefenders > MAX_VEHICLES_IN_TEAM (5)!")
+                logger.error(f"For Town prototype '{self.prototypeName.value}' maxDefenders > MAX_VEHICLES_IN_TEAM (5)")
             self.gunGeneratorPrototypeName = safe_check_and_set(self.gunGeneratorPrototypeName, xmlNode, "GunGenerator")
             desiredGunsInWorkshop = safe_check_and_set(self.desiredGunsInWorkshop, xmlNode,
                                                        "DesiredGunsInWorkshop", "int")
@@ -1540,7 +1545,7 @@ class TownPrototypeInfo(SettlementPrototypeInfo):
                 resourceName = safe_check_and_set("", resource_coeff_node, "Resource")
                 resourceId = self.theServer.theResourceManager.GetResourceId(resourceName)
                 if resourceId == -1:
-                    logger.error(f"Unknown resource name: {resourceName} for prot: {self.prototypeName}")
+                    logger.error(f"Unknown resource name: {resourceName} for prot: {self.prototypeName.value}")
                 else:
                     coeff = {"first": resourceId,
                              "second": self.RandomCoeffWithDispersion()}
@@ -1576,12 +1581,12 @@ class LairPrototypeInfo(SettlementPrototypeInfo):
             self.SetGeomType("BOX")
             self.maxAttackers = safe_check_and_set(self.maxAttackers, xmlNode, "MaxAttackers", "int")
             if self.maxAttackers > 5:
-                logger.error(f"Lair {self.prototypeName} attrib MaxAttackers: "
+                logger.error(f"Lair {self.prototypeName.value} attrib MaxAttackers: "
                              f"{self.maxAttackers} is higher than permitted MAX_VEHICLES_IN_TEAM: 5")
 
             self.maxDefenders = safe_check_and_set(self.maxDefenders, xmlNode, "MaxDefenders", "int")
             if self.maxDefenders > 5:
-                logger.error(f"Lair {self.prototypeName} attrib MaxDefenders: "
+                logger.error(f"Lair {self.prototypeName.value} attrib MaxDefenders: "
                              f"{self.maxDefenders} is higher than permitted MAX_VEHICLES_IN_TEAM: 5")
             return STATUS_SUCCESS
 
@@ -1736,7 +1741,7 @@ class SgNodeObjPrototypeInfo(PrototypeInfo):
 class LightObjPrototypeInfo(SgNodeObjPrototypeInfo):
     def __init__(self, server):
         SgNodeObjPrototypeInfo.__init__(self, server)
-        self.isUpdating = False
+        self.isUpdating = AnnotatedValue(False, "IsUpdating", system_type=SystemType.SECONDARY)
 
 
 class BossArmPrototypeInfo(VehiclePartPrototypeInfo):
@@ -1881,12 +1886,12 @@ class BossMetalArmPrototypeInfo(SimplePhysicObjPrototypeInfo):
                     logger.error("Invalid loadPrototypes/IDs for BossMetalArm prototype")
                 else:
                     prot = prototype_manager.InternalGetPrototypeInfo(prot_name)
-                    if prot.className != "BossMetalArmLoad":
+                    if prot.className.value != "BossMetalArmLoad":
                         logger.error("Invalid class for BossMetalArm LoadPrototype, expected 'BossMetalArmLoad', but "
-                                     f"'{prot.className}' given for {self.prototypeName}!")
+                                     f"'{prot.className.value}' given for {self.prototypeName.value}!")
                     self.loadProrotypeIds.append(prot_id)
         else:
-            logger.error(f"Empty loadPrototypes for BossMetalArm prototype {self.prototypeName}!")
+            logger.error(f"Empty loadPrototypes for BossMetalArm prototype {self.prototypeName.value}!")
 
     class AttackActionInfo(object):
         def __init__(self):
@@ -1908,7 +1913,7 @@ class BossMetalArmLoadPrototypeInfo(DummyObjectPrototypeInfo):
         self.explosionEffectName = ""
         self.maxHealth = 1.0
         self.blastWavePrototypeName = ""
-        self.isUpdating = True
+        self.isUpdating = AnnotatedValue(True, "IsUpdating", system_type=SystemType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = DummyObjectPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -2353,7 +2358,7 @@ class RocketPrototypeInfo(ShellPrototypeInfo):
             self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName)
             if self.blastWavePrototypeId == -1:
                 logger.error(f"Unknown blast wave prototype name: '{self.blastWavePrototypeName}' "
-                             f"for rocket prototype: '{self.prototypeName}'")
+                             f"for rocket prototype: '{self.prototypeName.value}'")
 
 
 class PlasmaBunchPrototypeInfo(ShellPrototypeInfo):
@@ -2407,7 +2412,7 @@ class MortarShellPrototypeInfo(ShellPrototypeInfo):
     def PostLoad(self, prototype_manager):
         self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName)
         if self.blastWavePrototypeId == -1 and self.blastWavePrototypeName:
-            logger.error(f"Unknown blast wave prototype name: {self.prototypeName}")
+            logger.error(f"Unknown blast wave prototype name: {self.prototypeName.value}")
 
 
 class MinePrototypeInfo(RocketPrototypeInfo):
@@ -2516,7 +2521,7 @@ class SubmarinePrototypeInfo(DummyObjectPrototypeInfo):
         self.platformOpenFps = 2
         self.vehicleMaxSpeed = 72.0
         self.vehicleRelativePosition = deepcopy(ZERO_VECTOR)
-        self.isUpdating = True
+        self.isUpdating = AnnotatedValue(True, "IsUpdating", system_type=SystemType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = ShellPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -2603,7 +2608,7 @@ class WarePrototypeInfo(PrototypeInfo):
                 self.priceDispersion = float(priceDispersion)
 
             if self.priceDispersion < 0.0 or self.priceDispersion > 100.0:
-                logger(f"Price dispersion can't be outside 0.0-100.0 range: see {self.prototypeName}")
+                logger(f"Price dispersion can't be outside 0.0-100.0 range: see {self.prototypeName.value}")
 
             self.modelName = safe_check_and_set(self.modelName, xmlNode, "ModelName")
 
@@ -2620,12 +2625,12 @@ class WarePrototypeInfo(PrototypeInfo):
 class QuestItemPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.modelName = ""
+        self.modelName = AnnotatedValue("", "ModelFile", system_type=SystemType.VISUAL)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.modelName = safe_check_and_set(self.modelName, xmlNode, "ModelFile")
+            self.modelName.value = safe_check_and_set(self.modelName.value, xmlNode, "ModelFile")
             return STATUS_SUCCESS
 
     def get_etree_prototype(self):
@@ -2646,7 +2651,7 @@ class BreakableObjectPrototypeInfo(SimplePhysicObjPrototypeInfo):
         self.breakEffect = ""
         self.blastWavePrototypeId = -1
         self.blastWavePrototypeName = ""
-        self.isUpdating = False
+        self.isUpdating = AnnotatedValue(False, "IsUpdating", system_type=SystemType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -2727,7 +2732,7 @@ class RopeObjPrototypeInfo(SimplePhysicObjPrototypeInfo):
     def __init__(self, server):
         SimplePhysicObjPrototypeInfo.__init__(self, server)
         self.brokenModel = ""
-        self.isUpdating = False
+        self.isUpdating = AnnotatedValue(False, "IsUpdating", system_type=SystemType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -2741,7 +2746,7 @@ class ObjPrefabPrototypeInfo(SimplePhysicObjPrototypeInfo):
     def __init__(self, server):
         SimplePhysicObjPrototypeInfo.__init__(self, server)
         self.objInfos = []
-        self.isUpdating = False
+        self.isUpdating = AnnotatedValue(False, "IsUpdating", system_type=SystemType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -2763,10 +2768,10 @@ class ObjPrefabPrototypeInfo(SimplePhysicObjPrototypeInfo):
                         if scale is not None:
                             obj_info.scale = float(scale)
                     else:
-                        logger.error(f"Invalid object info in {SimplePhysicObjPrototypeInfo.prototypeName}")
+                        logger.error(f"Invalid object info in {SimplePhysicObjPrototypeInfo.prototypeName.value}")
                     self.objInfos.append(obj_info)
             else:
-                logger.error(f"Missing ObjectsInfo in {SimplePhysicObjPrototypeInfo.prototypeName}")
+                logger.error(f"Missing ObjectsInfo in {SimplePhysicObjPrototypeInfo.prototypeName.value}")
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
@@ -2809,7 +2814,7 @@ class BarricadePrototypeInfo(ObjPrefabPrototypeInfo):
 class NpcPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.isUpdating = False
+        self.isUpdating = AnnotatedValue(False, "IsUpdating", system_type=SystemType.SECONDARY)
 
 
 class RepositoryObjectsGeneratorPrototypeInfo(PrototypeInfo):
@@ -2833,8 +2838,8 @@ class RepositoryObjectsGeneratorPrototypeInfo(PrototypeInfo):
             for obj_description in self.objectDescriptions:
                 obj_description.prototypeId = prototype_manager.GetPrototypeId(obj_description.prototypeName)
                 if obj_description.prototypeId == -1:
-                    logger.error(f"Unknown Object prototype: '{obj_description.prototypeName}' "
-                                 f"for RepositoryObjectsGenerator: '{self.prototypeName}'")
+                    logger.error(f"Unknown Object prototype: '{obj_description.prototypeName.value}' "
+                                 f"for RepositoryObjectsGenerator: '{self.prototypeName.value}'")
 
     class ObjectDescription(object):
         def __init__(self):
