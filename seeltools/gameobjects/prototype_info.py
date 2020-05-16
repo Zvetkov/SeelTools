@@ -26,7 +26,7 @@ class PrototypeInfo(object):
         self.className = AnnotatedValue("", "Class", system_type=SystemType.PRIMARY,
                                         display_type=DisplayType.CLASS_NAME)
         self.prototypeName = AnnotatedValue("", "Name", system_type=SystemType.PRIMARY)
-        self.prototypeId = AnnotatedValue(-1, "ProtId", system_type=SystemType.INTERNAL, read_only=True)
+        self.prototypeId = -1
         self.resourceId = AnnotatedValue(-1, "ResourceType", display_type=DisplayType.RESOURCE_ID)
         self.isUpdating = AnnotatedValue(True, "IsUpdating", system_type=SystemType.SECONDARY)
         self.visibleInEncyclopedia = AnnotatedValue(True, "VisibleInEncyclopedia", system_type=SystemType.SECONDARY)
@@ -110,24 +110,26 @@ class PrototypeInfo(object):
 class PhysicBodyPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.engineModelName = ""
-        self.massValue = 1.0
+        self.engineModelName = AnnotatedValue("", "ModelFile", system_type=SystemType.VISUAL)
+        self.massValue = AnnotatedValue(1.0, "Mass", system_type=SystemType.PRIMARY)
         self.collisionInfos = []
-        self.collisionTrimeshAllowed = False
+        self.collisionTrimeshAllowed = AnnotatedValue(False, "CollisionTrimeshAllowed",
+                                                      system_type=SystemType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.engineModelName = safe_check_and_set(self.engineModelName, xmlNode, "ModelFile")
-            if self.engineModelName is None and not issubclass(type(self), CompoundVehiclePartPrototypeInfo):
+            self.engineModelName.value = safe_check_and_set(self.engineModelName.value, xmlNode, "ModelFile")
+            if not self.engineModelName.value and not issubclass(type(self), CompoundVehiclePartPrototypeInfo):
                 logger.error(f"No model file is provided for prototype {self.prototypeName.value}")
             mass = read_from_xml_node(xmlNode, "Mass", do_not_warn=True)
-            self.collisionTrimeshAllowed = parse_str_to_bool(self.collisionTrimeshAllowed,
-                                                             read_from_xml_node(xmlNode, "CollisionTrimeshAllowed",
-                                                                                do_not_warn=True))
+            self.collisionTrimeshAllowed.value = parse_str_to_bool(self.collisionTrimeshAllowed.value,
+                                                                   read_from_xml_node(xmlNode,
+                                                                                      "CollisionTrimeshAllowed",
+                                                                                      do_not_warn=True))
             if mass is not None:
-                self.massValue = float(mass)
-            if self.massValue < 0.001:
+                self.massValue.value = float(mass)
+            if self.massValue.value < 0.001:
                 logger.error(f"Mass is too low for prototype {self.prototypeName.value}")
             return STATUS_SUCCESS
 
@@ -388,7 +390,7 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
             if turningSpeed is not None:
                 self.turningSpeed = float(turningSpeed)
             self.turningSpeed *= pi / 180  # convert to rads
-            self.engineModelName += "Gun"  # ??? is this really what's happening?
+            self.engineModelName.value += "Gun"  # ??? is this really what's happening?
             self.ignoreStopAnglesWhenFire = parse_str_to_bool(self.ignoreStopAnglesWhenFire,
                                                               read_from_xml_node(xmlNode, "IgnoreStopAnglesWhenFire",
                                                                                  do_not_warn=True))
@@ -414,9 +416,10 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
 class GadgetPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.modifications = []
-        self.modelName = ""
-        self.skinNum = 0
+        self.modifications = AnnotatedValue([], "Modifications", system_type=SystemType.PRIMARY,
+                                            display_type=DisplayType.MODIFICATION_INFO)
+        self.modelName = AnnotatedValue("", "ModelFile", system_type=SystemType.VISUAL)
+        self.skinNum = AnnotatedValue(0, "SkinNum", system_type=SystemType.VISUAL, display_type=DisplayType.SKIN_NUM)
         self.isUpdating = AnnotatedValue(False, "IsUpdating", system_type=SystemType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
@@ -425,12 +428,12 @@ class GadgetPrototypeInfo(PrototypeInfo):
             modifications = read_from_xml_node(xmlNode, "Modifications").split(";")
             for modification_description in modifications:
                 modification_info = self.ModificationInfo(modification_description, self)
-                self.modifications.append(modification_info)
-            self.modelName = safe_check_and_set(self.modelName, xmlNode, "ModelFile")
-            self.skinNum = safe_check_and_set(self.skinNum, xmlNode, "SkinNum", "int")
+                self.modifications.value.append(modification_info)
+            self.modelName.value = safe_check_and_set(self.modelName.value, xmlNode, "ModelFile")
+            self.skinNum.value = safe_check_and_set(self.skinNum.value, xmlNode, "SkinNum", "int")
             return STATUS_SUCCESS
 
-    class ModificationInfo(object):
+    class ModificationInfo(object):  # special save and display needed
         # other ModificationInfo object can be passed to create copy
         def __init__(self, tokens: str, prot_info, other_mod=None):  # tokens=None
             if other_mod is None:
@@ -497,12 +500,13 @@ class WanderersManagerPrototypeInfo(PrototypeInfo):
         PrototypeInfo.__init__(self, server)
 
 
-class WanderersGeneratorPrototypeInfo(PrototypeInfo):
+class WanderersGeneratorPrototypeInfo(PrototypeInfo):  # special save and display needed
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.vehicleDescriptions = []
-        self.desiredCountLow = -1
-        self.desiredCountHigh = -1
+        self.vehicleDescriptions = AnnotatedValue([], "VehicleDescription", system_type=SystemType.PRIMARY,
+                                                  display_type=DisplayType.MODIFICATION_INFO)
+        self.desiredCountLow = AnnotatedValue(-1, "DesiredCountLow", system_type=SystemType.PRIMARY)
+        self.desiredCountHigh = AnnotatedValue(-1, "DesiredCountHigh", system_type=SystemType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -512,31 +516,32 @@ class WanderersGeneratorPrototypeInfo(PrototypeInfo):
                 tokensDesiredCount = desiredCount.split("-")
                 token_length = len(tokensDesiredCount)
                 if token_length == 2:
-                    self.desiredCountLow = int(tokensDesiredCount[0])
-                    self.desiredCountHigh = int(tokensDesiredCount[1])
+                    self.desiredCountLow.value = int(tokensDesiredCount[0])
+                    self.desiredCountHigh.value = int(tokensDesiredCount[1])
                 elif token_length == 1:
-                    self.desiredCountLow = int(tokensDesiredCount[0])
-                    self.desiredCountHigh = self.desiredCountLow
+                    self.desiredCountLow.value = int(tokensDesiredCount[0])
+                    self.desiredCountHigh.value = self.desiredCountLow.value
                 else:
                     logger.error(f"WanderersGenerator {self.prototypeName.value} attrib DesiredCount range "
-                                 f"should contain one or two numbers but contains {len(tokensDesiredCount)}")
-                if self.desiredCountLow > self.desiredCountHigh:
+                                 f"should contain one or two numbers but contains {len(tokensDesiredCount.value)}")
+                if self.desiredCountLow.value > self.desiredCountHigh.value:
                     logger.error(f"WanderersGenerator {self.prototypeName.value} attrib DesiredCount range invalid: "
-                                 f"{self.desiredCountLow}-{self.desiredCountHigh}, "
+                                 f"{self.desiredCountLow.value}-{self.desiredCountHigh.value}, "
                                  "should be from lesser to higher number")
-                if self.desiredCountHigh > 5:
+                if self.desiredCountHigh.value > 5:
                     logger.error(f"WanderersGenerator {self.prototypeName.value} attrib DesiredCount high value: "
-                                 f"{self.desiredCountHigh} is higher than permitted MAX_VEHICLES_IN_TEAM: 5")
+                                 f"{self.desiredCountHigh.value} is higher than permitted MAX_VEHICLES_IN_TEAM: 5")
             vehicles = child_from_xml_node(xmlNode, "Vehicles")
             check_mono_xml_node(vehicles, "Vehicle")
             for vehicle_node in vehicles.iterchildren("Vehicle"):
                 vehicle_description = self.VehicleDescription()
                 vehicle_description.LoadFromXML(xmlFile, xmlNode)
+                self.vehicleDescriptions.value.append(vehicle_description)
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
         if self.vehicleDescriptions:
-            for vehicle_description in self.vehicleDescriptions:
+            for vehicle_description in self.vehicleDescriptions.value:
                 vehicle_description.PostLoad(prototype_manager)
 
     class VehicleDescription(object):
@@ -661,7 +666,8 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
     def __init__(self, server):
         PhysicObjPrototypeInfo.__init__(self, server)
         self.collisionInfos = []
-        self.collisionTrimeshAllowed = False
+        self.collisionTrimeshAllowed = AnnotatedValue(False, "CollisionTrimeshAllowed",
+                                                      system_type=SystemType.SECONDARY)
         self.geomType = 0
         self.engineModelName = ""
         self.size = deepcopy(ZERO_VECTOR)
@@ -676,9 +682,10 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
                 self.massValue = float(mass)
             # ??? maybe should fallback to "" instead None
             self.engineModelName = read_from_xml_node(xmlNode, "ModelFile", do_not_warn=True)
-            self.collisionTrimeshAllowed = parse_str_to_bool(self.collisionTrimeshAllowed,
-                                                             read_from_xml_node(xmlNode, "CollisionTrimeshAllowed",
-                                                                                do_not_warn=True))
+            self.collisionTrimeshAllowed.value = parse_str_to_bool(self.collisionTrimeshAllowed.value,
+                                                                   read_from_xml_node(xmlNode,
+                                                                                      "CollisionTrimeshAllowed",
+                                                                                      do_not_warn=True))
             return STATUS_SUCCESS
 
     def SetGeomType(self, geom_type):
@@ -1500,7 +1507,8 @@ class TownPrototypeInfo(SettlementPrototypeInfo):
         self.gunAffixGeneratorPrototypeId = -1
         self.cabinsAndBasketsAffixGeneratorPrototypeName = ""
         self.cabinsAndBasketsAffixGeneratorPrototypeId = -1
-        self.collisionTrimeshAllowed = True
+        self.collisionTrimeshAllowed = AnnotatedValue(True, "CollisionTrimeshAllowed",
+                                                      system_type=SystemType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SettlementPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -1963,7 +1971,8 @@ class Boss04StationPartPrototypeInfo(VehiclePartPrototypeInfo):
     def __init__(self, server):
         VehiclePartPrototypeInfo.__init__(self, server)
         self.criticalMeshGroupIds = []
-        self.collisionTrimeshAllowed = True
+        self.collisionTrimeshAllowed = AnnotatedValue(False, "CollisionTrimeshAllowed",
+                                                      system_type=SystemType.SECONDARY)
         self.maxHealth = 0.0
 
 

@@ -5,6 +5,9 @@ class DisplayType(Enum):
     CLASS_NAME = 0  # as list edit with suggestions from all class names
     RESOURCE_ID = 1  # display as ResourceName from dropdown with available resource types
     PROTOTYPE_NAME = 2  # as list edit with suggestions from all prototype names
+    SKIN_NUM = 3  # skin list dropdown available for model, idealy with texture preview
+    MODIFICATION_INFO = 4  # list of objects, add/remove functions, TBD UI solution
+    VEHICLE_DESCRIPTION = 5  # list of vehicle descriptions, similar to 4
 
 
 class SystemType(Enum):

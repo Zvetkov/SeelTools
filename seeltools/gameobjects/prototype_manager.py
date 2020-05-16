@@ -86,13 +86,13 @@ class PrototypeManager(object):
                     parent_prot_info = dummy
                 prototype_info.CopyFrom(parent_prot_info)
             prototypes_length = len(self.prototypes)
-            prototype_info.prototypeId.value = prototypes_length
+            prototype_info.prototypeId = prototypes_length
             if prototype_info.LoadFromXML(xmlFile, xmlNode) == STATUS_SUCCESS:
                 if self.prototypeNamesToIds.get(prototype_info.prototypeName.value) is not None:
                     logger.critical(f"Duplicate prototype in game objects: {prototype_info.prototypeName.value}")
                     raise AttributeError("Duplicate prototype, critical error!")
                 else:
-                    self.prototypeNamesToIds[prototype_info.prototypeName.value] = prototype_info.prototypeId.value
+                    self.prototypeNamesToIds[prototype_info.prototypeName.value] = prototype_info.prototypeId
                     self.prototypes.append(prototype_info)
                     self.prototypesMap[prototype_info.prototypeName.value] = prototype_info
                     if prototype_info.className not in self.prototypeClasses:

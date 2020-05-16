@@ -157,26 +157,30 @@ class MainWindow(QtWidgets.QMainWindow):
         self.statusBar().showMessage("Ready")
 
     def setupDockWindows(self):
+        logger.info("Preparing QuickLook")
         self.objectViewDock = QtWidgets.QDockWidget("QuickLook")
-        self.objectViewDock.setMinimumSize(150, 200)
-        self.dock_label = QtWidgets.QLabel()
+        self.objectViewDock.setMinimumSize(170, 200)
         self.objectViewDock.setAllowedAreas(QtCore.Qt.LeftDockWidgetArea | QtCore.Qt.RightDockWidgetArea)
-        # self.objectViewDock.setLayout(QtWidgets.QBoxLayout())
-
         self.prot_grid = QtWidgets.QVBoxLayout()
-        # self.prot_grid.setVerticalSpacing(5)
-    
+
+        scroll_area = QtWidgets.QScrollArea()
+        scroll_area.setWidgetResizable(True)
+
+        inner_frame = QtWidgets.QFrame(scroll_area)
+        inner_frame.setLayout(self.prot_grid)
+
+        scroll_area.setWidget(inner_frame)
+
         quicklook_promt = QtWidgets.QLabel(get_locale_string("QuickLookPromt"))
         self.prot_grid.addWidget(quicklook_promt)
-        spacer = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        spacer = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         self.prot_grid.addItem(spacer)
 
-        self.dock_label.setLayout(self.prot_grid)
-
-        self.objectViewDock.setWidget(self.dock_label)
+        self.objectViewDock.setWidget(scroll_area)
 
         self.addDockWidget(QtCore.Qt.RightDockWidgetArea, self.objectViewDock)
         self.viewMenu.addAction(self.objectViewDock.toggleViewAction())
+        logger.info("QuickLook ready")
 
     def createIcons(self):
         module_path = Path(os.path.abspath(__file__))
@@ -260,8 +264,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.filter_pattern_line_edit.textChanged.connect(self.filter_reg_exp_changed)
         self.filter_syntax_combo_box.currentIndexChanged.connect(self.filter_reg_exp_changed)
         self.filter_column_combo_box.currentIndexChanged.connect(self.filter_column_changed)
-        self.filter_column_combo_box.currentIndexChanged
-        self.tree_prot_explorer.clicked.connect(self.prototype_explorer_item_selected)
+
+        selection_model = self.tree_prot_explorer.selectionModel()
+        selection_model.selectionChanged.connect(self.prototype_explorer_item_selected)
 
         proxy_layout = QtWidgets.QGridLayout()
         proxy_layout.addWidget(self.tree_prot_explorer, 0, 0, 1, 3)
@@ -320,7 +325,7 @@ class MainWindow(QtWidgets.QMainWindow):
             folder_label.setBuddy(folder_descr)
             self.prot_grid.addWidget(folder_label)
             self.prot_grid.addWidget(folder_descr)
-            spacer = QtWidgets.QSpacerItem(0, 0, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.MinimumExpanding)
+            spacer = QtWidgets.QSpacerItem(0, 0, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
             self.prot_grid.addItem(spacer)
         else:
             self.load_prot_to_quicklook(item_name)
@@ -367,7 +372,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 attrib_label.setFixedHeight(20)
                 self.prot_grid.addWidget(attrib_label)
                 self.prot_grid.addWidget(attrib_value)
-        spacer = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        spacer = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         self.prot_grid.addItem(spacer)
 
 
