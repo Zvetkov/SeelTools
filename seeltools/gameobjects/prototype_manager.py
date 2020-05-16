@@ -95,7 +95,7 @@ class PrototypeManager(object):
                     self.prototypeNamesToIds[prototype_info.prototypeName.value] = prototype_info.prototypeId
                     self.prototypes.append(prototype_info)
                     self.prototypesMap[prototype_info.prototypeName.value] = prototype_info
-                    if prototype_info.className not in self.prototypeClasses:
+                    if prototype_info.className.value not in self.prototypeClasses:
                         self.prototypeClasses.append(prototype_info.className.value)
 
                     return 1
