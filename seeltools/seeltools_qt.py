@@ -157,7 +157,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.statusBar().showMessage("Ready")
 
     def setupDockWindows(self):
-        logger.info("Preparing QuickLook")
         self.objectViewDock = QtWidgets.QDockWidget("QuickLook")
         self.objectViewDock.setMinimumSize(170, 200)
         self.objectViewDock.setAllowedAreas(QtCore.Qt.LeftDockWidgetArea | QtCore.Qt.RightDockWidgetArea)
@@ -180,7 +179,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.addDockWidget(QtCore.Qt.RightDockWidgetArea, self.objectViewDock)
         self.viewMenu.addAction(self.objectViewDock.toggleViewAction())
-        logger.info("QuickLook ready")
 
     def createIcons(self):
         module_path = Path(os.path.abspath(__file__))

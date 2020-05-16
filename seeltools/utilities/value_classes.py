@@ -8,13 +8,15 @@ class DisplayType(Enum):
     SKIN_NUM = 3  # skin list dropdown available for model, idealy with texture preview
     MODIFICATION_INFO = 4  # list of objects, add/remove functions, TBD UI solution
     VEHICLE_DESCRIPTION = 5  # list of vehicle descriptions, similar to 4
+    AFFIX_LIST = 6
 
 
 class SystemType(Enum):
     INTERNAL = 0  # prototype ids and other internal info that is not useful for direct editing, ex prototype id
-    PRIMARY = 1
-    SECONDARY = 2
-    VISUAL = 3  # textures, models, icons
+    GENERAL = 1
+    PRIMARY = 2
+    SECONDARY = 3
+    VISUAL = 4  # textures, models, icons
 
 
 class AnnotatedValue(object):

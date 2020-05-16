@@ -23,9 +23,9 @@ class PrototypeInfo(object):
     '''Base Prototype information class'''
     def __init__(self, server):
         self.theServer = server
-        self.className = AnnotatedValue("", "Class", system_type=SystemType.PRIMARY,
+        self.className = AnnotatedValue("", "Class", system_type=SystemType.GENERAL,
                                         display_type=DisplayType.CLASS_NAME)
-        self.prototypeName = AnnotatedValue("", "Name", system_type=SystemType.PRIMARY)
+        self.prototypeName = AnnotatedValue("", "Name", system_type=SystemType.GENERAL)
         self.prototypeId = -1
         self.resourceId = AnnotatedValue(-1, "ResourceType", display_type=DisplayType.RESOURCE_ID)
         self.isUpdating = AnnotatedValue(True, "IsUpdating", system_type=SystemType.SECONDARY)
@@ -33,7 +33,7 @@ class PrototypeInfo(object):
         self.applyAffixes = AnnotatedValue(True, "ApplyAffixes", system_type=SystemType.SECONDARY)
         self.price = AnnotatedValue(0, "Price", system_type=SystemType.SECONDARY)
         self.isAbstract = AnnotatedValue(False, "Abstract", system_type=SystemType.SECONDARY)
-        self.parentPrototypeName = AnnotatedValue("", "ParentPrototype", system_type=SystemType.PRIMARY,
+        self.parentPrototypeName = AnnotatedValue("", "ParentPrototype", system_type=SystemType.GENERAL,
                                                   display_type=DisplayType.PROTOTYPE_NAME)
         self.parentPrototypeId = -1
         self.protoClassObject = 0
@@ -617,14 +617,15 @@ class WanderersGeneratorPrototypeInfo(PrototypeInfo):  # special save and displa
 class AffixGeneratorPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.affixDescriptions = []
+        self.affixDescriptions = AnnotatedValue([], "Affix", system_type=SystemType.PRIMARY,
+                                                display_type=DisplayType.AFFIX_LIST)
 
     def LoadFromXML(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             affix_nodes = child_from_xml_node(xmlNode, "Affix")
             for affix in affix_nodes:
-                self.affixDescriptions.append(read_from_xml_node(affix, "AffixName"))
+                self.affixDescriptions.value.append(read_from_xml_node(affix, "AffixName"))
             return STATUS_SUCCESS
 
     def GenerateAffixesForObj(self, obj, desiredNumAffixed):
@@ -647,18 +648,18 @@ class AffixGeneratorPrototypeInfo(PrototypeInfo):
 class PhysicObjPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.intersectionRadius = 0.0
-        self.lookRadius = 0.0
+        self.intersectionRadius = AnnotatedValue(0.0, "IntersectionRadius", system_type=SystemType.PRIMARY)
+        self.lookRadius = AnnotatedValue(0.0, "LookRadius", system_type=SystemType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             intersectionRadius = read_from_xml_node(xmlNode, "IntersectionRadius", do_not_warn=True)
             if intersectionRadius is not None:
-                self.intersectionRadius = intersectionRadius
+                self.intersectionRadius.value = intersectionRadius
             lookRadius = read_from_xml_node(xmlNode, "LookRadius", do_not_warn=True)
             if lookRadius is not None:
-                self.lookRadius = lookRadius
+                self.lookRadius.value = lookRadius
             return STATUS_SUCCESS
 
 
@@ -668,20 +669,20 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
         self.collisionInfos = []
         self.collisionTrimeshAllowed = AnnotatedValue(False, "CollisionTrimeshAllowed",
                                                       system_type=SystemType.SECONDARY)
-        self.geomType = 0
-        self.engineModelName = ""
-        self.size = deepcopy(ZERO_VECTOR)
-        self.radius = 1.0
-        self.massValue = 1.0
+        self.geomType = AnnotatedValue(0, "GeomType", system_type=SystemType.INTERNAL, read_only=True)
+        self.engineModelName = AnnotatedValue("", "ModelFile", system_type=SystemType.VISUAL)
+        self.size = AnnotatedValue(deepcopy(ZERO_VECTOR), "Size", system_type=SystemType.INTERNAL, read_only=True)
+        self.radius = AnnotatedValue(1.0, "IntersectionRadius", system_type=SystemType.INTERNAL, read_only=True)
+        self.massValue = AnnotatedValue(1.0, "Mass", system_type=SystemType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             mass = read_from_xml_node(xmlNode, "Mass", do_not_warn=True)
             if mass is not None:
-                self.massValue = float(mass)
+                self.massValue.value = float(mass)
             # ??? maybe should fallback to "" instead None
-            self.engineModelName = read_from_xml_node(xmlNode, "ModelFile", do_not_warn=True)
+            self.engineModelName.value = read_from_xml_node(xmlNode, "ModelFile", do_not_warn=True)
             self.collisionTrimeshAllowed.value = parse_str_to_bool(self.collisionTrimeshAllowed.value,
                                                                    read_from_xml_node(xmlNode,
                                                                                       "CollisionTrimeshAllowed",
@@ -689,20 +690,20 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
             return STATUS_SUCCESS
 
     def SetGeomType(self, geom_type):
-        self.geomType = GEOM_TYPE[geom_type]
-        if self.geomType == 6:
+        self.geomType.value = GEOM_TYPE[geom_type]
+        if self.geomType.value == 6:
             return
         collision_info = CollisionInfo()
         collision_info.Init()
-        if self.geomType == 1:
+        if self.geomType.value == 1:
             collision_info.geomType = 1
-            collision_info.size["x"] = self.size["x"]
-            collision_info.size["y"] = self.size["y"]
-            collision_info.size["z"] = self.size["z"]
-        elif self.geomType == 2:
+            collision_info.size["x"] = self.size.value["x"]
+            collision_info.size["y"] = self.size.value["y"]
+            collision_info.size["z"] = self.size.value["z"]
+        elif self.geomType.value == 2:
             collision_info.geomType = 2
-            collision_info.radius = self.radius
-        elif self.geomType == 5:
+            collision_info.radius = self.radius.value
+        elif self.geomType.value == 5:
             logger.warning(f"Obsolete GeomType: TriMesh! in {self.prototypeName.value}")
         self.collisionInfos.append(collision_info)
 
@@ -1002,14 +1003,14 @@ class VehicleRecollectionPrototypeInfo(PrototypeInfo):
 class VehicleRolePrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.vehicleFiringRangeCoeff = 1.0
+        self.vehicleFiringRangeCoeff = AnnotatedValue(1.0, "FiringRangeCoeff", display_type=SystemType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             vehicleFiringRangeCoeff = read_from_xml_node(xmlNode, "FiringRangeCoeff", do_not_warn=True)
             if vehicleFiringRangeCoeff is not None:
-                self.vehicleFiringRangeCoeff = vehicleFiringRangeCoeff
+                self.vehicleFiringRangeCoeff.value = vehicleFiringRangeCoeff
             return STATUS_SUCCESS
 
 
@@ -1026,13 +1027,15 @@ class VehicleRoleCheaterPrototypeInfo(VehicleRolePrototypeInfo):
 class VehicleRoleCowardPrototypeInfo(VehicleRolePrototypeInfo):
     def __init__(self, server):
         VehicleRolePrototypeInfo.__init__(self, server)
-        self.vehicleFiringRangeCoeff = 0.30000001
+        self.vehicleFiringRangeCoeff.value = 0.30000001
+        self.vehicleFiringRangeCoeff.default_value = 0.30000001
 
 
 class VehicleRoleMeatPrototypeInfo(VehicleRolePrototypeInfo):
     def __init__(self, server):
         VehicleRolePrototypeInfo.__init__(self, server)
-        self.vehicleFiringRangeCoeff = 0.30000001
+        self.vehicleFiringRangeCoeff.value = 0.30000001
+        self.vehicleFiringRangeCoeff.default_value = 0.30000001
 
 
 class VehicleRoleOppressorPrototypeInfo(VehicleRolePrototypeInfo):
