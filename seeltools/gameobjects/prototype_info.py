@@ -1,6 +1,7 @@
 from math import pi, sqrt
 from copy import deepcopy
 from lxml import objectify, etree
+from enum import Enum
 
 from seeltools.utilities.log import logger
 
@@ -103,7 +104,8 @@ class PrototypeInfo(object):
                     if attrib.name == "ResourceType":
                         result.set(attrib.name, self.theServer.theResourceManager.GetResourceName(attrib.value))
                     else:
-                        result.set(attrib.name, str(attrib.value))
+                        if not isinstance(attrib.value, list):
+                            result.set(attrib.name, str(attrib.value))
         return result
 
 
@@ -399,6 +401,9 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
     def Str2FiringType(firing_type_name: str):
         return FiringTypesStruct.get(firing_type_name)
 
+    def FiringType2Str(firing_type_value: int):
+        return list(FiringTypesStruct.keys())[list(FiringTypesStruct.values()).index(firing_type_value)]
+
     def Str2DamageType(damage_type_name: str):
         return DamageTypeStruct.get(damage_type_name)
 
@@ -433,6 +438,16 @@ class GadgetPrototypeInfo(PrototypeInfo):
             self.skinNum.value = safe_check_and_set(self.skinNum.value, xmlNode, "SkinNum", "int")
             return STATUS_SUCCESS
 
+    def get_etree_prototype(self):
+        result = PrototypeInfo.get_etree_prototype(self)
+
+        modifications_string = ""
+        for modification in self.modifications.value:
+            modifications_string += "%s " % modification.get_string_representation(self)
+        result.set("Modifications", modifications_string.rstrip('; '))
+
+        return result
+
     class ModificationInfo(object):  # special save and display needed
         # other ModificationInfo object can be passed to create copy
         def __init__(self, tokens: str, prot_info, other_mod=None):  # tokens=None
@@ -442,16 +457,16 @@ class GadgetPrototypeInfo(PrototypeInfo):
                                     "targetFiringType": 0}
                 self.propertyName = ""
                 self.value = ""  # is AIParam() necessary ???
-                self.value_type = 0
+                self.value_type = self.value_type_enum.DEFAULT.value
 
-                self.modificationType = 0
+                self.modificationType = self.modification_type_enum.EMPTY.value
                 token_value_part = 2
 
                 token_parts = tokens.split()
                 tokens_size = len(token_parts)
                 if tokens_size == 4:
                     if token_parts[2] == "+=":
-                        self.modificationType = 1
+                        self.modificationType = self.modification_type_enum.PLUS_EQUAL.value
                         token_value_part = 3
                     else:
                         logger.error("Unexpected gadget modification token format. "
@@ -463,29 +478,30 @@ class GadgetPrototypeInfo(PrototypeInfo):
 
                 token_resource_id = prot_info.theServer.theResourceManager.GetResourceId(token_parts[0])
                 if token_parts[0] == "VEHICLE":
-                    self.applierInfo["applierType"] = 0
+                    self.applierInfo["applierType"] = self.applier_type_enum.VEHICLE.value
                 elif token_resource_id == -1:
-                    self.applierInfo["applierType"] = 2
+                    self.applierInfo["applierType"] = self.applier_type_enum.GUN.value
                     self.applierInfo["targetFiringType"] = GunPrototypeInfo.Str2FiringType(token_parts[0])
                     if self.applierInfo["targetFiringType"] is None:
                         logger.warning(f"Unknown firing type '{token_parts[0]}' "
                                        f"for modification token of prototype: {prot_info.prototypeName.value}")
                 else:
-                    self.applierInfo["applierType"] = 1
+                    self.applierInfo["applierType"] = self.applier_type_enum.VEHICLE_PART.value
                     self.applierInfo["targetResourceId"] = token_resource_id
                 self.propertyName = token_parts[1]
-                if self.modificationType != 0:
-                    if self.modificationType == 1:
+                if self.modificationType != self.modification_type_enum.EMPTY.value:
+                    if self.modificationType == self.modification_type_enum.PLUS_EQUAL.value:
                         self.value = token_parts[token_value_part]
-                        self.value_type = 5
+                        self.value_type = self.value_type_enum.ABSOLUTE.value
                     else:
                         logger.error(f"Unexpected modificationType for ModificationInfo '{tokens}'' "
                                      f"of {prot_info.prototypeName.value}")
                 else:
                     value = float(token_parts[token_value_part]) * 0.01
                     self.value = value
-                    self.value_type = 4
+                    self.value_type = self.value_type_enum.PERCENT.value
 
+            # never used? Can be ignored for saving
             elif other_mod is not None:
                 self.applierInfo["applierType"] = other_mod.applierInfo["applierType"]
                 self.applierInfo["targetResourceId"] = other_mod.applierInfo["targetResourceId"]
@@ -493,6 +509,31 @@ class GadgetPrototypeInfo(PrototypeInfo):
                 self.propertyName = other_mod.propertyName
                 # self.NumFromName = int(other_mod.modificationType)
                 self.value = other_mod.value  # ??? some AIParam magic in here
+
+        def get_string_representation(self, prot_info):
+            target = ""
+            if self.applierInfo["targetResourceId"] != -1:
+                target = prot_info.theServer.theResourceManager.GetResourceName(self.applierInfo["targetResourceId"])
+            else:
+                target = GunPrototypeInfo.FiringType2Str(self.applierInfo["targetFiringType"])
+            sign = "+= " if self.modificationType == self.modification_type_enum.PLUS_EQUAL.value else ""
+            value = self.value if self.value_type == self.value_type_enum.ABSOLUTE.value else int(self.value / 0.01)
+
+            return "%s %s %s%s;" % (target, self.propertyName, sign, value)
+
+        class applier_type_enum(Enum):
+            VEHICLE = 0
+            VEHICLE_PART = 1
+            GUN = 2
+
+        class modification_type_enum(Enum):
+            EMPTY = 0,
+            PLUS_EQUAL = 1
+
+        class value_type_enum(Enum):
+            DEFAULT = 0,
+            PERCENT = 4,
+            ABSOLUTE = 5
 
 
 class WanderersManagerPrototypeInfo(PrototypeInfo):

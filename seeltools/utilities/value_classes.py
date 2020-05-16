@@ -1,4 +1,5 @@
 from enum import Enum
+from copy import deepcopy
 
 
 class DisplayType(Enum):
@@ -36,11 +37,11 @@ class AnnotatedValue(object):
         # we want to create new AnnotatedValues only in Init of classes and after that manipulate them directly
         # in that case default_value always should be same as value
         if default_value is None:
-            self.default_value = value
+            self.default_value = deepcopy(value)
         else:
             self.default_value = default_value
 
-        self.initial_value = value
+        self.initial_value = deepcopy(value)
         self.display_type = display_type
         self.read_only = read_only
         self.is_dirty = is_dirty
