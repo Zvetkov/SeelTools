@@ -912,8 +912,6 @@ class ComplexPhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
                     self.child_descriptions.append(part_description)  # ??? temporary placeholder for original logic
 
 
-
-
 class StaticAutoGunPrototypeInfo(ComplexPhysicObjPrototypeInfo):
     def __init__(self, server):
         ComplexPhysicObjPrototypeInfo.__init__(self, server)
@@ -1043,12 +1041,24 @@ class ArticulatedVehiclePrototypeInfo(VehiclePrototypeInfo):
 class DummyObjectPrototypeInfo(SimplePhysicObjPrototypeInfo):
     def __init__(self, server):
         SimplePhysicObjPrototypeInfo.__init__(self, server)
-        pass
+        self.isUpdating.value = False
+        self.isUpdating.default_value = False
+        self.disablePhysics = AnnotatedValue(False, "DisablePhysics",
+                                             group_type=GroupType.SECONDARY)
+        self.disableGeometry = AnnotatedValue(False, "DisableGeometry",
+                                              group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            pass  # skipping magic related to DisablePhysics and DisableGeometry
+            self.disablePhysics.value = parse_str_to_bool(self.disablePhysics.value,
+                                                          read_from_xml_node(xmlNode,
+                                                                             "DisablePhysics",
+                                                                             do_not_warn=True))
+            self.disableGeometry.value = parse_str_to_bool(self.disableGeometry.value,
+                                                           read_from_xml_node(xmlNode,
+                                                                              "DisableGeometry",
+                                                                              do_not_warn=True))
             return STATUS_SUCCESS
 
 
