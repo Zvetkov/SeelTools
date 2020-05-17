@@ -1271,10 +1271,10 @@ class CaravanTeamPrototypeInfo(TeamPrototypeInfo):
     def LoadFromXML(self, xmlFile, xmlNode):
         result = TeamPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.tradersGeneratorPrototypeName.value = safe_check_and_set(self.tradersGeneratorPrototypeName, xmlNode,
-                                                                          "TradersVehiclesGeneratorName")
-            self.guardsGeneratorPrototypeName.value = safe_check_and_set(self.guardsGeneratorPrototypeName, xmlNode,
-                                                                         "GuardVehiclesGeneratorName")
+            self.tradersGeneratorPrototypeName.value = safe_check_and_set(self.tradersGeneratorPrototypeName.value,
+                                                                          xmlNode, "TradersVehiclesGeneratorName")
+            self.guardsGeneratorPrototypeName.value = safe_check_and_set(self.guardsGeneratorPrototypeName.value,
+                                                                         xmlNode, "GuardVehiclesGeneratorName")
             waresPrototypes = read_from_xml_node(xmlNode, "WaresPrototypes", do_not_warn=True)
             if waresPrototypes is not None:
                 self.waresPrototypes.value = waresPrototypes.split()
@@ -1386,65 +1386,92 @@ class InfectionZonePrototypeInfo(PrototypeInfo):
 class VehiclesGeneratorPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.vehicleDescriptions = []
+        self.vehicleDescriptions = AnnotatedValue([], "VehicleDescription", group_type=GroupType.PRIMARY,
+                                                  display_type=DisplayType.MODIFICATION_INFO,
+                                                  saving_type=SavingType.SPECIFIC)
+
+        # moved init of desiredCount values and partOfSchwartz`s from LoadFromXML
+        self.desiredCountLow = AnnotatedValue(-1, "DesiredCountLow", group_type=GroupType.PRIMARY,
+                                              saving_type=SavingType.SPECIFIC)
+        self.desiredCountHigh = AnnotatedValue(-1, "DesiredCountHigh", group_type=GroupType.PRIMARY,
+                                               saving_type=SavingType.SPECIFIC)
+
+        self.partOfSchwartzForCabin = AnnotatedValue(0.25, "partOfSchwartzForCabin", group_type=GroupType.PRIMARY)
+        self.partOfSchwartzForBasket = AnnotatedValue(0.25, "partOfSchwartzForBasket", group_type=GroupType.PRIMARY)
+        self.partOfSchwartzForGuns = AnnotatedValue(0.5, "partOfSchwartzForGuns", group_type=GroupType.PRIMARY)
+        self.partOfSchwartzForWares = AnnotatedValue(0.0, "partOfSchwartzForWares", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.desiredCountLow = -1
-            self.desiredCountHigh = -1
             desiredCount = read_from_xml_node(xmlNode, "DesiredCount")
             if desiredCount is not None:
                 tokensDesiredCount = desiredCount.split("-")
                 token_length = len(tokensDesiredCount)
+
                 if token_length == 2:
-                    self.desiredCountLow = int(tokensDesiredCount[0])
-                    self.desiredCountHigh = int(tokensDesiredCount[1])
+                    self.desiredCountLow.value = int(tokensDesiredCount[0])
+                    self.desiredCountHigh.value = int(tokensDesiredCount[1])
                 elif token_length == 1:
-                    self.desiredCountLow = int(tokensDesiredCount[0])
-                    self.desiredCountHigh = self.desiredCountLow
+                    self.desiredCountLow.value = int(tokensDesiredCount[0])
+                    self.desiredCountHigh.value = self.desiredCountLow.value
                 else:
                     logger.error(f"VehicleGenerator {self.prototypeName.value} attrib DesiredCount range "
-                                 f"should contain one or two numbers but contains {len(tokensDesiredCount)}")
-                if self.desiredCountLow > self.desiredCountHigh:
+                                 f"should contain one or two numbers but contains {len(tokensDesiredCount.value)}")
+                if self.desiredCountLow.value > self.desiredCountHigh.value:
                     logger.error(f"VehicleGenerator {self.prototypeName.value} attrib DesiredCount range invalid: "
-                                 f"{self.desiredCountLow}-{self.desiredCountHigh}, "
+                                 f"{self.desiredCountLow.value}-{self.desiredCountHigh.value}, "
                                  "should be from lesser to higher number")
-                if self.desiredCountHigh > 5:
+                if self.desiredCountHigh.value > 5:
                     logger.error(f"VehicleGenerator {self.prototypeName.value} attrib DesiredCount high value: "
-                                 f"{self.desiredCountHigh} is higher than permitted MAX_VEHICLES_IN_TEAM: 5")
+                                 f"{self.desiredCountHigh.value} is higher than permitted MAX_VEHICLES_IN_TEAM: 5")
 
-                if len(xmlNode.getchildren()) > 1:
-                    check_mono_xml_node(xmlNode, "Description")
-                    for description_entry in xmlNode.iterchildren(tag="Description"):
-                        veh_description = self.VehicleDescription(xmlFile, description_entry)
-                        self.vehicleDescriptions.append(veh_description)
-                self.partOfSchwartzForCabin = 0.25
-                self.partOfSchwartzForBasket = 0.25
-                self.partOfSchwartzForGuns = 0.5
-                self.partOfSchwartzForWares = 0.0
+            if len(xmlNode.getchildren()) > 1:
+                check_mono_xml_node(xmlNode, "Description")
+                for description_entry in xmlNode.iterchildren(tag="Description"):
+                    veh_description = self.VehicleDescription(xmlFile, description_entry)
+                    self.vehicleDescriptions.value.append(veh_description)
 
-                partOfSchwartzForCabin = read_from_xml_node(xmlNode, "partOfSchwartzForCabin", do_not_warn=True)
-                if partOfSchwartzForCabin is not None:
-                    self.partOfSchwartzForCabin = float(partOfSchwartzForCabin)
+            partOfSchwartzForCabin = read_from_xml_node(xmlNode, "partOfSchwartzForCabin", do_not_warn=True)
+            if partOfSchwartzForCabin is not None:
+                self.partOfSchwartzForCabin.value = float(partOfSchwartzForCabin)
 
-                partOfSchwartzForBasket = read_from_xml_node(xmlNode, "partOfSchwartzForBasket", do_not_warn=True)
-                if partOfSchwartzForBasket is not None:
-                    self.partOfSchwartzForBasket = float(partOfSchwartzForBasket)
+            partOfSchwartzForBasket = read_from_xml_node(xmlNode, "partOfSchwartzForBasket", do_not_warn=True)
+            if partOfSchwartzForBasket is not None:
+                self.partOfSchwartzForBasket.value = float(partOfSchwartzForBasket)
 
-                partOfSchwartzForGuns = read_from_xml_node(xmlNode, "partOfSchwartzForGuns", do_not_warn=True)
-                if partOfSchwartzForGuns is not None:
-                    self.partOfSchwartzForGuns = float(partOfSchwartzForGuns)
+            partOfSchwartzForGuns = read_from_xml_node(xmlNode, "partOfSchwartzForGuns", do_not_warn=True)
+            if partOfSchwartzForGuns is not None:
+                self.partOfSchwartzForGuns.value = float(partOfSchwartzForGuns)
 
-                partOfSchwartzForWares = read_from_xml_node(xmlNode, "partOfSchwartzForWares", do_not_warn=True)
-                if partOfSchwartzForWares is not None:
-                    self.partOfSchwartzForWares = float(partOfSchwartzForWares)
+            partOfSchwartzForWares = read_from_xml_node(xmlNode, "partOfSchwartzForWares", do_not_warn=True)
+            if partOfSchwartzForWares is not None:
+                self.partOfSchwartzForWares.value = float(partOfSchwartzForWares)
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
         if self.vehicleDescriptions:
-            for vehicle_description in self.vehicleDescriptions:
+            for vehicle_description in self.vehicleDescriptions.value:
                 vehicle_description.PostLoad(prototype_manager)
+
+    def get_etree_prototype(self):
+        result = PrototypeInfo.get_etree_prototype(self)
+
+        # DesiredCount start
+        desired_count = 0
+        if self.desiredCountLow.value == self.desiredCountHigh.value:
+            desired_count = str(self.desiredCountLow.value)
+        else:
+            desired_count = "%d-%d" % (self.desiredCountLow.value, self.desiredCountHigh.value)
+        result.set("DesiredCount", desired_count)
+        # DesiredCount end
+
+        # VehicleDescription start
+        if self.vehicleDescriptions.value != self.vehicleDescriptions.default_value:
+            for vehicle_description in self.vehicleDescriptions.value:
+                result.append(vehicle_description.get_etree_prototype())
+        # VehicleDescription end
+        return result
 
     class VehicleDescription(object):
         def __init__(self, xmlFile, xmlNode):
@@ -1456,10 +1483,11 @@ class VehiclesGeneratorPrototypeInfo(PrototypeInfo):
 
             self.gunAffixGeneratorPrototypeName = ""
             self.gunAffixGeneratorPrototypeId = -1
+            # mode partOfSchwartz from LoadFromXMK
+            self.partOfSchwartz = -1.0
             self.LoadFromXML(xmlFile, xmlNode)
 
         def LoadFromXML(self, xmlFile, xmlNode):
-            self.partOfSchwartz = -1.0
             partOfSchwartz = read_from_xml_node(xmlNode, "PartOfSchwartz", do_not_warn=True)
             if partOfSchwartz is not None:
                 self.partOfSchwartz = float(partOfSchwartz)
@@ -1505,6 +1533,14 @@ class VehiclesGeneratorPrototypeInfo(PrototypeInfo):
                 if self.gunAffixGeneratorPrototypeId == -1:
                     logger.error(f"Unknown GunAffix prototype: '{self.gunAffixGeneratorPrototypeName}' found"
                                  f" for VehiclesGenerator: '{self.prototypeName.value}'")
+
+        def get_etree_prototype(self):
+            description_node = etree.Element("Description")
+            description_node.set("VehiclesPrototypes", " ".join(self.vehiclePrototypeNames))
+            description_node.set("WaresPrototypes", " ".join(self.waresPrototypesNames))
+            description_node.set("GunAffixGeneratorPrototype", self.gunAffixGeneratorPrototypeName)
+            description_node.set("PartOfSchwartz", str(self.partOfSchwartz))
+            return description_node
 
 
 class FormationPrototypeInfo(PrototypeInfo):
@@ -1593,7 +1629,7 @@ class SettlementPrototypeInfo(SimplePhysicObjPrototypeInfo):
                 radius = read_from_xml_node(xmlNode["zone"], "radius", do_not_warn=True)
                 zone_info.radius = float(radius)
                 self.zoneInfos.append(zone_info)
-            self.vehiclesPrototypeName = read_from_xml_node(xmlNode, "Vehicles")
+            self.vehiclesPrototypeName = safe_check_and_set(self.vehiclesPrototypeName, xmlNode, "Vehicles")
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
@@ -2865,14 +2901,14 @@ class GeomObjPrototypeInfo(PhysicObjPrototypeInfo):
 class RopeObjPrototypeInfo(SimplePhysicObjPrototypeInfo):
     def __init__(self, server):
         SimplePhysicObjPrototypeInfo.__init__(self, server)
-        self.brokenModel = ""
+        self.brokenModel = AnnotatedValue("", "BrokenModel", group_type=GroupType.PRIMARY)
         self.isUpdating = AnnotatedValue(False, "IsUpdating", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             self.SetGeomType("BOX")
-            self.brokenModel = read_from_xml_node(xmlNode, "BrokenModel")
+            self.brokenModel.value = read_from_xml_node(xmlNode, "BrokenModel")
             return STATUS_SUCCESS
 
 
