@@ -782,9 +782,11 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
         self.collisionInfos = []
         self.collisionTrimeshAllowed = AnnotatedValue(False, "CollisionTrimeshAllowed",
                                                       group_type=GroupType.SECONDARY)
-        self.geomType = AnnotatedValue(0, "GeomType", group_type=GroupType.INTERNAL, read_only=True)
+        self.geomType = AnnotatedValue(0, "GeomType", group_type=GroupType.INTERNAL, read_only=True,
+                                       saving_type=SavingType.IGNORE)
         self.engineModelName = AnnotatedValue("", "ModelFile", group_type=GroupType.VISUAL)
-        self.size = AnnotatedValue(deepcopy(ZERO_VECTOR), "Size", group_type=GroupType.INTERNAL, read_only=True)
+        self.size = AnnotatedValue(deepcopy(ZERO_VECTOR), "Size", group_type=GroupType.INTERNAL,
+                                   saving_type=SavingType.SPECIFIC, read_only=True)
         self.radius = AnnotatedValue(1.0, "IntersectionRadius", group_type=GroupType.INTERNAL, read_only=True)
         self.massValue = AnnotatedValue(1.0, "Mass", group_type=GroupType.PRIMARY)
 
@@ -800,6 +802,14 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
                                                                    read_from_xml_node(xmlNode,
                                                                                       "CollisionTrimeshAllowed",
                                                                                       do_not_warn=True))
+            # custom implementation. Originally called from RefreshFromXml
+            size = read_from_xml_node(xmlNode, "Size", do_not_warn=True)
+            if size is not None:
+                size_array = size.split()
+                self.size.value["x"] = size_array[0]
+                self.size.value["y"] = size_array[1]
+                self.size.value["z"] = size_array[2]
+            # custom implementation ends
             return STATUS_SUCCESS
 
     def SetGeomType(self, geom_type):
@@ -819,6 +829,13 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
         elif self.geomType.value == 5:
             logger.warning(f"Obsolete GeomType: TriMesh! in {self.prototypeName.value}")
         self.collisionInfos.append(collision_info)
+
+    def get_etree_prototype(self):
+        result = PrototypeInfo.get_etree_prototype(self)
+        # Size start
+        result.set("Size", f'{self.size.value["x"]} {self.size.value["y"]} {self.size.value["z"]}')
+        # Size ends
+        return result
 
 
 class ChestPrototypeInfo(SimplePhysicObjPrototypeInfo):
@@ -2519,6 +2536,7 @@ class RocketPrototypeInfo(ShellPrototypeInfo):
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = ShellPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        self.SetGeomType("BOX")
         if result == STATUS_SUCCESS:
             velocity = read_from_xml_node(xmlNode, "Velocity")
             if velocity is not None:
