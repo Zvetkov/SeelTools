@@ -145,11 +145,12 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
     def __init__(self, server):
         PhysicBodyPrototypeInfo.__init__(self, server)
         self.weaponPrototypeId = -1
-        self.durability = 0.0
-        self.loadPoints = []
-        self.blowEffectName = "ET_PS_HARD_BLOW"
-        self.canBeUsedInAutogenerating = True
-        self.repairCoef = 1.0
+        self.durability = AnnotatedValue(0.0, "Durability", group_type=GroupType.PRIMARY)
+        self.loadPoints = AnnotatedValue([], "LoadPoints", group_type=GroupType.SECONDARY,
+                                         saving_type=SavingType.SPECIFIC)  # ToDo
+        self.blowEffectName = AnnotatedValue("ET_PS_HARD_BLOW", "BlowEffect", group_type=GroupType.SECONDARY)
+        self.canBeUsedInAutogenerating = AnnotatedValue(True, "CanBeUsedInAutogenerating", group_type=GroupType.PRIMARY)
+        self.repairCoef = AnnotatedValue(1.0, "RepairCoef", group_type=GroupType.SECONDARY)
         self.modelMeshes = []
         self.boundsForMeshes = []
         self.verts = []
@@ -157,37 +158,39 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
         self.numsTris = []
         self.vertsStride = []
         self.groupHealth = []  # groupHealthes in original
-        self.durabilityCoeffsForDamageTypes = [0, 0, 0]
+        self.durabilityCoeffsForDamageTypes = AnnotatedValue([0.0, 0.0, 0.0], "DurCoeffsForDamageTypes",
+                                                             group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PhysicBodyPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.blowEffectName = safe_check_and_set(self.blowEffectName, xmlNode, "BlowEffect")
+            self.blowEffectName.value = safe_check_and_set(self.blowEffectName.value, xmlNode, "BlowEffect")
             durability = read_from_xml_node(xmlNode, "Durability", do_not_warn=True)
             if durability is not None:
-                self.durability = float(durability)
+                self.durability.value = float(durability)
             strDurabilityCoeffs = read_from_xml_node(xmlNode, "DurCoeffsForDamageTypes", do_not_warn=True)
             if strDurabilityCoeffs is not None:
-                self.durabilityCoeffsForDamageTypes = [float(coeff) for coeff in strDurabilityCoeffs.split()]
-                for coeff in self.durabilityCoeffsForDamageTypes:
+                self.durabilityCoeffsForDamageTypes.value = [float(coeff) for coeff in strDurabilityCoeffs.split()]
+                for coeff in self.durabilityCoeffsForDamageTypes.value:
                     if coeff < -25.1 or coeff > 25.0:
                         logger.error(f"Invalif DurCoeffsForDamageTypes:{coeff} for {self.prototypeName.value}, "
                                      "should be between -25.0 and 25.0")
 
             loadPoints = read_from_xml_node(xmlNode, "LoadPoints", do_not_warn=True)
             if loadPoints is not None and loadPoints != "":
-                self.loadPoints = loadPoints.split()
+                self.loadPoints.value = loadPoints.split()
             price = read_from_xml_node(xmlNode, "Price", do_not_warn=True)
             if price is not None:
-                self.price = int(price)
+                self.price.value = int(price)
 
             repairCoef = read_from_xml_node(xmlNode, "RepairCoef", do_not_warn=True)
             if repairCoef is not None:
-                self.repairCoef = float(repairCoef)
+                self.repairCoef.value = float(repairCoef)
 
-            self.canBeUsedInAutogenerating = parse_str_to_bool(self.canBeUsedInAutogenerating,
-                                                               read_from_xml_node(xmlNode, "CanBeUsedInAutogenerating",
-                                                                                  do_not_warn=True))
+            self.canBeUsedInAutogenerating.value = parse_str_to_bool(self.canBeUsedInAutogenerating.value,
+                                                                     read_from_xml_node(xmlNode,
+                                                                                        "CanBeUsedInAutogenerating",
+                                                                                        do_not_warn=True))
             return STATUS_SUCCESS
 
 
