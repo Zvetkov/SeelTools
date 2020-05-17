@@ -1118,7 +1118,8 @@ class VehicleRoleSniperPrototypeInfo(VehicleRolePrototypeInfo):
 class TeamTacticWithRolesPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.rolePrototypeNames = []
+        self.rolePrototypeNames = AnnotatedValue([], "RolePrototypeNames", group_type=GroupType.PRIMARY,
+                                                 display_type=DisplayType.AFFIX_LIST, saving_type=SavingType.SPECIFIC)
         self.rolePrototypeIds = []
 
     def LoadFromXML(self, xmlFile, xmlNode):
@@ -1126,12 +1127,12 @@ class TeamTacticWithRolesPrototypeInfo(PrototypeInfo):
         if result == STATUS_SUCCESS:
             check_mono_xml_node(xmlNode, "Role")
             for role in xmlNode.iterchildren(tag="Role"):
-                self.rolePrototypeNames.append(read_from_xml_node(role, "Prototype"))
+                self.rolePrototypeNames.value.append(read_from_xml_node(role, "Prototype"))
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
-        if self.rolePrototypeNames:
-            for role_name in self.rolePrototypeNames:
+        if self.rolePrototypeNames.value:
+            for role_name in self.rolePrototypeNames.value:
                 role_prot_id = prototype_manager.GetPrototypeId(role_name)
                 if role_prot_id == -1:  # ??? there also exist check if sheelPrototypeName is not empty. A valid case?
                     logger.error(f"Unknown role prototype: '{self.shellPrototypeId}' for prot: "
@@ -1153,70 +1154,78 @@ class InfectionLairPrototypeInfo(PrototypeInfo):
 class TeamPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.decisionMatrixNum = -1
-        self.decisionMatrixName = ""  # placeholder for AIManager functionality ???
-        self.removeWhenChildrenDead = True
-        self.formationPrototypeName = TEAM_DEFAULT_FORMATION_PROTOTYPE
+        self.decisionMatrixNum = AnnotatedValue(-1, "DecisionMatrixNum", group_type=GroupType.INTERNAL)
+        # placeholder for AIManager functionality ???
+        self.decisionMatrixName = AnnotatedValue("", "DecisionMatrix", group_type=GroupType.PRIMARY)
+        self.removeWhenChildrenDead = AnnotatedValue(True, "RemoveWhenChildrenDead", group_type=GroupType.SECONDARY)
+        self.formationPrototypeName = AnnotatedValue(TEAM_DEFAULT_FORMATION_PROTOTYPE, "Prototype",
+                                                     group_type=GroupType.PRIMARY)
         self.formationPrototypeId = -1
-        self.overridesDistBetweenVehicles = False
+        self.overridesDistBetweenVehicles = AnnotatedValue(False, "OverridesDistBetweenVehicles",
+                                                           group_type=GroupType.SECONDARY, read_only=True,
+                                                           saving_type=SavingType.IGNORE)
         self.isUpdating = AnnotatedValue(False, "IsUpdating", group_type=GroupType.SECONDARY)
-        self.formationDistBetweenVehicles = 30.0
+        self.formationDistBetweenVehicles = AnnotatedValue(30.0, "DistBetweenVehicles", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.decisionMatrixName = read_from_xml_node(xmlNode, "DecisionMatrix")
-            self.removeWhenChildrenDead = parse_str_to_bool(self.removeWhenChildrenDead, 
-                                                            read_from_xml_node(xmlNode, "RemoveWhenChildrenDead",
-                                                                               do_not_warn=True))
+            self.decisionMatrixName.value = read_from_xml_node(xmlNode, "DecisionMatrix")
+            self.removeWhenChildrenDead.value = parse_str_to_bool(self.removeWhenChildrenDead,
+                                                                  read_from_xml_node(xmlNode, "RemoveWhenChildrenDead",
+                                                                                     do_not_warn=True))
             formation = child_from_xml_node(xmlNode, "Formation", do_not_warn=True)
             if formation is not None:
-                self.formationPrototypeName = read_from_xml_node(formation, "Prototype")
+                self.formationPrototypeName.value = read_from_xml_node(formation, "Prototype")
                 distBetweenVehicles = read_from_xml_node(formation, "DistBetweenVehicles", do_not_warn=True)
                 if distBetweenVehicles is not None:
-                    self.overridesDistBetweenVehicles = True
-                    self.formationDistBetweenVehicles = float(distBetweenVehicles)
+                    self.overridesDistBetweenVehicles.value = True
+                    self.formationDistBetweenVehicles.value = float(distBetweenVehicles)
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
-        self.formationPrototypeId = prototype_manager.GetPrototypeId(self.formationPrototypeName)
+        self.formationPrototypeId = prototype_manager.GetPrototypeId(self.formationPrototypeName.value)
 
 
 class CaravanTeamPrototypeInfo(TeamPrototypeInfo):
     def __init__(self, server):
         TeamPrototypeInfo.__init__(self, server)
-        self.tradersGeneratorPrototypeName = ""
-        self.guardsGeneratorPrototypeName = ""
+        self.tradersGeneratorPrototypeName = AnnotatedValue("", "TradersVehiclesGeneratorName",
+                                                            group_type=GroupType.PRIMARY)
+        self.guardsGeneratorPrototypeName = AnnotatedValue("", "GuardVehiclesGeneratorName",
+                                                           group_type=GroupType.PRIMARY)
         self.tradersGeneratorPrototypeId = -1
         self.guardsGeneratorPrototypeId = -1
-        self.waresPrototypes = []
-        self.formationPrototypeName = TEAM_DEFAULT_FORMATION_PROTOTYPE
+        self.waresPrototypes = AnnotatedValue([], "WaresPrototypes", group_type=GroupType.PRIMARY,
+                                              display_type=DisplayType.WARES_LIST, saving_type=SavingType.SPECIFIC)
+        self.formationPrototypeName.value = TEAM_DEFAULT_FORMATION_PROTOTYPE
+        self.formationPrototypeName.default_value = TEAM_DEFAULT_FORMATION_PROTOTYPE
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = TeamPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.tradersGeneratorPrototypeName = safe_check_and_set(self.tradersGeneratorPrototypeName, xmlNode,
-                                                                    "TradersVehiclesGeneratorName")
-            self.guardsGeneratorPrototypeName = safe_check_and_set(self.guardsGeneratorPrototypeName, xmlNode,
-                                                                   "GuardVehiclesGeneratorName")
+            self.tradersGeneratorPrototypeName.value = safe_check_and_set(self.tradersGeneratorPrototypeName, xmlNode,
+                                                                          "TradersVehiclesGeneratorName")
+            self.guardsGeneratorPrototypeName.value = safe_check_and_set(self.guardsGeneratorPrototypeName, xmlNode,
+                                                                         "GuardVehiclesGeneratorName")
             waresPrototypes = read_from_xml_node(xmlNode, "WaresPrototypes", do_not_warn=True)
             if waresPrototypes is not None:
-                self.waresPrototypes = waresPrototypes.split()
-            if self.tradersGeneratorPrototypeName is not None:
-                if self.waresPrototypes is None:
+                self.waresPrototypes.value = waresPrototypes.split()
+            if self.tradersGeneratorPrototypeName.value is not None:
+                if self.waresPrototypes.value is None:
                     logger.error(f"No wares for caravan with traders: {self.prototypeName.value}")
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
         TeamPrototypeInfo.PostLoad(self, prototype_manager)
-        self.tradersGeneratorPrototypeId = prototype_manager.GetPrototypeId(self.tradersGeneratorPrototypeName)
+        self.tradersGeneratorPrototypeId = prototype_manager.GetPrototypeId(self.tradersGeneratorPrototypeName.value)
         if self.tradersGeneratorPrototypeId == -1:
-            logger.error(f"Unknown VehiclesGenerator '{self.tradersGeneratorPrototypeName}' "
+            logger.error(f"Unknown VehiclesGenerator '{self.tradersGeneratorPrototypeName.value}' "
                          f"for traders of CaravanTeam {self.prototypeName.value}")
 
-        self.guardsGeneratorPrototypeId = prototype_manager.GetPrototypeId(self.guardsGeneratorPrototypeName)
+        self.guardsGeneratorPrototypeId = prototype_manager.GetPrototypeId(self.guardsGeneratorPrototypeName.value)
         if self.guardsGeneratorPrototypeId == -1:
-            logger.error(f"Unknown VehiclesGenerator '{self.guardsGeneratorPrototypeName}' "
+            logger.error(f"Unknown VehiclesGenerator '{self.guardsGeneratorPrototypeName.value}' "
                          f"for guards of CaravanTeam {self.prototypeName.value}")
 
 
@@ -1225,7 +1234,7 @@ class VagabondTeamPrototypeInfo(TeamPrototypeInfo):
         TeamPrototypeInfo.__init__(self, server)
         self.vehiclesGeneratorPrototype = ""
         self.waresPrototypes = []
-        self.removeWhenChildrenDead = True
+        self.removeWhenChildrenDead.value = True
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = TeamPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -1271,39 +1280,39 @@ class InfectionTeamPrototypeInfo(TeamPrototypeInfo):
 class InfectionZonePrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.minDistToPlayer = 100.0
-        self.criticalTeamDist = 1000000.0
-        self.criticalTeamTime = 0.0
-        self.blindTeamDist = 1000000.0
-        self.blindTeamTime = 0.0
-        self.dropOutSegmentAngle = 180
+        self.minDistToPlayer = AnnotatedValue(100.0, "MinDistToPlayer", group_type=GroupType.PRIMARY)
+        self.criticalTeamDist = AnnotatedValue(1000000.0, "CriticalTeamDist", group_type=GroupType.PRIMARY)
+        self.criticalTeamTime = AnnotatedValue(0.0, "CriticalTeamTime", group_type=GroupType.PRIMARY)
+        self.blindTeamDist = AnnotatedValue(1000000.0, "BlindTeamDist", group_type=GroupType.PRIMARY)
+        self.blindTeamTime = AnnotatedValue(0.0, "BlindTeamTime", group_type=GroupType.PRIMARY)
+        self.dropOutSegmentAngle = AnnotatedValue(180, "DropOutSegmentAngle", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             minDistToPlayer = read_from_xml_node(xmlNode, "MinDistToPlayer", do_not_warn=True)
             if minDistToPlayer is not None:
-                self.minDistToPlayer = float(minDistToPlayer)
+                self.minDistToPlayer.value = float(minDistToPlayer)
 
             criticalTeamDist = read_from_xml_node(xmlNode, "CriticalTeamDist", do_not_warn=True)
             if criticalTeamDist is not None:
-                self.criticalTeamDist = float(criticalTeamDist)
+                self.criticalTeamDist.value = float(criticalTeamDist)
 
             criticalTeamTime = read_from_xml_node(xmlNode, "CriticalTeamTime", do_not_warn=True)
             if criticalTeamTime is not None:
-                self.criticalTeamTime = float(criticalTeamTime)
+                self.criticalTeamTime.value = float(criticalTeamTime)
 
             blindTeamDist = read_from_xml_node(xmlNode, "BlindTeamDist", do_not_warn=True)
             if blindTeamDist is not None:
-                self.blindTeamDist = float(blindTeamDist)
+                self.blindTeamDist.value = float(blindTeamDist)
 
             blindTeamTime = read_from_xml_node(xmlNode, "BlindTeamTime", do_not_warn=True)
             if blindTeamTime is not None:
-                self.blindTeamTime = float(blindTeamTime)
+                self.blindTeamTime.value = float(blindTeamTime)
 
             dropOutSegmentAngle = read_from_xml_node(xmlNode, "DropOutSegmentAngle", do_not_warn=True)
             if dropOutSegmentAngle is not None:
-                self.dropOutSegmentAngle = int(dropOutSegmentAngle)
+                self.dropOutSegmentAngle.value = int(dropOutSegmentAngle)
             return STATUS_SUCCESS
 
 

@@ -10,6 +10,7 @@ class DisplayType(Enum):
     MODIFICATION_INFO = 4  # list of objects, add/remove functions, TBD UI solution
     VEHICLE_DESCRIPTION = 5  # list of vehicle descriptions, similar to 4
     AFFIX_LIST = 6
+    WARES_LIST = 7
 
 
 class GroupType(Enum):
