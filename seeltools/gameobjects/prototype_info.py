@@ -442,10 +442,13 @@ class GadgetPrototypeInfo(PrototypeInfo):
     def get_etree_prototype(self):
         result = PrototypeInfo.get_etree_prototype(self)
 
-        modifications_string = ""
-        for modification in self.modifications.value:
-            modifications_string += "%s " % modification.get_string_representation(self)
-        result.set("Modifications", modifications_string.rstrip('; '))
+        # Modifications start
+        if self.modifications.value != self.modifications.default_value:
+            modifications_string = ""
+            for modification in self.modifications.value:
+                modifications_string += "%s " % modification.get_string_representation(self)
+            result.set("Modifications", modifications_string.rstrip('; '))
+        # Modifications end
 
         return result
 
@@ -546,9 +549,12 @@ class WanderersGeneratorPrototypeInfo(PrototypeInfo):  # special save and displa
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
         self.vehicleDescriptions = AnnotatedValue([], "VehicleDescription", group_type=GroupType.PRIMARY,
-                                                  display_type=DisplayType.MODIFICATION_INFO)
-        self.desiredCountLow = AnnotatedValue(-1, "DesiredCountLow", group_type=GroupType.PRIMARY)
-        self.desiredCountHigh = AnnotatedValue(-1, "DesiredCountHigh", group_type=GroupType.PRIMARY)
+                                                  display_type=DisplayType.MODIFICATION_INFO,
+                                                  saving_type=SavingType.SPECIFIC)
+        self.desiredCountLow = AnnotatedValue(-1, "DesiredCountLow", group_type=GroupType.PRIMARY,
+                                              saving_type=SavingType.SPECIFIC)
+        self.desiredCountHigh = AnnotatedValue(-1, "DesiredCountHigh", group_type=GroupType.PRIMARY,
+                                               saving_type=SavingType.SPECIFIC)
 
     def LoadFromXML(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -577,7 +583,7 @@ class WanderersGeneratorPrototypeInfo(PrototypeInfo):  # special save and displa
             check_mono_xml_node(vehicles, "Vehicle")
             for vehicle_node in vehicles.iterchildren("Vehicle"):
                 vehicle_description = self.VehicleDescription()
-                vehicle_description.LoadFromXML(xmlFile, xmlNode)
+                vehicle_description.LoadFromXML(xmlFile, vehicle_node)
                 self.vehicleDescriptions.value.append(vehicle_description)
             return STATUS_SUCCESS
 
@@ -585,6 +591,27 @@ class WanderersGeneratorPrototypeInfo(PrototypeInfo):  # special save and displa
         if self.vehicleDescriptions:
             for vehicle_description in self.vehicleDescriptions.value:
                 vehicle_description.PostLoad(prototype_manager)
+
+    def get_etree_prototype(self):
+        result = PrototypeInfo.get_etree_prototype(self)
+
+        # DesiredCount start
+        desired_count = 0
+        if self.desiredCountLow.value == self.desiredCountHigh.value:
+            desired_count = str(self.desiredCountLow.value)
+        else:
+            desired_count = "%d-%d" % (self.desiredCountLow.value, self.desiredCountHigh.value)
+        result.set("DesiredCount", desired_count)
+        # DesiredCount end
+
+        # VehicleDescription start
+        if self.vehicleDescriptions.value != self.vehicleDescriptions.default_value:
+            vehiclesTree = etree.Element("Vehicles")
+            for vehicle in self.vehicleDescriptions.value:
+                vehiclesTree.append(vehicle.get_etree_prototype())
+            result.append(vehiclesTree)
+        # VehicleDescription end
+        return result
 
     class VehicleDescription(object):
         def __init__(self):
@@ -635,6 +662,37 @@ class WanderersGeneratorPrototypeInfo(PrototypeInfo):  # special save and displa
             WanderersGeneratorPrototypeInfo.VehiclePartDescription.PostLoad(self.basketBigGun0, prototype_manager)
             WanderersGeneratorPrototypeInfo.VehiclePartDescription.PostLoad(self.basketBigGun1, prototype_manager)
             WanderersGeneratorPrototypeInfo.VehiclePartDescription.PostLoad(self.basketSideGun, prototype_manager)
+
+        def get_etree_prototype(self):
+            vehicleTree = etree.Element("Vehicle")
+            vehicleTree.set("Prototype", self.prototype)
+            children = [
+                self.get_etree_node_if_not_default("Cabin", self.cabin),
+                self.get_etree_node_if_not_default("Basket", self.basket),
+                self.get_etree_node_if_not_default("CabinSmallGun", self.cabinSmallGun),
+                self.get_etree_node_if_not_default("CabinBigGun", self.cabinBigGun),
+                self.get_etree_node_if_not_default("CabinSpecialWeapon", self.cabinSpecialWeapon),
+                self.get_etree_node_if_not_default("BasketSmallGun0", self.basketSmallGun0),
+                self.get_etree_node_if_not_default("BasketSmallGun1", self.basketSmallGun1),
+                self.get_etree_node_if_not_default("BasketBigGun0", self.basketBigGun0),
+                self.get_etree_node_if_not_default("BasketBigGun1", self.basketBigGun1),
+                self.get_etree_node_if_not_default("BasketSideGun", self.basketSideGun)
+            ]
+            for child in children:
+                if child is not None:
+                    vehicleTree.append(child)
+            return vehicleTree
+
+        def get_etree_node_if_not_default(self, nodeName, childProp):
+            if childProp.present and childProp.prototypeNames == []:
+                return None
+            else:
+                vehicleTree = etree.Element(nodeName)
+                if not childProp.present:
+                    vehicleTree.set("Present", str(childProp.present))
+                if childProp.prototypeNames != []:
+                    vehicleTree.set("Prototypes", " ".join(childProp.prototypeNames))
+                return vehicleTree
 
     class VehiclePartDescription(object):
         def __init__(self):
