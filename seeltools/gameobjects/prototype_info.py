@@ -837,33 +837,6 @@ class ChestPrototypeInfo(SimplePhysicObjPrototypeInfo):
             return STATUS_SUCCESS
 
 
-class ComplexPhysicObjPartDescription(Object):
-    def __init__(self, prototype_info_object=None):
-        Object.__init__(self, prototype_info_object)
-        self.partResourceId = -1
-        self.lpNames = []
-        self.child_descriptions = []  # ??? temporary placeholder for original logic
-
-    def LoadFromXML(self, xmlFile, xmlNode, server):
-        self.name = read_from_xml_node(xmlNode, "id")
-        if self.parent is not None:
-            parent_lookup = self.parent.GetChildByName(self.name)
-            if parent_lookup is not None and self is parent_lookup:  # ??? can this ever be true?
-                logger.warning(f"When loading PartDescription: name = {self.name} conflicts with another child")
-
-        partResourceType = read_from_xml_node(xmlNode, "partResourceType")
-        self.partResourceId = server.theResourceManager.GetResourceId(partResourceType)
-        lpNames = read_from_xml_node(xmlNode, "lpName", do_not_warn=True)
-        if lpNames is not None:
-            self.lpNames = lpNames.split()
-        if len(xmlNode.getchildren()) >= 1:
-            check_mono_xml_node(xmlNode, "PartDescription")
-            for description_node in xmlNode.iterchildren(tag="PartDescription"):
-                part_description = ComplexPhysicObjPartDescription()
-                part_description.LoadFromXML(xmlFile, description_node, server)
-                self.child_descriptions.append(part_description)  # ??? temporary placeholder for original logic
-
-
 class ComplexPhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
     def __init__(self, server):
         PhysicObjPrototypeInfo.__init__(self, server)
@@ -882,7 +855,7 @@ class ComplexPhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
         if result == STATUS_SUCCESS:
             main_part_description_node = child_from_xml_node(xmlNode, "MainPartDescription", do_not_warn=True)
             if main_part_description_node is not None:
-                partPrototypeDescriptions = ComplexPhysicObjPartDescription()
+                partPrototypeDescriptions = self.ComplexPhysicObjPartDescription()
                 partPrototypeDescriptions.LoadFromXML(xmlFile, main_part_description_node, self.theServer)
                 self.partPrototypeDescriptions = partPrototypeDescriptions
             else:
@@ -911,6 +884,34 @@ class ComplexPhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
             self.partPrototypeIds.append(prototype_manager.GetPrototypeId(prot_name["name"]))
         # can this replace ComplexPhysicObjPartDescription::GetPartNames?
         self.allPartNames = [part.name for part in self.partDescription]
+
+    class ComplexPhysicObjPartDescription(Object):
+        def __init__(self, prototype_info_object=None):
+            Object.__init__(self, prototype_info_object)
+            self.partResourceId = -1
+            self.lpNames = []
+            self.child_descriptions = []  # ??? temporary placeholder for original logic
+
+        def LoadFromXML(self, xmlFile, xmlNode, server):
+            self.name = read_from_xml_node(xmlNode, "id")
+            if self.parent is not None:
+                parent_lookup = self.parent.GetChildByName(self.name)
+                if parent_lookup is not None and self is parent_lookup:  # ??? can this ever be true?
+                    logger.warning(f"When loading PartDescription: name = {self.name} conflicts with another child")
+
+            partResourceType = read_from_xml_node(xmlNode, "partResourceType")
+            self.partResourceId = server.theResourceManager.GetResourceId(partResourceType)
+            lpNames = read_from_xml_node(xmlNode, "lpName", do_not_warn=True)
+            if lpNames is not None:
+                self.lpNames = lpNames.split()
+            if len(xmlNode.getchildren()) >= 1:
+                check_mono_xml_node(xmlNode, "PartDescription")
+                for description_node in xmlNode.iterchildren(tag="PartDescription"):
+                    part_description = ComplexPhysicObjPrototypeInfo.ComplexPhysicObjPartDescription()
+                    part_description.LoadFromXML(xmlFile, description_node, server)
+                    self.child_descriptions.append(part_description)  # ??? temporary placeholder for original logic
+
+
 
 
 class StaticAutoGunPrototypeInfo(ComplexPhysicObjPrototypeInfo):
@@ -1212,11 +1213,6 @@ class TeamTacticWithRolesPrototypeInfo(PrototypeInfo):
 
 
 class NPCMotionControllerPrototypeInfo(PrototypeInfo):
-    def __init__(self, server):
-        PrototypeInfo.__init__(self, server)
-
-
-class InfectionLairPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
 
@@ -1603,6 +1599,11 @@ class SettlementPrototypeInfo(SimplePhysicObjPrototypeInfo):
             self.action = ""
             self.offset = deepcopy(ZERO_VECTOR)
             self.radius = 10.0
+
+
+class InfectionLairPrototypeInfo(SettlementPrototypeInfo):
+    def __init__(self, server):
+        SettlementPrototypeInfo.__init__(self, server)
 
 
 class TownPrototypeInfo(SettlementPrototypeInfo):
