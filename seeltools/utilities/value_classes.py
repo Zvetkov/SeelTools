@@ -12,7 +12,7 @@ class DisplayType(Enum):
     AFFIX_LIST = 6
 
 
-class SystemType(Enum):
+class GroupType(Enum):
     INTERNAL = 0  # prototype ids and other internal info that is not useful for direct editing, ex prototype id
     GENERAL = 1
     PRIMARY = 2
@@ -20,11 +20,19 @@ class SystemType(Enum):
     VISUAL = 4  # textures, models, icons
 
 
+class SavingType(Enum):
+    COMMON = 0  # saving behaviour implemented in PrototypeInfo
+    SPECIFIC = 1  # saving behaviour implemented in Class by itself
+    RESOURCE = 2  # saving behaviout for ResourceType specifically
+    IGNORE = 3  # ignore property during saving. Default if GroupType is INTERNAL
+
+
 class AnnotatedValue(object):
     def __init__(self,
                  value,  # any Type,
                  name: str,  # service name to map with display name and description
-                 system_type: int = None,
+                 group_type: int = None,
+                 saving_type: int = None,
                  default_value=None,  # same as value
                  initial_value=None,  # same as value
                  display_type: int = None,  # types with fancy display widget(for ex: enums to choose dropdown)
@@ -32,7 +40,14 @@ class AnnotatedValue(object):
                  is_dirty: bool = False):
         self.value = value
         self.name = name
-        self.system_type = system_type
+        self.group_type = group_type
+
+        if group_type == GroupType.INTERNAL and saving_type is None:
+            self.saving_type = SavingType.IGNORE
+        elif saving_type is None:
+            self.saving_type = SavingType.COMMON
+        else:
+            self.saving_type = saving_type
 
         # we want to create new AnnotatedValues only in Init of classes and after that manipulate them directly
         # in that case default_value always should be same as value

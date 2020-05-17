@@ -14,7 +14,7 @@ from seeltools.utilities.constants import (STATUS_SUCCESS, DEFAULT_TURNING_SPEED
 
 from seeltools.utilities.global_functions import GetActionByName  # , AIParam
 
-from seeltools.utilities.value_classes import AnnotatedValue, DisplayType, SystemType
+from seeltools.utilities.value_classes import AnnotatedValue, DisplayType, GroupType, SavingType
 from seeltools.utilities.helper_functions import value_equel_default
 
 from seeltools.gameobjects.object_classes import *
@@ -24,17 +24,18 @@ class PrototypeInfo(object):
     '''Base Prototype information class'''
     def __init__(self, server):
         self.theServer = server
-        self.className = AnnotatedValue("", "Class", system_type=SystemType.GENERAL,
+        self.className = AnnotatedValue("", "Class", group_type=GroupType.GENERAL,
                                         display_type=DisplayType.CLASS_NAME)
-        self.prototypeName = AnnotatedValue("", "Name", system_type=SystemType.GENERAL)
+        self.prototypeName = AnnotatedValue("", "Name", group_type=GroupType.GENERAL)
         self.prototypeId = -1
-        self.resourceId = AnnotatedValue(-1, "ResourceType", display_type=DisplayType.RESOURCE_ID)
-        self.isUpdating = AnnotatedValue(True, "IsUpdating", system_type=SystemType.SECONDARY)
-        self.visibleInEncyclopedia = AnnotatedValue(True, "VisibleInEncyclopedia", system_type=SystemType.SECONDARY)
-        self.applyAffixes = AnnotatedValue(True, "ApplyAffixes", system_type=SystemType.SECONDARY)
-        self.price = AnnotatedValue(0, "Price", system_type=SystemType.SECONDARY)
-        self.isAbstract = AnnotatedValue(False, "Abstract", system_type=SystemType.SECONDARY)
-        self.parentPrototypeName = AnnotatedValue("", "ParentPrototype", system_type=SystemType.GENERAL,
+        self.resourceId = AnnotatedValue(-1, "ResourceType", display_type=DisplayType.RESOURCE_ID,
+                                         saving_type=SavingType.RESOURCE)
+        self.isUpdating = AnnotatedValue(True, "IsUpdating", group_type=GroupType.SECONDARY)
+        self.visibleInEncyclopedia = AnnotatedValue(True, "VisibleInEncyclopedia", group_type=GroupType.SECONDARY)
+        self.applyAffixes = AnnotatedValue(True, "ApplyAffixes", group_type=GroupType.SECONDARY)
+        self.price = AnnotatedValue(0, "Price", group_type=GroupType.SECONDARY)
+        self.isAbstract = AnnotatedValue(False, "Abstract", group_type=GroupType.SECONDARY)
+        self.parentPrototypeName = AnnotatedValue("", "ParentPrototype", group_type=GroupType.GENERAL,
                                                   display_type=DisplayType.PROTOTYPE_NAME)
         self.parentPrototypeId = -1
         self.protoClassObject = 0
@@ -97,26 +98,25 @@ class PrototypeInfo(object):
         for attrib in prot_attribs.values():
             if isinstance(attrib, AnnotatedValue):
                 if (
-                    attrib.system_type != SystemType.INTERNAL
+                    attrib.saving_type != SavingType.IGNORE
+                    and attrib.saving_type != SavingType.SPECIFIC
                     and not value_equel_default(attrib.value, attrib.default_value)
                 ):
-
-                    if attrib.name == "ResourceType":
+                    if attrib.saving_type == SavingType.COMMON:
+                        result.set(attrib.name, str(attrib.value))
+                    elif attrib.saving_type == SavingType.RESOURCE:
                         result.set(attrib.name, self.theServer.theResourceManager.GetResourceName(attrib.value))
-                    else:
-                        if not isinstance(attrib.value, list):
-                            result.set(attrib.name, str(attrib.value))
         return result
 
 
 class PhysicBodyPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.engineModelName = AnnotatedValue("", "ModelFile", system_type=SystemType.VISUAL)
-        self.massValue = AnnotatedValue(1.0, "Mass", system_type=SystemType.PRIMARY)
+        self.engineModelName = AnnotatedValue("", "ModelFile", group_type=GroupType.VISUAL)
+        self.massValue = AnnotatedValue(1.0, "Mass", group_type=GroupType.PRIMARY)
         self.collisionInfos = []
         self.collisionTrimeshAllowed = AnnotatedValue(False, "CollisionTrimeshAllowed",
-                                                      system_type=SystemType.SECONDARY)
+                                                      group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -421,11 +421,12 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
 class GadgetPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.modifications = AnnotatedValue([], "Modifications", system_type=SystemType.PRIMARY,
-                                            display_type=DisplayType.MODIFICATION_INFO)
-        self.modelName = AnnotatedValue("", "ModelFile", system_type=SystemType.VISUAL)
-        self.skinNum = AnnotatedValue(0, "SkinNum", system_type=SystemType.VISUAL, display_type=DisplayType.SKIN_NUM)
-        self.isUpdating = AnnotatedValue(False, "IsUpdating", system_type=SystemType.SECONDARY)
+        self.modifications = AnnotatedValue([], "Modifications", group_type=GroupType.PRIMARY,
+                                            display_type=DisplayType.MODIFICATION_INFO,
+                                            saving_type=SavingType.SPECIFIC)
+        self.modelName = AnnotatedValue("", "ModelFile", group_type=GroupType.VISUAL)
+        self.skinNum = AnnotatedValue(0, "SkinNum", group_type=GroupType.VISUAL, display_type=DisplayType.SKIN_NUM)
+        self.isUpdating = AnnotatedValue(False, "IsUpdating", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -544,10 +545,10 @@ class WanderersManagerPrototypeInfo(PrototypeInfo):
 class WanderersGeneratorPrototypeInfo(PrototypeInfo):  # special save and display needed
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.vehicleDescriptions = AnnotatedValue([], "VehicleDescription", system_type=SystemType.PRIMARY,
+        self.vehicleDescriptions = AnnotatedValue([], "VehicleDescription", group_type=GroupType.PRIMARY,
                                                   display_type=DisplayType.MODIFICATION_INFO)
-        self.desiredCountLow = AnnotatedValue(-1, "DesiredCountLow", system_type=SystemType.PRIMARY)
-        self.desiredCountHigh = AnnotatedValue(-1, "DesiredCountHigh", system_type=SystemType.PRIMARY)
+        self.desiredCountLow = AnnotatedValue(-1, "DesiredCountLow", group_type=GroupType.PRIMARY)
+        self.desiredCountHigh = AnnotatedValue(-1, "DesiredCountHigh", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -658,7 +659,7 @@ class WanderersGeneratorPrototypeInfo(PrototypeInfo):  # special save and displa
 class AffixGeneratorPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.affixDescriptions = AnnotatedValue([], "Affix", system_type=SystemType.PRIMARY,
+        self.affixDescriptions = AnnotatedValue([], "Affix", group_type=GroupType.PRIMARY,
                                                 display_type=DisplayType.AFFIX_LIST)
 
     def LoadFromXML(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
@@ -689,8 +690,8 @@ class AffixGeneratorPrototypeInfo(PrototypeInfo):
 class PhysicObjPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.intersectionRadius = AnnotatedValue(0.0, "IntersectionRadius", system_type=SystemType.PRIMARY)
-        self.lookRadius = AnnotatedValue(0.0, "LookRadius", system_type=SystemType.PRIMARY)
+        self.intersectionRadius = AnnotatedValue(0.0, "IntersectionRadius", group_type=GroupType.PRIMARY)
+        self.lookRadius = AnnotatedValue(0.0, "LookRadius", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -709,12 +710,12 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
         PhysicObjPrototypeInfo.__init__(self, server)
         self.collisionInfos = []
         self.collisionTrimeshAllowed = AnnotatedValue(False, "CollisionTrimeshAllowed",
-                                                      system_type=SystemType.SECONDARY)
-        self.geomType = AnnotatedValue(0, "GeomType", system_type=SystemType.INTERNAL, read_only=True)
-        self.engineModelName = AnnotatedValue("", "ModelFile", system_type=SystemType.VISUAL)
-        self.size = AnnotatedValue(deepcopy(ZERO_VECTOR), "Size", system_type=SystemType.INTERNAL, read_only=True)
-        self.radius = AnnotatedValue(1.0, "IntersectionRadius", system_type=SystemType.INTERNAL, read_only=True)
-        self.massValue = AnnotatedValue(1.0, "Mass", system_type=SystemType.PRIMARY)
+                                                      group_type=GroupType.SECONDARY)
+        self.geomType = AnnotatedValue(0, "GeomType", group_type=GroupType.INTERNAL, read_only=True)
+        self.engineModelName = AnnotatedValue("", "ModelFile", group_type=GroupType.VISUAL)
+        self.size = AnnotatedValue(deepcopy(ZERO_VECTOR), "Size", group_type=GroupType.INTERNAL, read_only=True)
+        self.radius = AnnotatedValue(1.0, "IntersectionRadius", group_type=GroupType.INTERNAL, read_only=True)
+        self.massValue = AnnotatedValue(1.0, "Mass", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -880,7 +881,7 @@ class VehiclePrototypeInfo(ComplexPhysicObjPrototypeInfo):
         self.healthRegeneration = 0.0
         self.durabilityRegeneration = 0.0
         self.blastWavePrototypeName = ""
-        self.visibleInEncyclopedia = AnnotatedValue(False, "VisibleInEncyclopedia", system_type=SystemType.SECONDARY)
+        self.visibleInEncyclopedia = AnnotatedValue(False, "VisibleInEncyclopedia", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = ComplexPhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -1044,7 +1045,7 @@ class VehicleRecollectionPrototypeInfo(PrototypeInfo):
 class VehicleRolePrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.vehicleFiringRangeCoeff = AnnotatedValue(1.0, "FiringRangeCoeff", display_type=SystemType.PRIMARY)
+        self.vehicleFiringRangeCoeff = AnnotatedValue(1.0, "FiringRangeCoeff", display_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -1158,7 +1159,7 @@ class TeamPrototypeInfo(PrototypeInfo):
         self.formationPrototypeName = TEAM_DEFAULT_FORMATION_PROTOTYPE
         self.formationPrototypeId = -1
         self.overridesDistBetweenVehicles = False
-        self.isUpdating = AnnotatedValue(False, "IsUpdating", system_type=SystemType.SECONDARY)
+        self.isUpdating = AnnotatedValue(False, "IsUpdating", group_type=GroupType.SECONDARY)
         self.formationDistBetweenVehicles = 30.0
 
     def LoadFromXML(self, xmlFile, xmlNode):
@@ -1439,7 +1440,7 @@ class FormationPrototypeInfo(PrototypeInfo):
         self.headOffset = 0.0
         self.linearVelocity = 100.0
         self.headPosition = 0
-        self.isUpdating = AnnotatedValue(False, "IsUpdating", system_type=SystemType.SECONDARY)
+        self.isUpdating = AnnotatedValue(False, "IsUpdating", group_type=GroupType.SECONDARY)
         self.angularVelocity = 0.5
 
     def LoadFromXML(self, xmlFile, xmlNode):
@@ -1552,7 +1553,7 @@ class TownPrototypeInfo(SettlementPrototypeInfo):
         self.cabinsAndBasketsAffixGeneratorPrototypeName = ""
         self.cabinsAndBasketsAffixGeneratorPrototypeId = -1
         self.collisionTrimeshAllowed = AnnotatedValue(True, "CollisionTrimeshAllowed",
-                                                      system_type=SystemType.SECONDARY)
+                                                      group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SettlementPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -1798,7 +1799,7 @@ class SgNodeObjPrototypeInfo(PrototypeInfo):
 class LightObjPrototypeInfo(SgNodeObjPrototypeInfo):
     def __init__(self, server):
         SgNodeObjPrototypeInfo.__init__(self, server)
-        self.isUpdating = AnnotatedValue(False, "IsUpdating", system_type=SystemType.SECONDARY)
+        self.isUpdating = AnnotatedValue(False, "IsUpdating", group_type=GroupType.SECONDARY)
 
 
 class BossArmPrototypeInfo(VehiclePartPrototypeInfo):
@@ -1970,7 +1971,7 @@ class BossMetalArmLoadPrototypeInfo(DummyObjectPrototypeInfo):
         self.explosionEffectName = ""
         self.maxHealth = 1.0
         self.blastWavePrototypeName = ""
-        self.isUpdating = AnnotatedValue(True, "IsUpdating", system_type=SystemType.SECONDARY)
+        self.isUpdating = AnnotatedValue(True, "IsUpdating", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = DummyObjectPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -2016,7 +2017,7 @@ class Boss04StationPartPrototypeInfo(VehiclePartPrototypeInfo):
         VehiclePartPrototypeInfo.__init__(self, server)
         self.criticalMeshGroupIds = []
         self.collisionTrimeshAllowed = AnnotatedValue(False, "CollisionTrimeshAllowed",
-                                                      system_type=SystemType.SECONDARY)
+                                                      group_type=GroupType.SECONDARY)
         self.maxHealth = 0.0
 
 
@@ -2579,7 +2580,7 @@ class SubmarinePrototypeInfo(DummyObjectPrototypeInfo):
         self.platformOpenFps = 2
         self.vehicleMaxSpeed = 72.0
         self.vehicleRelativePosition = deepcopy(ZERO_VECTOR)
-        self.isUpdating = AnnotatedValue(True, "IsUpdating", system_type=SystemType.SECONDARY)
+        self.isUpdating = AnnotatedValue(True, "IsUpdating", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = ShellPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -2683,7 +2684,7 @@ class WarePrototypeInfo(PrototypeInfo):
 class QuestItemPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.modelName = AnnotatedValue("", "ModelFile", system_type=SystemType.VISUAL)
+        self.modelName = AnnotatedValue("", "ModelFile", group_type=GroupType.VISUAL)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -2703,7 +2704,7 @@ class BreakableObjectPrototypeInfo(SimplePhysicObjPrototypeInfo):
         self.breakEffect = ""
         self.blastWavePrototypeId = -1
         self.blastWavePrototypeName = ""
-        self.isUpdating = AnnotatedValue(False, "IsUpdating", system_type=SystemType.SECONDARY)
+        self.isUpdating = AnnotatedValue(False, "IsUpdating", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -2784,7 +2785,7 @@ class RopeObjPrototypeInfo(SimplePhysicObjPrototypeInfo):
     def __init__(self, server):
         SimplePhysicObjPrototypeInfo.__init__(self, server)
         self.brokenModel = ""
-        self.isUpdating = AnnotatedValue(False, "IsUpdating", system_type=SystemType.SECONDARY)
+        self.isUpdating = AnnotatedValue(False, "IsUpdating", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -2798,7 +2799,7 @@ class ObjPrefabPrototypeInfo(SimplePhysicObjPrototypeInfo):
     def __init__(self, server):
         SimplePhysicObjPrototypeInfo.__init__(self, server)
         self.objInfos = []
-        self.isUpdating = AnnotatedValue(False, "IsUpdating", system_type=SystemType.SECONDARY)
+        self.isUpdating = AnnotatedValue(False, "IsUpdating", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -2866,7 +2867,7 @@ class BarricadePrototypeInfo(ObjPrefabPrototypeInfo):
 class NpcPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.isUpdating = AnnotatedValue(False, "IsUpdating", system_type=SystemType.SECONDARY)
+        self.isUpdating = AnnotatedValue(False, "IsUpdating", group_type=GroupType.SECONDARY)
 
 
 class RepositoryObjectsGeneratorPrototypeInfo(PrototypeInfo):
