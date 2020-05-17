@@ -718,7 +718,8 @@ class AffixGeneratorPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
         self.affixDescriptions = AnnotatedValue([], "Affix", group_type=GroupType.PRIMARY,
-                                                display_type=DisplayType.AFFIX_LIST)
+                                                display_type=DisplayType.AFFIX_LIST,
+                                                saving_type=SavingType.SPECIFIC)
 
     def LoadFromXML(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -733,6 +734,18 @@ class AffixGeneratorPrototypeInfo(PrototypeInfo):
 
     def InternalCopyFrom(self, prot_to_copy_from):
         self.parent = prot_to_copy_from
+
+    def get_etree_prototype(self):
+        result = PrototypeInfo.get_etree_prototype(self)
+
+        # affixDescriptions start
+        if self.affixDescriptions.value != self.affixDescriptions.default_value:
+            for affixName in self.affixDescriptions.value:
+                affix = etree.Element("Affix")
+                affix.set("AffixName", affixName)
+                result.append(affix)
+        # affixDescriptions end
+        return result
 
     # class AffixDescription(object):
     #     def __init__(self):
