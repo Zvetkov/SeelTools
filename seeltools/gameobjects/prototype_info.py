@@ -442,10 +442,13 @@ class GadgetPrototypeInfo(PrototypeInfo):
     def get_etree_prototype(self):
         result = PrototypeInfo.get_etree_prototype(self)
 
-        modifications_string = ""
-        for modification in self.modifications.value:
-            modifications_string += "%s " % modification.get_string_representation(self)
-        result.set("Modifications", modifications_string.rstrip('; '))
+        # Modifications start
+        if self.modifications.value != self.modifications.default_value:
+            modifications_string = ""
+            for modification in self.modifications.value:
+                modifications_string += "%s " % modification.get_string_representation(self)
+            result.set("Modifications", modifications_string.rstrip('; '))
+        # Modifications end
 
         return result
 
@@ -546,9 +549,12 @@ class WanderersGeneratorPrototypeInfo(PrototypeInfo):  # special save and displa
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
         self.vehicleDescriptions = AnnotatedValue([], "VehicleDescription", group_type=GroupType.PRIMARY,
-                                                  display_type=DisplayType.MODIFICATION_INFO)
-        self.desiredCountLow = AnnotatedValue(-1, "DesiredCountLow", group_type=GroupType.PRIMARY)
-        self.desiredCountHigh = AnnotatedValue(-1, "DesiredCountHigh", group_type=GroupType.PRIMARY)
+                                                  display_type=DisplayType.MODIFICATION_INFO,
+                                                  saving_type=SavingType.SPECIFIC)
+        self.desiredCountLow = AnnotatedValue(-1, "DesiredCountLow", group_type=GroupType.PRIMARY,
+                                              saving_type=SavingType.SPECIFIC)
+        self.desiredCountHigh = AnnotatedValue(-1, "DesiredCountHigh", group_type=GroupType.PRIMARY,
+                                               saving_type=SavingType.SPECIFIC)
 
     def LoadFromXML(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -577,7 +583,7 @@ class WanderersGeneratorPrototypeInfo(PrototypeInfo):  # special save and displa
             check_mono_xml_node(vehicles, "Vehicle")
             for vehicle_node in vehicles.iterchildren("Vehicle"):
                 vehicle_description = self.VehicleDescription()
-                vehicle_description.LoadFromXML(xmlFile, xmlNode)
+                vehicle_description.LoadFromXML(xmlFile, vehicle_node)
                 self.vehicleDescriptions.value.append(vehicle_description)
             return STATUS_SUCCESS
 
@@ -585,6 +591,27 @@ class WanderersGeneratorPrototypeInfo(PrototypeInfo):  # special save and displa
         if self.vehicleDescriptions:
             for vehicle_description in self.vehicleDescriptions.value:
                 vehicle_description.PostLoad(prototype_manager)
+
+    def get_etree_prototype(self):
+        result = PrototypeInfo.get_etree_prototype(self)
+
+        # DesiredCount start
+        desired_count = 0
+        if self.desiredCountLow.value == self.desiredCountHigh.value:
+            desired_count = str(self.desiredCountLow.value)
+        else:
+            desired_count = "%d-%d" % (self.desiredCountLow.value, self.desiredCountHigh.value)
+        result.set("DesiredCount", desired_count)
+        # DesiredCount end
+
+        # VehicleDescription start
+        if self.vehicleDescriptions.value != self.vehicleDescriptions.default_value:
+            vehiclesTree = etree.Element("Vehicles")
+            for vehicle in self.vehicleDescriptions.value:
+                vehiclesTree.append(vehicle.get_etree_prototype())
+            result.append(vehiclesTree)
+        # VehicleDescription end
+        return result
 
     class VehicleDescription(object):
         def __init__(self):
@@ -636,6 +663,37 @@ class WanderersGeneratorPrototypeInfo(PrototypeInfo):  # special save and displa
             WanderersGeneratorPrototypeInfo.VehiclePartDescription.PostLoad(self.basketBigGun1, prototype_manager)
             WanderersGeneratorPrototypeInfo.VehiclePartDescription.PostLoad(self.basketSideGun, prototype_manager)
 
+        def get_etree_prototype(self):
+            vehicleTree = etree.Element("Vehicle")
+            vehicleTree.set("Prototype", self.prototype)
+            children = [
+                self.get_etree_node_if_not_default("Cabin", self.cabin),
+                self.get_etree_node_if_not_default("Basket", self.basket),
+                self.get_etree_node_if_not_default("CabinSmallGun", self.cabinSmallGun),
+                self.get_etree_node_if_not_default("CabinBigGun", self.cabinBigGun),
+                self.get_etree_node_if_not_default("CabinSpecialWeapon", self.cabinSpecialWeapon),
+                self.get_etree_node_if_not_default("BasketSmallGun0", self.basketSmallGun0),
+                self.get_etree_node_if_not_default("BasketSmallGun1", self.basketSmallGun1),
+                self.get_etree_node_if_not_default("BasketBigGun0", self.basketBigGun0),
+                self.get_etree_node_if_not_default("BasketBigGun1", self.basketBigGun1),
+                self.get_etree_node_if_not_default("BasketSideGun", self.basketSideGun)
+            ]
+            for child in children:
+                if child is not None:
+                    vehicleTree.append(child)
+            return vehicleTree
+
+        def get_etree_node_if_not_default(self, nodeName, childProp):
+            if childProp.present and childProp.prototypeNames == []:
+                return None
+            else:
+                vehicleTree = etree.Element(nodeName)
+                if not childProp.present:
+                    vehicleTree.set("Present", str(childProp.present))
+                if childProp.prototypeNames != []:
+                    vehicleTree.set("Prototypes", " ".join(childProp.prototypeNames))
+                return vehicleTree
+
     class VehiclePartDescription(object):
         def __init__(self):
             self.present = True
@@ -660,7 +718,8 @@ class AffixGeneratorPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
         self.affixDescriptions = AnnotatedValue([], "Affix", group_type=GroupType.PRIMARY,
-                                                display_type=DisplayType.AFFIX_LIST)
+                                                display_type=DisplayType.AFFIX_LIST,
+                                                saving_type=SavingType.SPECIFIC)
 
     def LoadFromXML(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -675,6 +734,18 @@ class AffixGeneratorPrototypeInfo(PrototypeInfo):
 
     def InternalCopyFrom(self, prot_to_copy_from):
         self.parent = prot_to_copy_from
+
+    def get_etree_prototype(self):
+        result = PrototypeInfo.get_etree_prototype(self)
+
+        # affixDescriptions start
+        if self.affixDescriptions.value != self.affixDescriptions.default_value:
+            for affixName in self.affixDescriptions.value:
+                affix = etree.Element("Affix")
+                affix.set("AffixName", affixName)
+                result.append(affix)
+        # affixDescriptions end
+        return result
 
     # class AffixDescription(object):
     #     def __init__(self):
@@ -766,33 +837,6 @@ class ChestPrototypeInfo(SimplePhysicObjPrototypeInfo):
             return STATUS_SUCCESS
 
 
-class ComplexPhysicObjPartDescription(Object):
-    def __init__(self, prototype_info_object=None):
-        Object.__init__(self, prototype_info_object)
-        self.partResourceId = -1
-        self.lpNames = []
-        self.child_descriptions = []  # ??? temporary placeholder for original logic
-
-    def LoadFromXML(self, xmlFile, xmlNode, server):
-        self.name = read_from_xml_node(xmlNode, "id")
-        if self.parent is not None:
-            parent_lookup = self.parent.GetChildByName(self.name)
-            if parent_lookup is not None and self is parent_lookup:  # ??? can this ever be true?
-                logger.warning(f"When loading PartDescription: name = {self.name} conflicts with another child")
-
-        partResourceType = read_from_xml_node(xmlNode, "partResourceType")
-        self.partResourceId = server.theResourceManager.GetResourceId(partResourceType)
-        lpNames = read_from_xml_node(xmlNode, "lpName", do_not_warn=True)
-        if lpNames is not None:
-            self.lpNames = lpNames.split()
-        if len(xmlNode.getchildren()) >= 1:
-            check_mono_xml_node(xmlNode, "PartDescription")
-            for description_node in xmlNode.iterchildren(tag="PartDescription"):
-                part_description = ComplexPhysicObjPartDescription()
-                part_description.LoadFromXML(xmlFile, description_node, server)
-                self.child_descriptions.append(part_description)  # ??? temporary placeholder for original logic
-
-
 class ComplexPhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
     def __init__(self, server):
         PhysicObjPrototypeInfo.__init__(self, server)
@@ -811,7 +855,7 @@ class ComplexPhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
         if result == STATUS_SUCCESS:
             main_part_description_node = child_from_xml_node(xmlNode, "MainPartDescription", do_not_warn=True)
             if main_part_description_node is not None:
-                partPrototypeDescriptions = ComplexPhysicObjPartDescription()
+                partPrototypeDescriptions = self.ComplexPhysicObjPartDescription()
                 partPrototypeDescriptions.LoadFromXML(xmlFile, main_part_description_node, self.theServer)
                 self.partPrototypeDescriptions = partPrototypeDescriptions
             else:
@@ -840,6 +884,34 @@ class ComplexPhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
             self.partPrototypeIds.append(prototype_manager.GetPrototypeId(prot_name["name"]))
         # can this replace ComplexPhysicObjPartDescription::GetPartNames?
         self.allPartNames = [part.name for part in self.partDescription]
+
+    class ComplexPhysicObjPartDescription(Object):
+        def __init__(self, prototype_info_object=None):
+            Object.__init__(self, prototype_info_object)
+            self.partResourceId = -1
+            self.lpNames = []
+            self.child_descriptions = []  # ??? temporary placeholder for original logic
+
+        def LoadFromXML(self, xmlFile, xmlNode, server):
+            self.name = read_from_xml_node(xmlNode, "id")
+            if self.parent is not None:
+                parent_lookup = self.parent.GetChildByName(self.name)
+                if parent_lookup is not None and self is parent_lookup:  # ??? can this ever be true?
+                    logger.warning(f"When loading PartDescription: name = {self.name} conflicts with another child")
+
+            partResourceType = read_from_xml_node(xmlNode, "partResourceType")
+            self.partResourceId = server.theResourceManager.GetResourceId(partResourceType)
+            lpNames = read_from_xml_node(xmlNode, "lpName", do_not_warn=True)
+            if lpNames is not None:
+                self.lpNames = lpNames.split()
+            if len(xmlNode.getchildren()) >= 1:
+                check_mono_xml_node(xmlNode, "PartDescription")
+                for description_node in xmlNode.iterchildren(tag="PartDescription"):
+                    part_description = ComplexPhysicObjPrototypeInfo.ComplexPhysicObjPartDescription()
+                    part_description.LoadFromXML(xmlFile, description_node, server)
+                    self.child_descriptions.append(part_description)  # ??? temporary placeholder for original logic
+
+
 
 
 class StaticAutoGunPrototypeInfo(ComplexPhysicObjPrototypeInfo):
@@ -1142,11 +1214,6 @@ class TeamTacticWithRolesPrototypeInfo(PrototypeInfo):
 
 
 class NPCMotionControllerPrototypeInfo(PrototypeInfo):
-    def __init__(self, server):
-        PrototypeInfo.__init__(self, server)
-
-
-class InfectionLairPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
 
@@ -1541,6 +1608,11 @@ class SettlementPrototypeInfo(SimplePhysicObjPrototypeInfo):
             self.action = ""
             self.offset = deepcopy(ZERO_VECTOR)
             self.radius = 10.0
+
+
+class InfectionLairPrototypeInfo(SettlementPrototypeInfo):
+    def __init__(self, server):
+        SettlementPrototypeInfo.__init__(self, server)
 
 
 class TownPrototypeInfo(SettlementPrototypeInfo):
