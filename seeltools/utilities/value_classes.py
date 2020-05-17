@@ -35,7 +35,7 @@ class AnnotatedValue(object):
                  group_type: int = None,
                  saving_type: int = None,
                  default_value=None,  # same as value
-                 initial_value=None,  # same as value
+                 previous_value=None,  # same as value
                  display_type: int = None,  # types with fancy display widget(for ex: enums to choose dropdown)
                  read_only: bool = False,
                  is_dirty: bool = False):
@@ -57,7 +57,7 @@ class AnnotatedValue(object):
         else:
             self.default_value = default_value
 
-        self.initial_value = deepcopy(value)
+        self.previous_value = previous_value
         self.display_type = display_type
         self.read_only = read_only
         self.is_dirty = is_dirty
