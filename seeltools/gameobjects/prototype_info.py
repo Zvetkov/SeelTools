@@ -159,7 +159,8 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
         self.vertsStride = []
         self.groupHealth = []  # groupHealthes in original
         self.durabilityCoeffsForDamageTypes = AnnotatedValue([0.0, 0.0, 0.0], "DurCoeffsForDamageTypes",
-                                                             group_type=GroupType.SECONDARY)
+                                                             group_type=GroupType.SECONDARY,
+                                                             saving_type=SavingType.SPECIFIC)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PhysicBodyPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -192,6 +193,13 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
                                                                                         "CanBeUsedInAutogenerating",
                                                                                         do_not_warn=True))
             return STATUS_SUCCESS
+
+    def get_etree_prototype(self):
+        result = PrototypeInfo.get_etree_prototype(self)
+        result.set(self.loadPoints.name, " ".join(self.loadPoints.value))
+        result.set(self.durabilityCoeffsForDamageTypes.name,
+                   " ".join(map(str, self.durabilityCoeffsForDamageTypes.value)))
+        return result
 
 
 class ChassisPrototypeInfo(VehiclePartPrototypeInfo):
@@ -449,8 +457,8 @@ class GadgetPrototypeInfo(PrototypeInfo):
         if self.modifications.value != self.modifications.default_value:
             modifications_string = ""
             for modification in self.modifications.value:
-                modifications_string += "%s " % modification.get_string_representation(self)
-            result.set("Modifications", modifications_string.rstrip('; '))
+                modifications_string += f'{modification.get_string_representation(self)} '
+            result.set(self.modifications.name, modifications_string.rstrip('; '))
         # Modifications end
 
         return result
@@ -526,7 +534,7 @@ class GadgetPrototypeInfo(PrototypeInfo):
             sign = "+= " if self.modificationType == self.modification_type_enum.PLUS_EQUAL.value else ""
             value = self.value if self.value_type == self.value_type_enum.ABSOLUTE.value else int(self.value / 0.01)
 
-            return "%s %s %s%s;" % (target, self.propertyName, sign, value)
+            return f'{target} {self.propertyName} {sign}{value}'
 
         class applier_type_enum(Enum):
             VEHICLE = 0
@@ -603,7 +611,7 @@ class WanderersGeneratorPrototypeInfo(PrototypeInfo):  # special save and displa
         if self.desiredCountLow.value == self.desiredCountHigh.value:
             desired_count = str(self.desiredCountLow.value)
         else:
-            desired_count = "%d-%d" % (self.desiredCountLow.value, self.desiredCountHigh.value)
+            desired_count = f'{self.desiredCountLow.value}-{self.desiredCountHigh.value}'
         result.set("DesiredCount", desired_count)
         # DesiredCount end
 
@@ -1492,7 +1500,7 @@ class VehiclesGeneratorPrototypeInfo(PrototypeInfo):
         if self.desiredCountLow.value == self.desiredCountHigh.value:
             desired_count = str(self.desiredCountLow.value)
         else:
-            desired_count = "%d-%d" % (self.desiredCountLow.value, self.desiredCountHigh.value)
+            desired_count = f'{self.desiredCountLow.value}-{self.desiredCountHigh.value}'
         result.set("DesiredCount", desired_count)
         # DesiredCount end
 
