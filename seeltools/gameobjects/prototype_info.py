@@ -20,6 +20,11 @@ from seeltools.utilities.helper_functions import value_equel_default
 from seeltools.gameobjects.object_classes import *
 
 
+def set_array_to_node(node, annotatedValue, delimiter):
+    if annotatedValue.value != annotatedValue.default_value:
+        node.set(annotatedValue.name, f'{delimiter}'.join(map(str, annotatedValue.value)))
+
+
 class PrototypeInfo(object):
     '''Base Prototype information class'''
     def __init__(self, server):
@@ -147,7 +152,7 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
         self.weaponPrototypeId = -1
         self.durability = AnnotatedValue(0.0, "Durability", group_type=GroupType.PRIMARY)
         self.loadPoints = AnnotatedValue([], "LoadPoints", group_type=GroupType.SECONDARY,
-                                         saving_type=SavingType.SPECIFIC)  # ToDo
+                                         saving_type=SavingType.SPECIFIC)
         self.blowEffectName = AnnotatedValue("ET_PS_HARD_BLOW", "BlowEffect", group_type=GroupType.SECONDARY)
         self.canBeUsedInAutogenerating = AnnotatedValue(True, "CanBeUsedInAutogenerating", group_type=GroupType.PRIMARY)
         self.repairCoef = AnnotatedValue(1.0, "RepairCoef", group_type=GroupType.SECONDARY)
@@ -194,37 +199,41 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
                                                                                         do_not_warn=True))
             return STATUS_SUCCESS
 
+    def load_from_xml_custom(self, xmlFile, xmlNode):
+        # custom logic
+        # original called from VehiclePartPrototypeInfo::_InitModelMeshes
+        # using VehiclePartPrototypeInfo::RefreshFromXml
+
     def get_etree_prototype(self):
         result = PrototypeInfo.get_etree_prototype(self)
-        result.set(self.loadPoints.name, " ".join(self.loadPoints.value))
-        result.set(self.durabilityCoeffsForDamageTypes.name,
-                   " ".join(map(str, self.durabilityCoeffsForDamageTypes.value)))
+        set_array_to_node(result, self.loadPoints, " ")
+        set_array_to_node(result, self.durabilityCoeffsForDamageTypes, " ")
         return result
 
 
 class ChassisPrototypeInfo(VehiclePartPrototypeInfo):
     def __init__(self, server):
         VehiclePartPrototypeInfo.__init__(self, server)
-        self.maxHealth = 1.0
-        self.maxFuel = 1.0
-        self.brakingSoundName = ""
-        self.pneumoSoundName = ""
-        self.gearShiftSoundName = ""
+        self.maxHealth = AnnotatedValue(1.0, "MaxHealth", group_type=GroupType.PRIMARY)
+        self.maxFuel = AnnotatedValue(1.0, "MaxFuel", group_type=GroupType.PRIMARY)
+        self.brakingSoundName = AnnotatedValue("", "BrakingSound", group_type=GroupType.SOUND)
+        self.pneumoSoundName = AnnotatedValue("", "PneumoSound", group_type=GroupType.SOUND)
+        self.gearShiftSoundName = AnnotatedValue("", "GearShiftSound", group_type=GroupType.SOUND)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             maxHealth = read_from_xml_node(xmlNode, "MaxHealth", do_not_warn=True)
             if maxHealth is not None:
-                self.maxHealth = float(maxHealth)
+                self.maxHealth.value = float(maxHealth)
 
             maxFuel = read_from_xml_node(xmlNode, "MaxFuel", do_not_warn=True)
             if maxFuel is not None:
-                self.maxFuel = float(maxFuel)
+                self.maxFuel.value = float(maxFuel)
 
-            self.brakingSoundName = read_from_xml_node(xmlNode, "BrakingSound")
-            self.pneumoSoundName = read_from_xml_node(xmlNode, "PneumoSound")
-            self.gearShiftSoundName = read_from_xml_node(xmlNode, "GearShiftSound")
+            self.brakingSoundName.value = read_from_xml_node(xmlNode, "BrakingSound")
+            self.pneumoSoundName.value = read_from_xml_node(xmlNode, "PneumoSound")
+            self.gearShiftSoundName.value = read_from_xml_node(xmlNode, "GearShiftSound")
             return STATUS_SUCCESS
 
 
