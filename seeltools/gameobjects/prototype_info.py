@@ -203,6 +203,7 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
         # custom logic
         # original called from VehiclePartPrototypeInfo::_InitModelMeshes
         # using VehiclePartPrototypeInfo::RefreshFromXml
+        pass
 
     def get_etree_prototype(self):
         result = PrototypeInfo.get_etree_prototype(self)
