@@ -20,6 +20,11 @@ from seeltools.utilities.helper_functions import value_equel_default
 from seeltools.gameobjects.object_classes import *
 
 
+def set_array_to_node(node, annotatedValue, delimiter):
+    if annotatedValue.value != annotatedValue.default_value:
+        node.set(annotatedValue.name, f'{delimiter}'.join(map(str, annotatedValue.value)))
+
+
 class PrototypeInfo(object):
     '''Base Prototype information class'''
     def __init__(self, server):
@@ -147,7 +152,7 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
         self.weaponPrototypeId = -1
         self.durability = AnnotatedValue(0.0, "Durability", group_type=GroupType.PRIMARY)
         self.loadPoints = AnnotatedValue([], "LoadPoints", group_type=GroupType.SECONDARY,
-                                         saving_type=SavingType.SPECIFIC)  # ToDo
+                                         saving_type=SavingType.SPECIFIC)
         self.blowEffectName = AnnotatedValue("ET_PS_HARD_BLOW", "BlowEffect", group_type=GroupType.SECONDARY)
         self.canBeUsedInAutogenerating = AnnotatedValue(True, "CanBeUsedInAutogenerating", group_type=GroupType.PRIMARY)
         self.repairCoef = AnnotatedValue(1.0, "RepairCoef", group_type=GroupType.SECONDARY)
@@ -159,7 +164,8 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
         self.vertsStride = []
         self.groupHealth = []  # groupHealthes in original
         self.durabilityCoeffsForDamageTypes = AnnotatedValue([0.0, 0.0, 0.0], "DurCoeffsForDamageTypes",
-                                                             group_type=GroupType.SECONDARY)
+                                                             group_type=GroupType.SECONDARY,
+                                                             saving_type=SavingType.SPECIFIC)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PhysicBodyPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -193,30 +199,42 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
                                                                                         do_not_warn=True))
             return STATUS_SUCCESS
 
+    def load_from_xml_custom(self, xmlFile, xmlNode):
+        # custom logic
+        # original called from VehiclePartPrototypeInfo::_InitModelMeshes
+        # using VehiclePartPrototypeInfo::RefreshFromXml
+        pass
+
+    def get_etree_prototype(self):
+        result = PrototypeInfo.get_etree_prototype(self)
+        set_array_to_node(result, self.loadPoints, " ")
+        set_array_to_node(result, self.durabilityCoeffsForDamageTypes, " ")
+        return result
+
 
 class ChassisPrototypeInfo(VehiclePartPrototypeInfo):
     def __init__(self, server):
         VehiclePartPrototypeInfo.__init__(self, server)
-        self.maxHealth = 1.0
-        self.maxFuel = 1.0
-        self.brakingSoundName = ""
-        self.pneumoSoundName = ""
-        self.gearShiftSoundName = ""
+        self.maxHealth = AnnotatedValue(1.0, "MaxHealth", group_type=GroupType.PRIMARY)
+        self.maxFuel = AnnotatedValue(1.0, "MaxFuel", group_type=GroupType.PRIMARY)
+        self.brakingSoundName = AnnotatedValue("", "BrakingSound", group_type=GroupType.SOUND)
+        self.pneumoSoundName = AnnotatedValue("", "PneumoSound", group_type=GroupType.SOUND)
+        self.gearShiftSoundName = AnnotatedValue("", "GearShiftSound", group_type=GroupType.SOUND)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             maxHealth = read_from_xml_node(xmlNode, "MaxHealth", do_not_warn=True)
             if maxHealth is not None:
-                self.maxHealth = float(maxHealth)
+                self.maxHealth.value = float(maxHealth)
 
             maxFuel = read_from_xml_node(xmlNode, "MaxFuel", do_not_warn=True)
             if maxFuel is not None:
-                self.maxFuel = float(maxFuel)
+                self.maxFuel.value = float(maxFuel)
 
-            self.brakingSoundName = read_from_xml_node(xmlNode, "BrakingSound")
-            self.pneumoSoundName = read_from_xml_node(xmlNode, "PneumoSound")
-            self.gearShiftSoundName = read_from_xml_node(xmlNode, "GearShiftSound")
+            self.brakingSoundName.value = read_from_xml_node(xmlNode, "BrakingSound")
+            self.pneumoSoundName.value = read_from_xml_node(xmlNode, "PneumoSound")
+            self.gearShiftSoundName.value = read_from_xml_node(xmlNode, "GearShiftSound")
             return STATUS_SUCCESS
 
 
@@ -449,8 +467,8 @@ class GadgetPrototypeInfo(PrototypeInfo):
         if self.modifications.value != self.modifications.default_value:
             modifications_string = ""
             for modification in self.modifications.value:
-                modifications_string += "%s " % modification.get_string_representation(self)
-            result.set("Modifications", modifications_string.rstrip('; '))
+                modifications_string += f'{modification.get_string_representation(self)} '
+            result.set(self.modifications.name, modifications_string.rstrip('; '))
         # Modifications end
 
         return result
@@ -526,7 +544,7 @@ class GadgetPrototypeInfo(PrototypeInfo):
             sign = "+= " if self.modificationType == self.modification_type_enum.PLUS_EQUAL.value else ""
             value = self.value if self.value_type == self.value_type_enum.ABSOLUTE.value else int(self.value / 0.01)
 
-            return "%s %s %s%s;" % (target, self.propertyName, sign, value)
+            return f'{target} {self.propertyName} {sign}{value}'
 
         class applier_type_enum(Enum):
             VEHICLE = 0
@@ -603,7 +621,7 @@ class WanderersGeneratorPrototypeInfo(PrototypeInfo):  # special save and displa
         if self.desiredCountLow.value == self.desiredCountHigh.value:
             desired_count = str(self.desiredCountLow.value)
         else:
-            desired_count = "%d-%d" % (self.desiredCountLow.value, self.desiredCountHigh.value)
+            desired_count = f'{self.desiredCountLow.value}-{self.desiredCountHigh.value}'
         result.set("DesiredCount", desired_count)
         # DesiredCount end
 
@@ -785,9 +803,11 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
         self.collisionInfos = []
         self.collisionTrimeshAllowed = AnnotatedValue(False, "CollisionTrimeshAllowed",
                                                       group_type=GroupType.SECONDARY)
-        self.geomType = AnnotatedValue(0, "GeomType", group_type=GroupType.INTERNAL, read_only=True)
+        self.geomType = AnnotatedValue(0, "GeomType", group_type=GroupType.INTERNAL, read_only=True,
+                                       saving_type=SavingType.IGNORE)
         self.engineModelName = AnnotatedValue("", "ModelFile", group_type=GroupType.VISUAL)
-        self.size = AnnotatedValue(deepcopy(ZERO_VECTOR), "Size", group_type=GroupType.INTERNAL, read_only=True)
+        self.size = AnnotatedValue(deepcopy(ZERO_VECTOR), "Size", group_type=GroupType.INTERNAL,
+                                   saving_type=SavingType.SPECIFIC, read_only=True)
         self.radius = AnnotatedValue(1.0, "IntersectionRadius", group_type=GroupType.INTERNAL, read_only=True)
         self.massValue = AnnotatedValue(1.0, "Mass", group_type=GroupType.PRIMARY)
 
@@ -803,6 +823,14 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
                                                                    read_from_xml_node(xmlNode,
                                                                                       "CollisionTrimeshAllowed",
                                                                                       do_not_warn=True))
+            # custom implementation. Originally called from RefreshFromXml
+            size = read_from_xml_node(xmlNode, "Size", do_not_warn=True)
+            if size is not None:
+                size_array = size.split()
+                self.size.value["x"] = size_array[0]
+                self.size.value["y"] = size_array[1]
+                self.size.value["z"] = size_array[2]
+            # custom implementation ends
             return STATUS_SUCCESS
 
     def SetGeomType(self, geom_type):
@@ -822,6 +850,13 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
         elif self.geomType.value == 5:
             logger.warning(f"Obsolete GeomType: TriMesh! in {self.prototypeName.value}")
         self.collisionInfos.append(collision_info)
+
+    def get_etree_prototype(self):
+        result = PrototypeInfo.get_etree_prototype(self)
+        # Size start
+        result.set("Size", f'{self.size.value["x"]} {self.size.value["y"]} {self.size.value["z"]}')
+        # Size ends
+        return result
 
 
 class ChestPrototypeInfo(SimplePhysicObjPrototypeInfo):
@@ -1479,7 +1514,7 @@ class VehiclesGeneratorPrototypeInfo(PrototypeInfo):
         if self.desiredCountLow.value == self.desiredCountHigh.value:
             desired_count = str(self.desiredCountLow.value)
         else:
-            desired_count = "%d-%d" % (self.desiredCountLow.value, self.desiredCountHigh.value)
+            desired_count = f'{self.desiredCountLow.value}-{self.desiredCountHigh.value}'
         result.set("DesiredCount", desired_count)
         # DesiredCount end
 
@@ -2526,6 +2561,7 @@ class RocketPrototypeInfo(ShellPrototypeInfo):
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = ShellPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        self.SetGeomType("BOX")
         if result == STATUS_SUCCESS:
             velocity = read_from_xml_node(xmlNode, "Velocity")
             if velocity is not None:

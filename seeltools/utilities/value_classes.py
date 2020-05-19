@@ -19,6 +19,7 @@ class GroupType(Enum):
     PRIMARY = 2
     SECONDARY = 3
     VISUAL = 4  # textures, models, icons
+    SOUND = 5  # sound effects
 
 
 class SavingType(Enum):
