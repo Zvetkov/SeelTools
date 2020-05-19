@@ -206,7 +206,7 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
         pass
 
     def get_etree_prototype(self):
-        result = PrototypeInfo.get_etree_prototype(self)
+        result = PhysicBodyPrototypeInfo.get_etree_prototype(self)
         set_array_to_node(result, self.loadPoints, " ")
         set_array_to_node(result, self.durabilityCoeffsForDamageTypes, " ")
         return result
@@ -296,7 +296,7 @@ class CabinPrototypeInfo(VehiclePartPrototypeInfo):
             return STATUS_SUCCESS
 
     def get_etree_prototype(self):
-        result = PrototypeInfo.get_etree_prototype(self)
+        result = VehiclePartPrototypeInfo.get_etree_prototype(self)
         # save maxSpeed
         if self.maxSpeed.value != self.maxSpeed.default_value:
             result.set(self.maxSpeed.name, str(self.maxSpeed.value / 0.27777779))
@@ -310,23 +310,27 @@ class CabinPrototypeInfo(VehiclePartPrototypeInfo):
                 slotElement.set("MaxAmount", str(slotItem["maxAmount"]))
                 gadgetSlots.append(slotElement)
             result.append(gadgetSlots)
-        #save gadgetSlots end
+        # save gadgetSlots end
         return result
 
 
 class BasketPrototypeInfo(VehiclePartPrototypeInfo):
     def __init__(self, server):
         VehiclePartPrototypeInfo.__init__(self, server)
-        self.slots = []
-        self.repositorySize = {"x": 10, "y": 10}
+        self.slots = AnnotatedValue([], "Slot", group_type=GroupType.PRIMARY,
+                                    saving_type=SavingType.SPECIFIC)
+        self.repositorySize = AnnotatedValue({"x": 10, "y": 10}, "RepositorySize",
+                                             group_type=GroupType.PRIMARY,
+                                             saving_type=SavingType.SPECIFIC)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             repositoryDescriptions = child_from_xml_node(xmlNode, "RepositoryDescription")
-            repositorySize = read_from_xml_node(repositoryDescriptions, "RepositorySize")
-            self.repositorySize = {"x": repositorySize[0],
-                                   "y": repositorySize[1]}
+            repositorySize = read_from_xml_node(repositoryDescriptions, self.repositorySize.name)
+            repositorySize = repositorySize.split()
+            self.repositorySize.value = {"x": repositorySize[0],
+                                         "y": repositorySize[1]}
             if len(repositoryDescriptions.getchildren()) > 1:
                 check_mono_xml_node(repositoryDescriptions, "Slot")
                 for slot_node in repositoryDescriptions.iterchildren(tag="Slot"):
@@ -334,11 +338,30 @@ class BasketPrototypeInfo(VehiclePartPrototypeInfo):
                     pos = {"x": pos[0], "y": pos[1]}
                     slot = {"name": read_from_xml_node(slot_node, "Name"),
                             "pos": pos}
-                    self.slots.append(slot)
+                    self.slots.value.append(slot)
             return STATUS_SUCCESS
 
     def InternalCopyFrom(self, prot_to_copy_from):
         self.parent = prot_to_copy_from
+
+    def get_etree_prototype(self):
+        result = VehiclePartPrototypeInfo.get_etree_prototype(self)
+        # save RepositoryDescription
+        if (
+            self.repositorySize.value != self.repositorySize.default_value
+            or self.slots.value != self.slots.default_value
+        ):
+            repositoryDescription = etree.Element("RepositoryDescription")
+            repositoryDescription.set(self.repositorySize.name,
+                                      f'{self.repositorySize.value["x"]} {self.repositorySize.value["y"]}')
+            for slotItem in self.slots.value:
+                slotElement = etree.Element("Slot")
+                slotElement.set("Name", slotItem["name"])
+                slotElement.set("Pos", f'{slotItem["pos"]["x"]} {slotItem["pos"]["y"]}')
+                repositoryDescription.append(slotElement)
+            result.append(repositoryDescription)
+        # save RepositoryDescription end
+        return result
 
 
 class GunPrototypeInfo(VehiclePartPrototypeInfo):
@@ -876,7 +899,7 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
         self.collisionInfos.append(collision_info)
 
     def get_etree_prototype(self):
-        result = PrototypeInfo.get_etree_prototype(self)
+        result = PhysicObjPrototypeInfo.get_etree_prototype(self)
         # Size start
         result.set("Size", f'{self.size.value["x"]} {self.size.value["y"]} {self.size.value["z"]}')
         # Size ends
