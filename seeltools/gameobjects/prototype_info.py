@@ -6,7 +6,8 @@ from enum import Enum
 from seeltools.utilities.log import logger
 
 from seeltools.utilities.parse import (read_from_xml_node, child_from_xml_node, check_mono_xml_node, safe_check_and_set,
-                                       parse_str_to_bool, parse_str_to_quaternion, parse_str_to_vector)
+                                       parse_str_to_bool, parse_str_to_quaternion, parse_str_to_vector,
+                                       parse_model_group_health)
 
 from seeltools.utilities.constants import (STATUS_SUCCESS, DEFAULT_TURNING_SPEED, FiringTypesStruct, DamageTypeStruct,
                                            DESTROY_EFFECT_NAMES, TEAM_DEFAULT_FORMATION_PROTOTYPE, GEOM_TYPE,
@@ -162,7 +163,7 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
         self.inds = []
         self.numsTris = []
         self.vertsStride = []
-        self.groupHealth = []  # groupHealthes in original
+        self.groupHealth = AnnotatedValue([], "RepairCoef", group_type=GroupType.SECONDARY)
         self.durabilityCoeffsForDamageTypes = AnnotatedValue([0.0, 0.0, 0.0], "DurCoeffsForDamageTypes",
                                                              group_type=GroupType.SECONDARY,
                                                              saving_type=SavingType.SPECIFIC)
@@ -197,13 +198,15 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
                                                                      read_from_xml_node(xmlNode,
                                                                                         "CanBeUsedInAutogenerating",
                                                                                         do_not_warn=True))
+            self.load_from_xml_custom(xmlFile, xmlNode)
             return STATUS_SUCCESS
 
     def load_from_xml_custom(self, xmlFile, xmlNode):
         # custom logic
         # original called from VehiclePartPrototypeInfo::_InitModelMeshes
         # using VehiclePartPrototypeInfo::RefreshFromXml
-        pass
+        # model_group_health = parse_model_group_health(self.engineModelName.value)
+        pass # ToDo
 
     def get_etree_prototype(self):
         result = PhysicBodyPrototypeInfo.get_etree_prototype(self)
@@ -953,7 +956,7 @@ class ComplexPhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
                                               saving_type=SavingType.SPECIFIC)
         self.partDescription = []
         # custom init for partPrototypeDescription
-        self.partPrototypeDescriptions = AnnotatedValue([], "Parts", group_type=GroupType.PRIMARY,
+        self.partPrototypeDescriptions = AnnotatedValue([], "PartsDescription", group_type=GroupType.PRIMARY,
                                                         saving_type=SavingType.SPECIFIC)
         self.allPartNames = []
         self.massShape = AnnotatedValue(0, "MassShape", group_type=GroupType.SECONDARY)
@@ -2264,13 +2267,13 @@ class Boss04StationPrototypeInfo(ComplexPhysicObjPrototypeInfo):
 class Boss02PrototypeInfo(ComplexPhysicObjPrototypeInfo):
     def __init__(self, server):
         ComplexPhysicObjPrototypeInfo.__init__(self, server)
-        self.stateInfos = []
-        self.speed = 1.0
+        self.stateInfos = AnnotatedValue([], "States", group_type=GroupType.SECONDARY, saving_type=SavingType.SPECIFIC)
+        self.speed = AnnotatedValue(1.0, "Speed", group_type=GroupType.SECONDARY)
         self.containerPrototypeId = -1
         self.relPosForContainerPickUp = {}
         self.relRotForContainerPickUp = {}
         self.relPosForContainerPutDown = {}
-        self.containerPrototypeName = ""
+        self.containerPrototypeName = AnnotatedValue("", "ContainerPrototype", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = ComplexPhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -2280,10 +2283,11 @@ class Boss02PrototypeInfo(ComplexPhysicObjPrototypeInfo):
             for state_node in states_node.iterchildren(tag="State"):
                 state = self.StateInfo()
                 state.LoadFromXML(xmlFile, state_node)
+                self.stateInfos.value.append(state)
             speed = read_from_xml_node(xmlNode, "Speed")
             if speed is not None:
-                self.speed = float(speed)
-            self.containerPrototypeName = read_from_xml_node(xmlNode, "ContainerPrototype")
+                self.speed.value = float(speed)
+            self.containerPrototypeName.value = read_from_xml_node(xmlNode, "ContainerPrototype")
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
