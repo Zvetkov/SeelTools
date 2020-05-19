@@ -10,7 +10,7 @@ from seeltools.utilities.parse import (read_from_xml_node, child_from_xml_node, 
 
 from seeltools.utilities.constants import (STATUS_SUCCESS, DEFAULT_TURNING_SPEED, FiringTypesStruct, DamageTypeStruct,
                                            DESTROY_EFFECT_NAMES, TEAM_DEFAULT_FORMATION_PROTOTYPE, GEOM_TYPE,
-                                           ZERO_VECTOR, IDENTITY_QUATERNION)
+                                           ZERO_VECTOR, ONE_VECTOR, IDENTITY_QUATERNION)
 
 from seeltools.utilities.global_functions import GetActionByName  # , AIParam
 
@@ -926,14 +926,18 @@ class ComplexPhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
     def __init__(self, server):
         PhysicObjPrototypeInfo.__init__(self, server)
         self.partPrototypeIds = []
-        self.partPrototypeNames = []
-        self.massSize = {"x": 1.0,
-                         "y": 1.0,
-                         "z": 1.0}
-        self.massTranslation = deepcopy(ZERO_VECTOR)
+        self.partPrototypeNames = AnnotatedValue([], "Parts", group_type=GroupType.PRIMARY,
+                                                 saving_type=SavingType.SPECIFIC)
+        self.massSize = AnnotatedValue(deepcopy(ONE_VECTOR), "MassSize", group_type=GroupType.SECONDARY,
+                                                saving_type=SavingType.SPECIFIC)
+        self.massTranslation = AnnotatedValue(deepcopy(ZERO_VECTOR), "MassTranslation", group_type=GroupType.SECONDARY,
+                                              saving_type=SavingType.SPECIFIC)
         self.partDescription = []
+        # custom init for partPrototypeDescription
+        self.partPrototypeDescriptions = AnnotatedValue([], "Parts", group_type=GroupType.PRIMARY,
+                                                 saving_type=SavingType.SPECIFIC)
         self.allPartNames = []
-        self.massShape = 0
+        self.massShape = AnnotatedValue(0, "MassShape", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -942,9 +946,9 @@ class ComplexPhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
             if main_part_description_node is not None:
                 partPrototypeDescriptions = self.ComplexPhysicObjPartDescription()
                 partPrototypeDescriptions.LoadFromXML(xmlFile, main_part_description_node, self.theServer)
-                self.partPrototypeDescriptions = partPrototypeDescriptions
+                self.partPrototypeDescriptions.value = partPrototypeDescriptions
             else:
-                if self.parent.partPrototypeDescriptions is None:
+                if self.parent.partPrototypeDescriptions.value is None:
                     logger.warning(f"Parts description is missing for prototype {self.prototypeName.value}")
             parts_node = child_from_xml_node(xmlNode, "Parts")
             if parts_node is not None:
@@ -954,20 +958,20 @@ class ComplexPhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
                     prototypeName = read_from_xml_node(part_node, "Prototype")
                     protName = {"name": prototypeName,
                                 "id": prototypeId}
-                    self.partPrototypeNames.append(protName)
+                    self.partPrototypeNames.value.append(protName)
             massSize = read_from_xml_node(xmlNode, "MassSize", do_not_warn=True)
             if massSize is not None:
-                self.massSize = parse_str_to_vector(massSize)
+                self.massSize.value = parse_str_to_vector(massSize)
             massTranslation = read_from_xml_node(xmlNode, "MassTranslation", do_not_warn=True)
             if massTranslation is not None:
-                self.massTranslation = parse_str_to_vector(massTranslation)
-            self.massShape = safe_check_and_set(self.massShape, xmlNode, "MassShape", "int")
+                self.massTranslation.value = parse_str_to_vector(massTranslation)
+            self.massShape.value = safe_check_and_set(self.massShape.value, xmlNode, "MassShape", "int")
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
-        for prot_name in self.partPrototypeNames:
+        for prot_name in self.partPrototypeNames.value:
             self.partPrototypeIds.append(prototype_manager.GetPrototypeId(prot_name["name"]))
-        # can this replace ComplexPhysicObjPartDescription::GetPartNames?
+        # unused for the moment
         self.allPartNames = [part.name for part in self.partDescription]
 
     class ComplexPhysicObjPartDescription(Object):
