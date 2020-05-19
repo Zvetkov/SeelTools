@@ -368,102 +368,120 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
     def __init__(self, server):
         VehiclePartPrototypeInfo.__init__(self, server)
         self.barrelModelName = ""
-        self.withCharging = True
-        self.withShellsPoolLimit = True
-        self.shellPrototypeId = -1
-        self.damage = 1.0
-        self.damageType = 0
-        self.firingRate = 1.0
-        self.firingRange = 1.0
+        self.withCharging = AnnotatedValue(True, "WithCharging", group_type=GroupType.PRIMARY)
+        self.withShellsPoolLimit = AnnotatedValue(True, "WithShellsPoolLimit", group_type=GroupType.PRIMARY)
+        self.shellPrototypeId = AnnotatedValue(-1, "Damage", group_type=GroupType.PRIMARY)
+        self.damage = AnnotatedValue(1.0, "Damage", group_type=GroupType.PRIMARY)
+        self.damageType = AnnotatedValue(0, "DamageType", group_type=GroupType.PRIMARY,
+                                         saving_type=SavingType.SPECIFIC)  # todo
+        self.firingRate = AnnotatedValue(1.0, "FiringRate", group_type=GroupType.PRIMARY)
+        self.firingRange = AnnotatedValue(1.0, "FiringRange", group_type=GroupType.PRIMARY)
         self.lowStopAngle = 0.0
         self.highStopAngle = 0.0
-        self.ignoreStopAnglesWhenFire = False
+        self.ignoreStopAnglesWhenFire = AnnotatedValue(False, "IgnoreStopAnglesWhenFire", group_type=GroupType.PRIMARY)
+        self.decalName = AnnotatedValue("", "Decal", group_type=GroupType.PRIMARY)
         self.decalId = -1
-        self.recoilForce = 0.0
-        self.turningSpeed = DEFAULT_TURNING_SPEED
-        self.chargeSize = 20
-        self.reChargingTime = 1.0
-        self.reChargingTimePerShell = 0.0
-        self.shellsPoolSize = 12
+        self.recoilForce = AnnotatedValue(0.0, "RecoilForce", group_type=GroupType.PRIMARY)
+        self.turningSpeed = AnnotatedValue(DEFAULT_TURNING_SPEED, "TurningSpeed", group_type=GroupType.PRIMARY,
+                                           saving_type=SavingType.SPECIFIC)  # todo
+        self.chargeSize = AnnotatedValue(20, "ChargeSize", group_type=GroupType.PRIMARY)
+        self.reChargingTime = AnnotatedValue(1.0, "RechargingTime", group_type=GroupType.PRIMARY)
+        self.reChargingTimePerShell = AnnotatedValue(0.0, "ReChargingTimePerShell", group_type=GroupType.PRIMARY)
+        self.shellsPoolSize = AnnotatedValue(12, "ShellsPoolSize", group_type=GroupType.PRIMARY)
         self.blastWavePrototypeId = -1
-        self.firingType = 0
+        self.firingType = AnnotatedValue(0, "FiringType", group_type=GroupType.PRIMARY,
+                                         saving_type=SavingType.SPECIFIC)  # todo
         self.fireLpMatrices = []
-        self.explosionTypeName = "BIG"
-        self.shellPrototypeName = ""
-        self.blastWavePrototypeName = ""
+        self.explosionTypeName = AnnotatedValue("BIG", "ExplosionType", group_type=GroupType.PRIMARY)
+        self.shellPrototypeName = AnnotatedValue("", "BulletPrototype", group_type=GroupType.PRIMARY)
+        self.blastWavePrototypeName = AnnotatedValue("", "BlastWavePrototype", group_type=GroupType.PRIMARY)
+
+        self.engineModelName = AnnotatedValue("", "ModelFile", group_type=GroupType.VISUAL,
+                                              saving_type=SavingType.SPECIFIC)  # todo
 
     def LoadFromXML(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
         result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.shellPrototypeName = safe_check_and_set(self.shellPrototypeName, xmlNode, "BulletPrototype")
-            self.blastWavePrototypeName = safe_check_and_set(self.blastWavePrototypeName, xmlNode, "BlastWavePrototype")
-            damage = read_from_xml_node(xmlNode, "Damage", do_not_warn=True)
+            self.shellPrototypeName.value = safe_check_and_set(self.shellPrototypeName.default_value,
+                                                               xmlNode, self.shellPrototypeName.name)
+            self.blastWavePrototypeName.value = safe_check_and_set(self.blastWavePrototypeName.default_value,
+                                                                   xmlNode, self.blastWavePrototypeName.name)
+            damage = read_from_xml_node(xmlNode, self.damage.name, do_not_warn=True)
             if damage is not None:
-                self.damage = float(damage)
+                self.damage.value = float(damage)
 
-            firingRate = read_from_xml_node(xmlNode, "FiringRate", do_not_warn=True)
+            firingRate = read_from_xml_node(xmlNode, self.firingRate.name, do_not_warn=True)
             if firingRate is not None:
-                self.firingRate = float(firingRate)
+                self.firingRate.value = float(firingRate)
 
-            firingRange = read_from_xml_node(xmlNode, "FiringRange", do_not_warn=True)
+            firingRange = read_from_xml_node(xmlNode, self.firingRange.name, do_not_warn=True)
             if firingRange is not None:
-                self.firingRange = float(firingRange)
+                self.firingRange.value = float(firingRange)
 
-            self.explosionTypeName = safe_check_and_set(self.explosionTypeName, xmlNode, "ExplosionType")
+            self.explosionTypeName.value = safe_check_and_set(self.explosionTypeName.default_value,
+                                                              xmlNode, self.explosionTypeName.name)
 
-            recoilForce = read_from_xml_node(xmlNode, "RecoilForce", do_not_warn=True)
+            recoilForce = read_from_xml_node(xmlNode, self.recoilForce.name, do_not_warn=True)
             if recoilForce is not None:
-                self.recoilForce = float(recoilForce)
+                self.recoilForce.value = float(recoilForce)
 
-            decalName = safe_check_and_set("", xmlNode, "Decal")
-            self.decalId = f"Placeholder for {decalName}!"  # DynamicScene.AddDecalName(decalName)
+            self.decalName.value = safe_check_and_set(self.decalName.default_value, xmlNode, self.decalName.name)
+            self.decalId = f"Placeholder for {self.decalName.value}!"  # DynamicScene.AddDecalName(decalName)
 
-            firingType = read_from_xml_node(xmlNode, "FiringType")
-            self.firingType = GunPrototypeInfo.Str2FiringType(firingType)
-            if self.firingType is None:
-                logger.warning(f"Unknown firing type: {self.firingType}!")
+            firingType = read_from_xml_node(xmlNode, self.firingType.name)
+            self.firingType.value = GunPrototypeInfo.Str2FiringType(firingType)
+            if self.firingType.value is None:
+                logger.warning(f"Unknown firing type: {self.firingType.value}!")
 
-            damageTypeName = read_from_xml_node(xmlNode, "DamageType", do_not_warn=True)
+            damageTypeName = read_from_xml_node(xmlNode, self.damageType.name, do_not_warn=True)
             if damageTypeName is not None:
-                self.damageType = GunPrototypeInfo.Str2DamageType(damageTypeName)
-            if self.damageType is None:
-                logger.warning(f"Unknown damage type: {self.damageType}")
+                self.damageType.value = GunPrototypeInfo.Str2DamageType(damageTypeName)
+            if self.damageType.value is None:
+                logger.warning(f"Unknown damage type: {self.damageType.value}")
 
-            self.withCharging = parse_str_to_bool(self.withCharging, read_from_xml_node(xmlNode, "WithCharging",
-                                                                                        do_not_warn=True))
+            self.withCharging.value = parse_str_to_bool(self.withCharging.default_value,
+                                                        read_from_xml_node(xmlNode,
+                                                                           self.withCharging.name,
+                                                                           do_not_warn=True))
 
-            chargeSize = read_from_xml_node(xmlNode, "ChargeSize", do_not_warn=True)
+            chargeSize = read_from_xml_node(xmlNode, self.chargeSize.name, do_not_warn=True)
             if chargeSize is not None:
                 chargeSize = int(chargeSize)
                 if chargeSize >= 0:  # ??? whaaat, why should it ever be less than 0?
-                    self.chargeSize = chargeSize
+                    self.chargeSize.value = chargeSize
 
-            reChargingTime = read_from_xml_node(xmlNode, "RechargingTime", do_not_warn=True)
+            reChargingTime = read_from_xml_node(xmlNode, self.reChargingTime.name, do_not_warn=True)
             if reChargingTime is not None:
-                self.reChargingTime = float(reChargingTime)
+                self.reChargingTime.value = float(reChargingTime)
 
-            self.shellsPoolSize = 0
-            shellsPoolSize = read_from_xml_node(xmlNode, "ShellsPoolSize", do_not_warn=True)
+            reChargingTimePerShell = read_from_xml_node(xmlNode, self.reChargingTimePerShell.name, do_not_warn=True)
+            if reChargingTimePerShell is not None:
+                self.reChargingTimePerShell.value = float(reChargingTimePerShell)
+
+            shellsPoolSize = read_from_xml_node(xmlNode, self.shellsPoolSize.name, do_not_warn=True)
             if shellsPoolSize is not None:
                 shellsPoolSize = int(shellsPoolSize)
                 if shellsPoolSize > 0:
-                    self.shellsPoolSize = shellsPoolSize
-                if shellsPoolSize <= 0:
-                    self.withShellsPoolLimit = False
-                    self.shellsPoolSize = 12
+                    self.shellsPoolSize.value = shellsPoolSize
+                else:
+                    self.withShellsPoolLimit.default_value = False
+                    self.withShellsPoolLimit.value = False
 
-            self.withShellsPoolLimit = parse_str_to_bool(self.withShellsPoolLimit,
-                                                         read_from_xml_node(xmlNode, "WithShellsPoolLimit",
-                                                                            do_not_warn=True))
+            self.withShellsPoolLimit.value = parse_str_to_bool(self.withShellsPoolLimit.default_value,
+                                                               read_from_xml_node(xmlNode,
+                                                                                  self.withShellsPoolLimit.name,
+                                                                                  do_not_warn=True))
 
-            turningSpeed = read_from_xml_node(xmlNode, "TurningSpeed", do_not_warn=True)
+            turningSpeed = read_from_xml_node(xmlNode, self.turningSpeed.name, do_not_warn=True)
             if turningSpeed is not None:
-                self.turningSpeed = float(turningSpeed)
-            self.turningSpeed *= pi / 180  # convert to rads
-            self.engineModelName.value += "Gun"  # ??? is this really what's happening?
-            self.ignoreStopAnglesWhenFire = parse_str_to_bool(self.ignoreStopAnglesWhenFire,
-                                                              read_from_xml_node(xmlNode, "IgnoreStopAnglesWhenFire",
-                                                                                 do_not_warn=True))
+                self.turningSpeed.value = float(turningSpeed)
+            self.turningSpeed.value *= pi / 180  # convert to rads
+            # initially in engineModelName we have gun carriage. Here we add Gun suffix to take related model.
+            self.engineModelName.value += "Gun"
+            self.ignoreStopAnglesWhenFire.value = parse_str_to_bool(
+                self.ignoreStopAnglesWhenFire.default_value, read_from_xml_node(xmlNode,
+                                                                                self.ignoreStopAnglesWhenFire.name,
+                                                                                do_not_warn=True))
             return STATUS_SUCCESS
 
     def Str2FiringType(firing_type_name: str):
@@ -478,12 +496,13 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
     def PostLoad(self, prototype_manager):
         self.explosionType = "DUMMY_EXPLOSION_TYPE_NOT_IMPLEMENTED_GET_EXPLOSION_TYPE"
         # self.explosionType = prototype_manager.theServer.theDynamicScene.GetExplosionType(self.explosionTypeName)
-        self.shellPrototypeId = prototype_manager.GetPrototypeId(self.shellPrototypeName)
+        self.shellPrototypeId = prototype_manager.GetPrototypeId(self.shellPrototypeName.value)
         if self.shellPrototypeId == -1:  # ??? there also exist check if sheelPrototypeName is not empty. A valid case?
             logger.error(f"Shell prototype {self.shellPrototypeId} is invalid for {self.prototypeName.value}")
-        self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName)
+        self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName.value)
         if self.blastWavePrototypeId == -1:
-            logger.error(f"Unknown blastwave prototype {self.blastWavePrototypeName} for {self.prototypeName.value}")
+            logger.error(
+                f"Unknown blastwave prototype {self.blastWavePrototypeName.value} for {self.prototypeName.value}")
 
 
 class GadgetPrototypeInfo(PrototypeInfo):
@@ -2445,11 +2464,12 @@ class BulletLauncherPrototypeInfo(GunPrototypeInfo):
         GunPrototypeInfo.__init__(self, server)
         self.groupingAngle = 0.0
         self.numBulletsInShot = 1
-        self.blastWavePrototypeName = ""
+        self.blastWavePrototypeName = AnnotatedValue("", "BlastWavePrototype", group_type=GroupType.PRIMARY)
         self.tracerRange = 1
         self.tracerEffectName = ""
-        self.damageType = 0
-
+        self.damageType = AnnotatedValue(0, "DamageType", group_type=GroupType.PRIMARY,
+                                         saving_type=SavingType.SPECIFIC)
+        #  add load from xml GroupingAngle
 
 class CompoundVehiclePartPrototypeInfo(VehiclePartPrototypeInfo):
     def __init__(self, server):
@@ -2491,8 +2511,9 @@ class RocketLauncherPrototypeInfo(GunPrototypeInfo):
     def __init__(self, server):
         GunPrototypeInfo.__init__(self, server)
         self.withAngleLimit = True
-        self.damageType = 1
-        self.withShellsPoolLimit = True
+        self.damageType = AnnotatedValue(1, "DamageType", group_type=GroupType.PRIMARY,
+                                         saving_type=SavingType.SPECIFIC)
+        self.withShellsPoolLimit = AnnotatedValue(True, "WithShellsPoolLimit", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = GunPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -2506,7 +2527,7 @@ class RocketVolleyLauncherPrototypeInfo(RocketLauncherPrototypeInfo):
     def __init__(self, server):
         RocketLauncherPrototypeInfo.__init__(self, server)
         self.actionDist = 0.0
-        # self.withShellsPoolLimit = True
+        self.withShellsPoolLimit = AnnotatedValue(True, "WithShellsPoolLimit", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = GunPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -2520,8 +2541,9 @@ class RocketVolleyLauncherPrototypeInfo(RocketLauncherPrototypeInfo):
 class ThunderboltLauncherPrototypeInfo(GunPrototypeInfo):
     def __init__(self, server):
         GunPrototypeInfo.__init__(self, server)
-        self.damageType = 2
-        self.withShellsPoolLimit = True
+        self.damageType = AnnotatedValue(2, "DamageType", group_type=GroupType.PRIMARY,
+                                         saving_type=SavingType.SPECIFIC)
+        self.withShellsPoolLimit = AnnotatedValue(True, "WithShellsPoolLimit", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = GunPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -2536,15 +2558,17 @@ class PlasmaBunchLauncherPrototypeInfo(GunPrototypeInfo):
     def __init__(self, server):
         GunPrototypeInfo.__init__(self, server)
         self.bunchPrototypeName = ""
-        self.damageType = 2
-        self.withShellsPoolLimit = True
+        self.damageType = AnnotatedValue(2, "DamageType", group_type=GroupType.PRIMARY,
+                                         saving_type=SavingType.SPECIFIC)
+        self.withShellsPoolLimit = AnnotatedValue(True, "WithShellsPoolLimit", group_type=GroupType.PRIMARY)
 
 
 class MortarPrototypeInfo(GunPrototypeInfo):
     def __init__(self, server):
         GunPrototypeInfo.__init__(self, server)
-        self.damageType = 1
-        self.withShellsPoolLimit = True
+        self.damageType = AnnotatedValue(1, "DamageType", group_type=GroupType.PRIMARY,
+                                         saving_type=SavingType.SPECIFIC)
+        self.withShellsPoolLimit = AnnotatedValue(True, "WithShellsPoolLimit", group_type=GroupType.PRIMARY)
         self.initialVelocity = 50.0
 
     def LoadFromXML(self, xmlFile, xmlNode):
@@ -2569,7 +2593,8 @@ class LocationPusherPrototypeInfo(GunPrototypeInfo):
 class MinePusherPrototypeInfo(GunPrototypeInfo):
     def __init__(self, server):
         GunPrototypeInfo.__init__(self, server)
-        self.damageType = 1
+        self.damageType = AnnotatedValue(1, "DamageType", group_type=GroupType.PRIMARY,
+                                         saving_type=SavingType.SPECIFIC)
 
 
 class TurboAccelerationPusherPrototypeInfo(GunPrototypeInfo):
