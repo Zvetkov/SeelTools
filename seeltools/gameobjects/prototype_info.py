@@ -2292,9 +2292,9 @@ class Boss02PrototypeInfo(ComplexPhysicObjPrototypeInfo):
 
     def PostLoad(self, prototype_manager):
         ComplexPhysicObjPrototypeInfo.PostLoad(self, prototype_manager)
-        for state_info in self.stateInfos:
+        for state_info in self.stateInfos.value:
             state_info.PostLoad(prototype_manager)
-        self.containerPrototypeId = prototype_manager.GetPrototypeId(self.containerPrototypeName)
+        self.containerPrototypeId = prototype_manager.GetPrototypeId(self.containerPrototypeName.value)
 
     class StateInfo(object):
         def __init__(self):
