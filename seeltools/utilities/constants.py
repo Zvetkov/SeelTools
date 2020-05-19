@@ -351,6 +351,10 @@ ZERO_VECTOR = {"x": 0.0,
                "y": 0.0,
                "z": 0.0}
 
+ONE_VECTOR = {"x": 1.0,
+              "y": 1.0,
+              "z": 1.0}
+
 INITIAL_OBJECTS_DIRECTION = {"x": 0.0,
                              "y": 0.0,
                              "z": 1.0}
