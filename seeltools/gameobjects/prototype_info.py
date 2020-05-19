@@ -929,13 +929,13 @@ class ComplexPhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
         self.partPrototypeNames = AnnotatedValue([], "Parts", group_type=GroupType.PRIMARY,
                                                  saving_type=SavingType.SPECIFIC)
         self.massSize = AnnotatedValue(deepcopy(ONE_VECTOR), "MassSize", group_type=GroupType.SECONDARY,
-                                                saving_type=SavingType.SPECIFIC)
+                                       saving_type=SavingType.SPECIFIC)
         self.massTranslation = AnnotatedValue(deepcopy(ZERO_VECTOR), "MassTranslation", group_type=GroupType.SECONDARY,
                                               saving_type=SavingType.SPECIFIC)
         self.partDescription = []
         # custom init for partPrototypeDescription
         self.partPrototypeDescriptions = AnnotatedValue([], "Parts", group_type=GroupType.PRIMARY,
-                                                 saving_type=SavingType.SPECIFIC)
+                                                        saving_type=SavingType.SPECIFIC)
         self.allPartNames = []
         self.massShape = AnnotatedValue(0, "MassShape", group_type=GroupType.SECONDARY)
 

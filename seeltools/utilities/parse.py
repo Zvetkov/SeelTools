@@ -34,8 +34,8 @@ def parse_model_group_health(path: str):
             breakable_list_raw = breakables_raw.split(VehicleGamStruct.BREAKABLE_DIV.value)
             for byte_str in breakable_list_raw:
                 if VehicleGamStruct.BREAKABLE_BSTR.value in byte_str:
-                    breakable_name = byte_str[:byte_str.index(b'\x00')].decode('latin-1')
-                    breakable_id = int(byte_str[byte_str.index(b'\x00'):][22:23].hex())
+                    breakable_name = byte_str[:11].decode('latin-1').replace('\x00', '')
+                    breakable_id = int(byte_str[11:][21:22].hex(), 16)
                     group_health[breakable_name] = breakable_id
         else:
             logger.info(f"Model file '{path}' doesn't contain any breakable health zones.")
