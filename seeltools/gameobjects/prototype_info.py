@@ -206,7 +206,7 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
         pass
 
     def get_etree_prototype(self):
-        result = PrototypeInfo.get_etree_prototype(self)
+        result = PhysicBodyPrototypeInfo.get_etree_prototype(self)
         set_array_to_node(result, self.loadPoints, " ")
         set_array_to_node(result, self.durabilityCoeffsForDamageTypes, " ")
         return result
@@ -241,68 +241,96 @@ class ChassisPrototypeInfo(VehiclePartPrototypeInfo):
 class CabinPrototypeInfo(VehiclePartPrototypeInfo):
     def __init__(self, server):
         VehiclePartPrototypeInfo.__init__(self, server)
-        self.maxPower = 1.0
-        self.maxTorque = 1.0
-        self.maxSpeed = 1.0
-        self.fuelConsumption = 1.0
-        self.gadgetSlots = []
-        self.control = 50.0
-        self.engineHighSoundName = ""
-        self.engineLowSoundName = ""
+        self.maxPower = AnnotatedValue(1.0, "MaxPower", group_type=GroupType.PRIMARY)
+        self.maxTorque = AnnotatedValue(1.0, "MaxTorque", group_type=GroupType.PRIMARY)
+        self.maxSpeed = AnnotatedValue(1.0, "MaxSpeed", group_type=GroupType.PRIMARY,
+                                       saving_type=SavingType.SPECIFIC)
+        self.fuelConsumption = AnnotatedValue(1.0, "FuelConsumption", group_type=GroupType.PRIMARY)
+        self.gadgetSlots = AnnotatedValue([], "GadgetDescription", group_type=GroupType.PRIMARY,
+                                          saving_type=SavingType.SPECIFIC)
+        self.control = AnnotatedValue(50.0, "Control", group_type=GroupType.PRIMARY)
+        self.engineHighSoundName = AnnotatedValue("", "EngineHighSound", group_type=GroupType.SOUND)
+        self.engineLowSoundName = AnnotatedValue("", "EngineLowSound", group_type=GroupType.SOUND)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            maxPower = read_from_xml_node(xmlNode, "MaxPower", do_not_warn=True)
+            maxPower = read_from_xml_node(xmlNode, self.maxPower.name, do_not_warn=True)
             if maxPower is not None:
-                self.maxPower = float(maxPower)
+                self.maxPower.value = float(maxPower)
 
-            maxTorque = read_from_xml_node(xmlNode, "MaxTorque", do_not_warn=True)
+            maxTorque = read_from_xml_node(xmlNode, self.maxTorque.name, do_not_warn=True)
             if maxTorque is not None:
-                self.maxTorque = float(maxTorque)
+                self.maxTorque.value = float(maxTorque)
 
-            maxSpeed = read_from_xml_node(xmlNode, "MaxSpeed", do_not_warn=True)
+            maxSpeed = read_from_xml_node(xmlNode, self.maxSpeed.name, do_not_warn=True)
             if maxSpeed is not None:
-                self.maxSpeed = float(maxSpeed)
+                self.maxSpeed.value = float(maxSpeed)
 
-            fuelConsumption = read_from_xml_node(xmlNode, "FuelConsumption", do_not_warn=True)
+            fuelConsumption = read_from_xml_node(xmlNode, self.fuelConsumption.name, do_not_warn=True)
             if fuelConsumption is not None:
-                self.fuelConsumption = float(fuelConsumption)
+                self.fuelConsumption.value = float(fuelConsumption)
 
-            self.engineHighSoundName = safe_check_and_set(self.engineHighSoundName, xmlNode, "EngineHighSound")
-            self.engineLowSoundName = safe_check_and_set(self.engineLowSoundName, xmlNode, "EngineLowSound")
+            self.engineHighSoundName.value = safe_check_and_set(self.engineHighSoundName.default_value,
+                                                                xmlNode,
+                                                                self.engineHighSoundName.name)
+            self.engineLowSoundName.value = safe_check_and_set(self.engineLowSoundName.default_value,
+                                                               xmlNode,
+                                                               self.engineLowSoundName.name)
 
-            control = read_from_xml_node(xmlNode, "Control", do_not_warn=True)
+            control = read_from_xml_node(xmlNode, self.control.name, do_not_warn=True)
             if control is not None:
-                self.control = float(control)
-            if self.control < 0.0 or self.control > 100.0:
-                self.control = 100.0
+                self.control.value = float(control)
+            if self.control.value < 0.0 or self.control.value > 100.0:
+                self.control.value = 100.0
 
-            self.maxSpeed = self.maxSpeed * 0.27777779  # ~5/18 or 50/180
+            self.maxSpeed.value = self.maxSpeed.value * 0.27777779  # ~5/18 or 50/180
 
-            gadgetDescriptions = child_from_xml_node(xmlNode, "GadgetDescription", do_not_warn=True)
+            gadgetDescriptions = child_from_xml_node(xmlNode, self.gadgetSlots.name, do_not_warn=True)
             if gadgetDescriptions is not None:
                 check_mono_xml_node(gadgetDescriptions, "Slot")
                 for gadget_node in gadgetDescriptions.iterchildren(tag="Slot"):
                     gadget = {"resourceType": read_from_xml_node(gadget_node, "ResourceType"),
                               "maxAmount": int(read_from_xml_node(gadget_node, "MaxAmount"))}
-                    self.gadgetSlots.append(gadget)
+                    self.gadgetSlots.value.append(gadget)
             return STATUS_SUCCESS
+
+    def get_etree_prototype(self):
+        result = VehiclePartPrototypeInfo.get_etree_prototype(self)
+        # save maxSpeed
+        if self.maxSpeed.value != self.maxSpeed.default_value:
+            result.set(self.maxSpeed.name, str(self.maxSpeed.value / 0.27777779))
+        # save maxSpeed end
+        # save gadgetSlots
+        if self.gadgetSlots.value != self.gadgetSlots.default_value:
+            gadgetSlots = etree.Element(self.gadgetSlots.name)
+            for slotItem in self.gadgetSlots.value:
+                slotElement = etree.Element("Slot")
+                slotElement.set("ResourceType", slotItem["resourceType"])
+                slotElement.set("MaxAmount", str(slotItem["maxAmount"]))
+                gadgetSlots.append(slotElement)
+            result.append(gadgetSlots)
+        # save gadgetSlots end
+        return result
 
 
 class BasketPrototypeInfo(VehiclePartPrototypeInfo):
     def __init__(self, server):
         VehiclePartPrototypeInfo.__init__(self, server)
-        self.slots = []
-        self.repositorySize = {"x": 10, "y": 10}
+        self.slots = AnnotatedValue([], "Slot", group_type=GroupType.PRIMARY,
+                                    saving_type=SavingType.SPECIFIC)
+        self.repositorySize = AnnotatedValue({"x": 10, "y": 10}, "RepositorySize",
+                                             group_type=GroupType.PRIMARY,
+                                             saving_type=SavingType.SPECIFIC)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             repositoryDescriptions = child_from_xml_node(xmlNode, "RepositoryDescription")
-            repositorySize = read_from_xml_node(repositoryDescriptions, "RepositorySize")
-            self.repositorySize = {"x": repositorySize[0],
-                                   "y": repositorySize[1]}
+            repositorySize = read_from_xml_node(repositoryDescriptions, self.repositorySize.name)
+            repositorySize = repositorySize.split()
+            self.repositorySize.value = {"x": repositorySize[0],
+                                         "y": repositorySize[1]}
             if len(repositoryDescriptions.getchildren()) > 1:
                 check_mono_xml_node(repositoryDescriptions, "Slot")
                 for slot_node in repositoryDescriptions.iterchildren(tag="Slot"):
@@ -310,11 +338,30 @@ class BasketPrototypeInfo(VehiclePartPrototypeInfo):
                     pos = {"x": pos[0], "y": pos[1]}
                     slot = {"name": read_from_xml_node(slot_node, "Name"),
                             "pos": pos}
-                    self.slots.append(slot)
+                    self.slots.value.append(slot)
             return STATUS_SUCCESS
 
     def InternalCopyFrom(self, prot_to_copy_from):
         self.parent = prot_to_copy_from
+
+    def get_etree_prototype(self):
+        result = VehiclePartPrototypeInfo.get_etree_prototype(self)
+        # save RepositoryDescription
+        if (
+            self.repositorySize.value != self.repositorySize.default_value
+            or self.slots.value != self.slots.default_value
+        ):
+            repositoryDescription = etree.Element("RepositoryDescription")
+            repositoryDescription.set(self.repositorySize.name,
+                                      f'{self.repositorySize.value["x"]} {self.repositorySize.value["y"]}')
+            for slotItem in self.slots.value:
+                slotElement = etree.Element("Slot")
+                slotElement.set("Name", slotItem["name"])
+                slotElement.set("Pos", f'{slotItem["pos"]["x"]} {slotItem["pos"]["y"]}')
+                repositoryDescription.append(slotElement)
+            result.append(repositoryDescription)
+        # save RepositoryDescription end
+        return result
 
 
 class GunPrototypeInfo(VehiclePartPrototypeInfo):
@@ -852,7 +899,7 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
         self.collisionInfos.append(collision_info)
 
     def get_etree_prototype(self):
-        result = PrototypeInfo.get_etree_prototype(self)
+        result = PhysicObjPrototypeInfo.get_etree_prototype(self)
         # Size start
         result.set("Size", f'{self.size.value["x"]} {self.size.value["y"]} {self.size.value["z"]}')
         # Size ends
