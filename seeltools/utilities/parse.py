@@ -5,6 +5,7 @@ from urllib.parse import unquote
 
 from seeltools.utilities.game_path import WORKING_DIRECTORY
 from seeltools.utilities.log import logger
+from seeltools.utilities.constants import VehicleGamStruct
 
 ENCODING = 'windows-1251'
 
@@ -17,6 +18,32 @@ def parse_logos_gam(path: str):
     for byte_str in logo_list_raw:
         logo_list.append(byte_str[byte_str.rindex(b'\x00') + 1:].decode('latin-1'))
     return logo_list
+
+
+def parse_model_group_health(path: str):
+    logger.info(f"Trying to parse ModelGroups from '{path}'")
+    group_health = {}
+    with open(path, 'rb') as f:
+        str_from_file = f.read()
+
+    if VehicleGamStruct.GROUP_HEALTH_HEADER.value in str_from_file:
+        group_health["Main"] = None
+        if VehicleGamStruct.BREAKABLE_BSTR.value in str_from_file:
+            main_breakable_raw = str_from_file.split(VehicleGamStruct.GROUP_HEALTH_HEADER.value)
+            breakables_raw = main_breakable_raw[1][main_breakable_raw[1].index(VehicleGamStruct.BREAKABLE_BSTR.value):]
+            breakable_list_raw = breakables_raw.split(VehicleGamStruct.BREAKABLE_DIV.value)
+            for byte_str in breakable_list_raw:
+                if VehicleGamStruct.BREAKABLE_BSTR.value in byte_str:
+                    breakable_name = byte_str[:byte_str.index(b'\x00')].decode('latin-1')
+                    breakable_id = int(byte_str[byte_str.index(b'\x00'):][22:23].hex())
+                    group_health[breakable_name] = breakable_id
+        else:
+            logger.info(f"Model file '{path}' doesn't contain any breakable health zones.")
+            return group_health
+    else:
+        logger.warning(f"Model file '{path}' given doesn't contain GroupHealth header!")
+        return None
+    return group_health
 
 
 def xml_to_objfy(path_to_file: str):

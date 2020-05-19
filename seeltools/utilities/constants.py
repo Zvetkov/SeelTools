@@ -1,4 +1,5 @@
 import os
+from enum import Enum
 
 FALLBACK_WORKING_DIRECTORY = "D:/Steam/steamapps/common/Hard Truck Apocalypse 2"
 
@@ -372,3 +373,10 @@ DESTROY_EFFECT_NAMES = ["DestroyEffectPiercing",
                         "DestroyEffectBlast",
                         "DestroyEffectEnergy",
                         "DestroyEffectWater"]
+
+
+class VehicleGamStruct(Enum):
+    GROUP_HEALTH_HEADER = b'\x00\x00\x00\x4D\x61\x69\x6E\x00'
+    GROUP_HEALTH_DIV = b'\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00'
+    BREAKABLE_BSTR = b'\x42\x72\x65\x61\x6B\x61\x62\x6C\x65'
+    BREAKABLE_DIV = b'\x00\x00\x00\x03\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x02\x00\x00\x00'
