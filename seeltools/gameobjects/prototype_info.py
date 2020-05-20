@@ -2363,6 +2363,18 @@ class Boss02PrototypeInfo(ComplexPhysicObjPrototypeInfo):
             state_info.PostLoad(prototype_manager)
         self.containerPrototypeId = prototype_manager.GetPrototypeId(self.containerPrototypeName.value)
 
+    def get_etree_prototype(self):
+        result = ComplexPhysicObjPrototypeInfo.get_etree_prototype(self)
+
+        def get_states(stateInfos):
+            states_element = etree.Element("States")
+            for state in stateInfos:
+                states_element.append(self.StateInfo.get_etree_prototype(state))
+            return states_element
+        add_value_to_node_as_child(result, self.stateInfos, lambda x: get_states(x.value))
+
+        return result
+
     class StateInfo(object):
         def __init__(self):
             self.loadPrototypeIds = []
@@ -2372,6 +2384,7 @@ class Boss02PrototypeInfo(ComplexPhysicObjPrototypeInfo):
         def LoadFromXML(self, xmlFile, xmlNode):
             self.loadPrototypeNames = read_from_xml_node(xmlNode, "LoadPrototypes").split()
             position = read_from_xml_node(xmlNode, "RelPos")
+            position = position.split()
             self.position = {"x": position[0],
                              "y": position[1],
                              "z": position[2]}
@@ -2379,6 +2392,13 @@ class Boss02PrototypeInfo(ComplexPhysicObjPrototypeInfo):
         def PostLoad(self, prototype_manager):
             for prot_name in self.loadPrototypeNames:
                 self.loadPrototypeIds.append(prototype_manager.GetPrototypeId(prot_name))
+
+        def get_etree_prototype(self):
+            state_element = etree.Element("State")
+            state_element.set("LoadPrototypes", " ".join(map(str, self.loadPrototypeNames)))
+            state_element.set("RelPos", vector_to_string(self.position))
+            return state_element
+
 
 
 class AnimatedComplexPhysicObjPrototypeInfo(ComplexPhysicObjPrototypeInfo):
