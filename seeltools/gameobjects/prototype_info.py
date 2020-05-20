@@ -399,7 +399,9 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
         self.decalName = AnnotatedValue("", "Decal", group_type=GroupType.PRIMARY)
         self.decalId = -1
         self.recoilForce = AnnotatedValue(0.0, "RecoilForce", group_type=GroupType.PRIMARY)
-        self.turningSpeed = AnnotatedValue(DEFAULT_TURNING_SPEED, "TurningSpeed", group_type=GroupType.PRIMARY,
+        self.turningSpeed = AnnotatedValue(DEFAULT_TURNING_SPEED * (pi / 180),  # convert to rads
+                                           "TurningSpeed",
+                                           group_type=GroupType.PRIMARY,
                                            saving_type=SavingType.SPECIFIC)
         self.chargeSize = AnnotatedValue(20, "ChargeSize", group_type=GroupType.PRIMARY)
         self.reChargingTime = AnnotatedValue(1.0, "RechargingTime", group_type=GroupType.PRIMARY)
@@ -492,7 +494,8 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
             turningSpeed = read_from_xml_node(xmlNode, self.turningSpeed.name, do_not_warn=True)
             if turningSpeed is not None:
                 self.turningSpeed.value = float(turningSpeed)
-            self.turningSpeed.value *= pi / 180  # convert to rads
+                # next row was moved under if to avoid double convertation of default. Default also was changed.
+                self.turningSpeed.value *= pi / 180  # convert to rads
             # initially in engineModelName we have gun carriage. Here we add Gun suffix to take related model.
             self.engineModelName.value += "Gun"
             self.ignoreStopAnglesWhenFire.value = parse_str_to_bool(
@@ -2400,7 +2403,6 @@ class Boss02PrototypeInfo(ComplexPhysicObjPrototypeInfo):
             return state_element
 
 
-
 class AnimatedComplexPhysicObjPrototypeInfo(ComplexPhysicObjPrototypeInfo):
     def __init__(self, server):
         ComplexPhysicObjPrototypeInfo.__init__(self, server)
@@ -2553,14 +2555,43 @@ class BlastWavePrototypeInfo(SimplePhysicObjPrototypeInfo):
 class BulletLauncherPrototypeInfo(GunPrototypeInfo):
     def __init__(self, server):
         GunPrototypeInfo.__init__(self, server)
-        self.groupingAngle = 0.0
-        self.numBulletsInShot = 1
+        self.groupingAngle = AnnotatedValue(0.0, "GroupingAngle", group_type=GroupType.SECONDARY,
+                                            saving_type=SavingType.SPECIFIC)
+        self.numBulletsInShot = AnnotatedValue(1, "NumBulletsInShot", group_type=GroupType.SECONDARY)
+        # damageType save and load implemented in parrent
         self.blastWavePrototypeName = AnnotatedValue("", "BlastWavePrototype", group_type=GroupType.PRIMARY)
-        self.tracerRange = 1
-        self.tracerEffectName = ""
+        self.tracerRange = AnnotatedValue(1, "TracerRange", group_type=GroupType.SECONDARY)
+        self.tracerEffectName = AnnotatedValue("", "TracerEffect", group_type=GroupType.SECONDARY)
+        # damageType save and load implemented in parrent
         self.damageType = AnnotatedValue(0, "DamageType", group_type=GroupType.PRIMARY,
                                          saving_type=SavingType.SPECIFIC)
-        #  add load from xml GroupingAngle
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = GunPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            # groupingAngle implemented partially. Check ai::BulletLauncherPrototypeInfo::LoadFromXML
+            groupingAngle = read_from_xml_node(xmlNode, self.groupingAngle.name, do_not_warn=True)
+            if groupingAngle is not None:
+                self.groupingAngle.value = float(groupingAngle)
+                self.groupingAngle.value = (self.groupingAngle.value * 0.017453292) * 0.5
+
+            numBulletsInShot = read_from_xml_node(xmlNode, self.numBulletsInShot.name, do_not_warn=True)
+            if numBulletsInShot is not None:
+                self.numBulletsInShot.value = int(numBulletsInShot)
+
+            tracerRange = read_from_xml_node(xmlNode, self.tracerRange.name, do_not_warn=True)
+            if tracerRange is not None:
+                self.tracerRange.value = int(tracerRange)
+
+            self.blastWavePrototypeName.value = read_from_xml_node(xmlNode, self.blastWavePrototypeName.name, True)
+            self.tracerEffectName.value = read_from_xml_node(xmlNode, self.tracerEffectName.name, True)
+            return STATUS_SUCCESS
+
+    def get_etree_prototype(self):
+        result = GunPrototypeInfo.get_etree_prototype(self)
+        add_value_to_node(result, self.groupingAngle, lambda x: str((x.value / 0.5) / 0.017453292))
+        return result
+
 
 class CompoundVehiclePartPrototypeInfo(VehiclePartPrototypeInfo):
     def __init__(self, server):
