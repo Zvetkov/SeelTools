@@ -21,9 +21,18 @@ from seeltools.utilities.helper_functions import value_equel_default
 from seeltools.gameobjects.object_classes import *
 
 
-def set_array_to_node(node, annotatedValue, delimiter):
-    if annotatedValue.value != annotatedValue.default_value:
-        node.set(annotatedValue.name, f'{delimiter}'.join(map(str, annotatedValue.value)))
+def add_value_to_node(node, annotatedValue, func=lambda x: str(x.value)):
+    if not value_equel_default(annotatedValue.value, annotatedValue.default_value):
+        node.set(annotatedValue.name, func(annotatedValue))
+
+
+def add_value_to_node_as_child(node, annotatedValue, func):
+    if not value_equel_default(annotatedValue.value, annotatedValue.default_value):
+        result = func(annotatedValue)
+        if isinstance(result, list):
+            node.extend(result)
+        else:
+            node.append(result)
 
 
 class PrototypeInfo(object):
@@ -106,12 +115,12 @@ class PrototypeInfo(object):
                 if (
                     attrib.saving_type != SavingType.IGNORE
                     and attrib.saving_type != SavingType.SPECIFIC
-                    and not value_equel_default(attrib.value, attrib.default_value)
                 ):
                     if attrib.saving_type == SavingType.COMMON:
-                        result.set(attrib.name, str(attrib.value))
+                        add_value_to_node(result, attrib)
                     elif attrib.saving_type == SavingType.RESOURCE:
-                        result.set(attrib.name, self.theServer.theResourceManager.GetResourceName(attrib.value))
+                        add_value_to_node(result, attrib,
+                                          lambda x: self.theServer.theResourceManager.GetResourceName(x.value))
         return result
 
 
@@ -210,8 +219,8 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
 
     def get_etree_prototype(self):
         result = PhysicBodyPrototypeInfo.get_etree_prototype(self)
-        set_array_to_node(result, self.loadPoints, " ")
-        set_array_to_node(result, self.durabilityCoeffsForDamageTypes, " ")
+        add_value_to_node(result, self.loadPoints, lambda x: " ".join(map(str, x.value)))
+        add_value_to_node(result, self.durabilityCoeffsForDamageTypes, lambda x: " ".join(map(str, x.value)))
         return result
 
 
@@ -300,19 +309,19 @@ class CabinPrototypeInfo(VehiclePartPrototypeInfo):
 
     def get_etree_prototype(self):
         result = VehiclePartPrototypeInfo.get_etree_prototype(self)
-        # save maxSpeed
-        if self.maxSpeed.value != self.maxSpeed.default_value:
-            result.set(self.maxSpeed.name, str(self.maxSpeed.value / 0.27777779))
-        # save maxSpeed end
+        add_value_to_node(result, self.maxSpeed, lambda x: str(x.value / 0.27777779))
         # save gadgetSlots
-        if self.gadgetSlots.value != self.gadgetSlots.default_value:
-            gadgetSlots = etree.Element(self.gadgetSlots.name)
-            for slotItem in self.gadgetSlots.value:
+
+        def render_slot(annotatedValue):
+            gadgetSlotsElement = etree.Element(annotatedValue.name)
+            for slotItem in annotatedValue.value:
                 slotElement = etree.Element("Slot")
                 slotElement.set("ResourceType", slotItem["resourceType"])
                 slotElement.set("MaxAmount", str(slotItem["maxAmount"]))
-                gadgetSlots.append(slotElement)
-            result.append(gadgetSlots)
+                gadgetSlotsElement.append(slotElement)
+            return gadgetSlotsElement
+
+        add_value_to_node_as_child(result, self.gadgetSlots, lambda x: render_slot(x))
         # save gadgetSlots end
         return result
 
@@ -350,6 +359,7 @@ class BasketPrototypeInfo(VehiclePartPrototypeInfo):
     def get_etree_prototype(self):
         result = VehiclePartPrototypeInfo.get_etree_prototype(self)
         # save RepositoryDescription
+        # too complex to be transformed to lambda
         if (
             self.repositorySize.value != self.repositorySize.default_value
             or self.slots.value != self.slots.default_value
@@ -376,7 +386,7 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
         self.shellPrototypeId = AnnotatedValue(-1, "Damage", group_type=GroupType.PRIMARY)
         self.damage = AnnotatedValue(1.0, "Damage", group_type=GroupType.PRIMARY)
         self.damageType = AnnotatedValue(0, "DamageType", group_type=GroupType.PRIMARY,
-                                         saving_type=SavingType.SPECIFIC)  # todo
+                                         saving_type=SavingType.SPECIFIC)
         self.firingRate = AnnotatedValue(1.0, "FiringRate", group_type=GroupType.PRIMARY)
         self.firingRange = AnnotatedValue(1.0, "FiringRange", group_type=GroupType.PRIMARY)
         self.lowStopAngle = 0.0
@@ -386,21 +396,21 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
         self.decalId = -1
         self.recoilForce = AnnotatedValue(0.0, "RecoilForce", group_type=GroupType.PRIMARY)
         self.turningSpeed = AnnotatedValue(DEFAULT_TURNING_SPEED, "TurningSpeed", group_type=GroupType.PRIMARY,
-                                           saving_type=SavingType.SPECIFIC)  # todo
+                                           saving_type=SavingType.SPECIFIC)
         self.chargeSize = AnnotatedValue(20, "ChargeSize", group_type=GroupType.PRIMARY)
         self.reChargingTime = AnnotatedValue(1.0, "RechargingTime", group_type=GroupType.PRIMARY)
         self.reChargingTimePerShell = AnnotatedValue(0.0, "ReChargingTimePerShell", group_type=GroupType.PRIMARY)
         self.shellsPoolSize = AnnotatedValue(12, "ShellsPoolSize", group_type=GroupType.PRIMARY)
         self.blastWavePrototypeId = -1
         self.firingType = AnnotatedValue(0, "FiringType", group_type=GroupType.PRIMARY,
-                                         saving_type=SavingType.SPECIFIC)  # todo
+                                         saving_type=SavingType.SPECIFIC)
         self.fireLpMatrices = []
         self.explosionTypeName = AnnotatedValue("BIG", "ExplosionType", group_type=GroupType.PRIMARY)
         self.shellPrototypeName = AnnotatedValue("", "BulletPrototype", group_type=GroupType.PRIMARY)
         self.blastWavePrototypeName = AnnotatedValue("", "BlastWavePrototype", group_type=GroupType.PRIMARY)
 
         self.engineModelName = AnnotatedValue("", "ModelFile", group_type=GroupType.VISUAL,
-                                              saving_type=SavingType.SPECIFIC)  # todo
+                                              saving_type=SavingType.SPECIFIC)
 
     def LoadFromXML(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
         result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -496,6 +506,9 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
     def Str2DamageType(damage_type_name: str):
         return DamageTypeStruct.get(damage_type_name)
 
+    def DamageType2Str(damage_type_value: int):
+        return list(DamageTypeStruct.keys())[list(DamageTypeStruct.values()).index(damage_type_value)]
+
     def PostLoad(self, prototype_manager):
         self.explosionType = "DUMMY_EXPLOSION_TYPE_NOT_IMPLEMENTED_GET_EXPLOSION_TYPE"
         # self.explosionType = prototype_manager.theServer.theDynamicScene.GetExplosionType(self.explosionTypeName)
@@ -506,6 +519,14 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
         if self.blastWavePrototypeId == -1:
             logger.error(
                 f"Unknown blastwave prototype {self.blastWavePrototypeName.value} for {self.prototypeName.value}")
+
+    def get_etree_prototype(self):
+        result = VehiclePartPrototypeInfo.get_etree_prototype(self)
+        add_value_to_node(result, self.engineModelName, lambda x: x.value.strip("Gun"))
+        add_value_to_node(result, self.turningSpeed, lambda x: str(x.value / (pi / 180)))
+        add_value_to_node(result, self.damageType, lambda x: GunPrototypeInfo.DamageType2Str(x.value))
+        add_value_to_node(result, self.firingType, lambda x: GunPrototypeInfo.FiringType2Str(x.value))
+        return result
 
 
 class GadgetPrototypeInfo(PrototypeInfo):
@@ -531,15 +552,14 @@ class GadgetPrototypeInfo(PrototypeInfo):
 
     def get_etree_prototype(self):
         result = PrototypeInfo.get_etree_prototype(self)
-
         # Modifications start
-        if self.modifications.value != self.modifications.default_value:
-            modifications_string = ""
-            for modification in self.modifications.value:
-                modifications_string += f'{modification.get_string_representation(self)} '
-            result.set(self.modifications.name, modifications_string.rstrip('; '))
-        # Modifications end
 
+        def get_string_representation(modification):
+            return self.ModificationInfo.get_string_representation(modification, self)
+
+        add_value_to_node(result, self.modifications,
+                          lambda x: ";".join(list(map(get_string_representation, x.value))))
+        # Modifications end
         return result
 
     class ModificationInfo(object):  # special save and display needed
@@ -686,6 +706,7 @@ class WanderersGeneratorPrototypeInfo(PrototypeInfo):  # special save and displa
         result = PrototypeInfo.get_etree_prototype(self)
 
         # DesiredCount start
+        # Property name different from AnnotatedValue.name
         desired_count = 0
         if self.desiredCountLow.value == self.desiredCountHigh.value:
             desired_count = str(self.desiredCountLow.value)
@@ -695,11 +716,14 @@ class WanderersGeneratorPrototypeInfo(PrototypeInfo):  # special save and displa
         # DesiredCount end
 
         # VehicleDescription start
-        if self.vehicleDescriptions.value != self.vehicleDescriptions.default_value:
+
+        def prepare_vehicles(vehicles_array):
             vehiclesTree = etree.Element("Vehicles")
-            for vehicle in self.vehicleDescriptions.value:
+            for vehicle in vehicles_array:
                 vehiclesTree.append(vehicle.get_etree_prototype())
-            result.append(vehiclesTree)
+            return vehiclesTree
+
+        add_value_to_node_as_child(result, self.vehicleDescriptions, lambda x: prepare_vehicles(x.value))
         # VehicleDescription end
         return result
 
@@ -829,11 +853,16 @@ class AffixGeneratorPrototypeInfo(PrototypeInfo):
         result = PrototypeInfo.get_etree_prototype(self)
 
         # affixDescriptions start
-        if self.affixDescriptions.value != self.affixDescriptions.default_value:
-            for affixName in self.affixDescriptions.value:
+
+        def prepare_affixe(affix_array):
+            result = []
+            for affixName in affix_array:
                 affix = etree.Element("Affix")
                 affix.set("AffixName", affixName)
                 result.append(affix)
+            return result
+
+        add_value_to_node_as_child(result, self.affixDescriptions, lambda x: prepare_affixe(x.value))
         # affixDescriptions end
         return result
 
@@ -922,9 +951,7 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
 
     def get_etree_prototype(self):
         result = PhysicObjPrototypeInfo.get_etree_prototype(self)
-        # Size start
-        result.set("Size", f'{self.size.value["x"]} {self.size.value["y"]} {self.size.value["z"]}')
-        # Size ends
+        add_value_to_node(result, self.size, lambda x: f'{x.value["x"]} {x.value["y"]} {x.value["z"]}')
         return result
 
 
@@ -1579,6 +1606,7 @@ class VehiclesGeneratorPrototypeInfo(PrototypeInfo):
         result = PrototypeInfo.get_etree_prototype(self)
 
         # DesiredCount start
+        # Property name not equel to annotatedValue.Name
         desired_count = 0
         if self.desiredCountLow.value == self.desiredCountHigh.value:
             desired_count = str(self.desiredCountLow.value)
@@ -1587,11 +1615,8 @@ class VehiclesGeneratorPrototypeInfo(PrototypeInfo):
         result.set("DesiredCount", desired_count)
         # DesiredCount end
 
-        # VehicleDescription start
-        if self.vehicleDescriptions.value != self.vehicleDescriptions.default_value:
-            for vehicle_description in self.vehicleDescriptions.value:
-                result.append(vehicle_description.get_etree_prototype())
-        # VehicleDescription end
+        add_value_to_node_as_child(result, self.vehicleDescriptions,
+                                   lambda x: list(map(self.VehicleDescription.get_etree_prototype, x.value)))
         return result
 
     class VehicleDescription(object):
