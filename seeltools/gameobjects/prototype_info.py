@@ -21,6 +21,10 @@ from seeltools.utilities.helper_functions import value_equel_default
 from seeltools.gameobjects.object_classes import *
 
 
+def vector_to_string(value):
+    return f'{value["x"]} {value["y"]} {value["z"]}'
+
+
 def add_value_to_node(node, annotatedValue, func=lambda x: str(x.value)):
     if not value_equel_default(annotatedValue.value, annotatedValue.default_value):
         node.set(annotatedValue.name, func(annotatedValue))
@@ -951,7 +955,7 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
 
     def get_etree_prototype(self):
         result = PhysicObjPrototypeInfo.get_etree_prototype(self)
-        add_value_to_node(result, self.size, lambda x: f'{x.value["x"]} {x.value["y"]} {x.value["z"]}')
+        add_value_to_node(result, self.size, lambda x: vector_to_string(x.value))
         return result
 
 
@@ -1023,12 +1027,39 @@ class ComplexPhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
         # unused for the moment
         self.allPartNames = [part.name for part in self.partDescription]
 
+    def get_etree_prototype(self):
+        result = PhysicObjPrototypeInfo.get_etree_prototype(self)
+        add_value_to_node(result, self.massSize, lambda x: vector_to_string(x.value))
+        add_value_to_node(result, self.massTranslation, lambda x: vector_to_string(x.value))
+        # start partPrototypeDescriptions
+        propName = "MainPartDescription"
+        add_value_to_node_as_child(result, self.partPrototypeDescriptions,
+                                   lambda x: self.ComplexPhysicObjPartDescription.get_etree_prototype(x.value,
+                                                                                                      propName,
+                                                                                                      self.theServer))
+        # Ends partPrototypeDescriptions
+        # Start partPrototypeNames
+
+        def get_parts_elem(partPrototypeNames):
+            partsContainerElement = etree.Element(partPrototypeNames.name)
+            for part in partPrototypeNames.value:
+                partElement = etree.Element("Part")
+                partElement.set("id", part["id"])
+                partElement.set("Prototype", part["name"])
+                partsContainerElement.append(partElement)
+            return partsContainerElement
+
+        add_value_to_node_as_child(result, self.partPrototypeNames, lambda x: get_parts_elem(x))
+        # Ends partPrototypeNames
+        return result
+
     class ComplexPhysicObjPartDescription(Object):
         def __init__(self, prototype_info_object=None):
             Object.__init__(self, prototype_info_object)
             self.partResourceId = -1
             self.lpNames = []
             self.child_descriptions = []  # ??? temporary placeholder for original logic
+            self.name = ""
 
         def LoadFromXML(self, xmlFile, xmlNode, server):
             self.name = read_from_xml_node(xmlNode, "id")
@@ -1048,6 +1079,17 @@ class ComplexPhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
                     part_description = ComplexPhysicObjPrototypeInfo.ComplexPhysicObjPartDescription()
                     part_description.LoadFromXML(xmlFile, description_node, server)
                     self.child_descriptions.append(part_description)  # ??? temporary placeholder for original logic
+
+        def get_etree_prototype(self, elementName, server):
+            partDescriptionElement = etree.Element(elementName)
+            partDescriptionElement.set("id", self.name)
+            partDescriptionElement.set("partResourceType",
+                                       server.theResourceManager.GetResourceName(self.partResourceId))
+            if self.lpNames != []:
+                partDescriptionElement.set("lpName", ",".join(self.lpNames))
+            for child in self.child_descriptions:
+                partDescriptionElement.append(child.get_etree_prototype("PartDescription", server))
+            return partDescriptionElement
 
 
 class StaticAutoGunPrototypeInfo(ComplexPhysicObjPrototypeInfo):
