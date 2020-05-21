@@ -2683,7 +2683,9 @@ class ThunderboltLauncherPrototypeInfo(GunPrototypeInfo):
 class PlasmaBunchLauncherPrototypeInfo(GunPrototypeInfo):
     def __init__(self, server):
         GunPrototypeInfo.__init__(self, server)
+        # never used
         self.bunchPrototypeName = ""
+        # damageType save and load implemented in parrent
         self.damageType = AnnotatedValue(2, "DamageType", group_type=GroupType.PRIMARY,
                                          saving_type=SavingType.SPECIFIC)
         self.withShellsPoolLimit = AnnotatedValue(True, "WithShellsPoolLimit", group_type=GroupType.PRIMARY)
@@ -2692,17 +2694,18 @@ class PlasmaBunchLauncherPrototypeInfo(GunPrototypeInfo):
 class MortarPrototypeInfo(GunPrototypeInfo):
     def __init__(self, server):
         GunPrototypeInfo.__init__(self, server)
+        # damageType save and load implemented in parrent
         self.damageType = AnnotatedValue(1, "DamageType", group_type=GroupType.PRIMARY,
                                          saving_type=SavingType.SPECIFIC)
         self.withShellsPoolLimit = AnnotatedValue(True, "WithShellsPoolLimit", group_type=GroupType.PRIMARY)
-        self.initialVelocity = 50.0
+        self.initialVelocity = AnnotatedValue(50.0, "InitialVelocity", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = GunPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            initialVelocity = read_from_xml_node(xmlNode, "InitialVelocity")
+            initialVelocity = read_from_xml_node(xmlNode, self.initialVelocity.name)
             if initialVelocity is not None:
-                self.initialVelocity = float(initialVelocity)
+                self.initialVelocity.value = float(initialVelocity)
             return STATUS_SUCCESS
 
 
