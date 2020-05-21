@@ -2558,7 +2558,6 @@ class BulletLauncherPrototypeInfo(GunPrototypeInfo):
         self.groupingAngle = AnnotatedValue(0.0, "GroupingAngle", group_type=GroupType.SECONDARY,
                                             saving_type=SavingType.SPECIFIC)
         self.numBulletsInShot = AnnotatedValue(1, "NumBulletsInShot", group_type=GroupType.SECONDARY)
-        # damageType save and load implemented in parrent
         self.blastWavePrototypeName = AnnotatedValue("", "BlastWavePrototype", group_type=GroupType.PRIMARY)
         self.tracerRange = AnnotatedValue(1, "TracerRange", group_type=GroupType.SECONDARY)
         self.tracerEffectName = AnnotatedValue("", "TracerEffect", group_type=GroupType.SECONDARY)
@@ -2632,7 +2631,8 @@ class CompoundGunPrototypeInfo(CompoundVehiclePartPrototypeInfo):
 class RocketLauncherPrototypeInfo(GunPrototypeInfo):
     def __init__(self, server):
         GunPrototypeInfo.__init__(self, server)
-        self.withAngleLimit = True
+        self.withAngleLimit = AnnotatedValue(True, "WithAngleLimit", group_type=GroupType.PRIMARY)
+        # damageType save and load implemented in parrent
         self.damageType = AnnotatedValue(1, "DamageType", group_type=GroupType.PRIMARY,
                                          saving_type=SavingType.SPECIFIC)
         self.withShellsPoolLimit = AnnotatedValue(True, "WithShellsPoolLimit", group_type=GroupType.PRIMARY)
@@ -2640,8 +2640,10 @@ class RocketLauncherPrototypeInfo(GunPrototypeInfo):
     def LoadFromXML(self, xmlFile, xmlNode):
         result = GunPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.withAngleLimit = parse_str_to_bool(self.withAngleLimit, read_from_xml_node(xmlNode, "WithAngleLimit",
-                                                                                            do_not_warn=True))
+            self.withAngleLimit.value = parse_str_to_bool(self.withAngleLimit.default_value,
+                                                          read_from_xml_node(xmlNode,
+                                                                             self.withAngleLimit.name,
+                                                                             do_not_warn=True))
             return STATUS_SUCCESS
 
 
