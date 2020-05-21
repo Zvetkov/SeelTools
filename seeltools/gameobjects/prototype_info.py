@@ -2968,32 +2968,32 @@ class MinePrototypeInfo(RocketPrototypeInfo):
 class ThunderboltPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.flyTime = 1.0
-        self.damage = 0.0
-        self.averageSegmentLength = 0.1
-        self.effectName = ""
+        self.flyTime = AnnotatedValue(1.0, "FlyTime", group_type=GroupType.SECONDARY)
+        self.damage = AnnotatedValue(0.0, "Damage", group_type=GroupType.SECONDARY)
+        self.averageSegmentLength = AnnotatedValue(0.1, "AverageSegmentLength", group_type=GroupType.SECONDARY)
+        self.effectName = AnnotatedValue("", "Effect", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            flyTime = read_from_xml_node(xmlNode, "FlyTime")
+            flyTime = read_from_xml_node(xmlNode, self.flyTime.name)
             if flyTime is not None:
-                self.flyTime = float(flyTime)
+                self.flyTime.value = float(flyTime)
 
-            damage = read_from_xml_node(xmlNode, "Damage", do_not_warn=True)
+            damage = read_from_xml_node(xmlNode, self.damage.name, do_not_warn=True)
             if damage is not None:
-                self.damage = float(damage)
+                self.damage.value = float(damage)
 
-            averageSegmentLength = read_from_xml_node(xmlNode, "AverageSegmentLength")
+            averageSegmentLength = read_from_xml_node(xmlNode, self.averageSegmentLength.name)
             if averageSegmentLength is not None:
-                self.averageSegmentLength = float(averageSegmentLength)
+                self.averageSegmentLength.value = float(averageSegmentLength)
 
-            self.effectName = read_from_xml_node(xmlNode, "Effect")
+            self.effectName.value = read_from_xml_node(xmlNode, self.effectName.name)
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
-        if self.averageSegmentLength < 0.01:
-            self.averageSegmentLength = 0.01
+        if self.averageSegmentLength.value < 0.01:
+            self.averageSegmentLength.value = 0.01
 
 
 class BulletPrototypeInfo(ShellPrototypeInfo):
