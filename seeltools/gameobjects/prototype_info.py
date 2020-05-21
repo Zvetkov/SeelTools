@@ -2650,31 +2650,33 @@ class RocketLauncherPrototypeInfo(GunPrototypeInfo):
 class RocketVolleyLauncherPrototypeInfo(RocketLauncherPrototypeInfo):
     def __init__(self, server):
         RocketLauncherPrototypeInfo.__init__(self, server)
-        self.actionDist = 0.0
+        self.actionDist = AnnotatedValue(0.0, "ActionDist", group_type=GroupType.PRIMARY)
         self.withShellsPoolLimit = AnnotatedValue(True, "WithShellsPoolLimit", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = GunPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            actionDist = read_from_xml_node(xmlNode, "ActionDist")
+            actionDist = read_from_xml_node(xmlNode, self.actionDist.name)
             if actionDist is not None:
-                self.actionDist = float(actionDist)
+                self.actionDist.value = float(actionDist)
             return STATUS_SUCCESS
 
 
 class ThunderboltLauncherPrototypeInfo(GunPrototypeInfo):
     def __init__(self, server):
         GunPrototypeInfo.__init__(self, server)
+        # damageType save and load implemented in parrent
         self.damageType = AnnotatedValue(2, "DamageType", group_type=GroupType.PRIMARY,
                                          saving_type=SavingType.SPECIFIC)
         self.withShellsPoolLimit = AnnotatedValue(True, "WithShellsPoolLimit", group_type=GroupType.PRIMARY)
+        self.actionDist = AnnotatedValue(0.0, "ActionDist", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = GunPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            actionDist = read_from_xml_node(xmlNode, "ActionDist")
+            actionDist = read_from_xml_node(xmlNode, self.actionDist.name)
             if actionDist is not None:
-                self.actionDist = float(actionDist)
+                self.actionDist.value = float(actionDist)
             return STATUS_SUCCESS
 
 
