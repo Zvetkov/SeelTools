@@ -2924,22 +2924,22 @@ class BulletPrototypeInfo(ShellPrototypeInfo):
 class TemporaryLocationPrototypeInfo(LocationPrototypeInfo):
     def __init__(self, server):
         LocationPrototypeInfo.__init__(self, server)
-        self.TTL = 0.0
-        self.timeForActivation = 0.0
-        self.effectName = ""
+        self.TTL = AnnotatedValue(0.0, "TTL", group_type=GroupType.SECONDARY)
+        self.timeForActivation = AnnotatedValue(0.0, "ActivateTime", group_type=GroupType.SECONDARY)
+        self.effectName = AnnotatedValue(False, "Effect", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = LocationPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            TTL = read_from_xml_node(xmlNode, "TTL")
+            TTL = read_from_xml_node(xmlNode, self.TTL.name)
             if TTL is not None:
-                self.TTL = float(TTL)
+                self.TTL.value = float(TTL)
 
-            timeForActivation = read_from_xml_node(xmlNode, "ActivateTime")
+            timeForActivation = read_from_xml_node(xmlNode, self.timeForActivation.name)
             if timeForActivation is not None:
-                self.timeForActivation = float(timeForActivation)
+                self.timeForActivation.value = float(timeForActivation)
 
-            self.effectName = read_from_xml_node(xmlNode, "Effect")
+            self.effectName.value = read_from_xml_node(xmlNode, self.effectName.name)
             return STATUS_SUCCESS
 
 
