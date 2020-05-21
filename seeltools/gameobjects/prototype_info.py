@@ -3040,42 +3040,42 @@ class WorkshopPrototypeInfo(BuildingPrototypeInfo):
 class WarePrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.maxDurability = 1.0
-        self.maxItems = 1
-        self.priceDispersion = 0.0
-        self.modelName = ""
-        self.minCount = 0
-        self.maxCount = 50
+        self.maxItems = AnnotatedValue(1, "MaxItems", group_type=GroupType.SECONDARY)
+        self.maxDurability = AnnotatedValue(1.0, "Durability", group_type=GroupType.SECONDARY)
+        self.priceDispersion = AnnotatedValue(0.0, "PriceDispersion", group_type=GroupType.SECONDARY)
+        self.modelName = AnnotatedValue("", "ModelFile", group_type=GroupType.SECONDARY)
+        self.minCount = AnnotatedValue(0, "MinCount", group_type=GroupType.SECONDARY)
+        self.maxCount = AnnotatedValue(50, "MaxCount", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            maxItems = read_from_xml_node(xmlNode, "MaxItems", do_not_warn=True)
+            maxItems = read_from_xml_node(xmlNode, self.maxItems.name, do_not_warn=True)
             if maxItems is not None:
                 maxItems = int(maxItems)
                 if maxItems >= 0:
-                    self.maxItems = maxItems
+                    self.maxItems.value = maxItems
 
-            maxDurability = read_from_xml_node(xmlNode, "Durability", do_not_warn=True)
+            maxDurability = read_from_xml_node(xmlNode, self.maxDurability.name, do_not_warn=True)
             if maxDurability is not None:
-                self.maxDurability = float(maxDurability)
+                self.maxDurability.value = float(maxDurability)
 
-            priceDispersion = read_from_xml_node(xmlNode, "PriceDispersion", do_not_warn=True)
+            priceDispersion = read_from_xml_node(xmlNode, self.priceDispersion.name, do_not_warn=True)
             if priceDispersion is not None:
-                self.priceDispersion = float(priceDispersion)
+                self.priceDispersion.value = float(priceDispersion)
 
-            if self.priceDispersion < 0.0 or self.priceDispersion > 100.0:
+            if self.priceDispersion.value < 0.0 or self.priceDispersion.value > 100.0:
                 logger(f"Price dispersion can't be outside 0.0-100.0 range: see {self.prototypeName.value}")
 
-            self.modelName = safe_check_and_set(self.modelName, xmlNode, "ModelName")
+            self.modelName.value = safe_check_and_set(self.modelName.default_value, xmlNode, self.modelName.name)
 
-            minCount = read_from_xml_node(xmlNode, "MinCount", do_not_warn=True)
+            minCount = read_from_xml_node(xmlNode, self.minCount.name, do_not_warn=True)
             if minCount is not None:
-                self.minCount = int(minCount)
+                self.minCount.value = int(minCount)
 
-            maxCount = read_from_xml_node(xmlNode, "MaxCount", do_not_warn=True)
+            maxCount = read_from_xml_node(xmlNode, self.maxCount.name, do_not_warn=True)
             if maxCount is not None:
-                self.maxCount = int(maxCount)
+                self.maxCount.value = int(maxCount)
             return STATUS_SUCCESS
 
 
