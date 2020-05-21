@@ -1100,7 +1100,10 @@ class Building(Obj):
         self.npcs = []
 
     def GetBuildingTypeByName(name):
-        return BUILDING_TYPE.get(name)
+        return BUILDING_TYPE.get(name.upper())
+
+    def GetBuildingTypeNameByNum(num):
+        return (list(BUILDING_TYPE.keys())[list(BUILDING_TYPE.values()).index(num)])
 
 
 class Bar(Building):

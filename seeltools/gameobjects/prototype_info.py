@@ -2995,25 +2995,35 @@ class SubmarinePrototypeInfo(DummyObjectPrototypeInfo):
 class BuildingPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.buildingType = 5
+        self.buildingType = AnnotatedValue(5, "BuildingType", group_type=GroupType.SECONDARY,
+                                           saving_type=SavingType.SPECIFIC)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            buildingTypeName = safe_check_and_set("", xmlNode, "BuildingType")
-            self.buildingType = Building.GetBuildingTypeByName(buildingTypeName)
+            buildingTypeName = safe_check_and_set("", xmlNode, self.buildingType.name)
+            self.buildingType.value = Building.GetBuildingTypeByName(buildingTypeName)
             return STATUS_SUCCESS
+
+    def get_etree_prototype(self):
+        result = PrototypeInfo.get_etree_prototype(self)
+        if self.buildingType.value is not None:
+            add_value_to_node(result, self.buildingType, lambda x: Building.GetBuildingTypeNameByNum(x.value))
+        return result
 
 
 class BarPrototypeInfo(BuildingPrototypeInfo):
     def __init__(self, server):
         BuildingPrototypeInfo.__init__(self, server)
-        self.withBarman = True
+        self.withBarman = AnnotatedValue(True, "WithBarman", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = BuildingPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.withBarman = read_from_xml_node(xmlNode, "WithBarman")
+            self.withBarman.value = parse_str_to_bool(self.withBarman.default_value,
+                                                      read_from_xml_node(xmlNode,
+                                                                         self.withBarman.name,
+                                                                         do_not_warn=True))
             return STATUS_SUCCESS
 
     def InternalCopyFrom(self, prot_to_copy_from):
@@ -3036,7 +3046,7 @@ class WarePrototypeInfo(PrototypeInfo):
         self.maxCount = 50
 
     def LoadFromXML(self, xmlFile, xmlNode):
-        result = BuildingPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             maxItems = read_from_xml_node(xmlNode, "MaxItems", do_not_warn=True)
             if maxItems is not None:
