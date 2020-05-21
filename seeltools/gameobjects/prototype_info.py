@@ -1465,6 +1465,14 @@ class TeamTacticWithRolesPrototypeInfo(PrototypeInfo):
                 else:
                     self.rolePrototypeIds.append(role_prot_id)
 
+    def get_etree_prototype(self):
+        result = PrototypeInfo.get_etree_prototype(self)
+        for role in self.rolePrototypeNames.value:
+            roleElement = etree.Element("Role")
+            roleElement.set("Prototype", str(role))
+            result.append(roleElement)
+        return result
+
 
 class NPCMotionControllerPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
