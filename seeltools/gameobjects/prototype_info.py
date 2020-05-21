@@ -1317,7 +1317,7 @@ class VehicleRolePrototypeInfo(PrototypeInfo):
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            vehicleFiringRangeCoeff = read_from_xml_node(xmlNode, "FiringRangeCoeff", do_not_warn=True)
+            vehicleFiringRangeCoeff = read_from_xml_node(xmlNode, self.vehicleFiringRangeCoeff.name, do_not_warn=True)
             if vehicleFiringRangeCoeff is not None:
                 self.vehicleFiringRangeCoeff.value = vehicleFiringRangeCoeff
             return STATUS_SUCCESS
@@ -1362,19 +1362,28 @@ class VehicleRoleOppressorPrototypeInfo(VehicleRolePrototypeInfo):
 class VehicleRolePendulumPrototypeInfo(VehicleRolePrototypeInfo):
     def __init__(self, server):
         VehicleRolePrototypeInfo.__init__(self, server)
+        self.oppressionShift = AnnotatedValue([], "OppressionShift", group_type=GroupType.PRIMARY,
+                                              saving_type=SavingType.SPECIFIC)
+        self.a = AnnotatedValue(0.0, "A", group_type=GroupType.PRIMARY)
+        self.b = AnnotatedValue(0.0, "B", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = VehicleRolePrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            oppressionShift = read_from_xml_node(xmlNode, "OppressionShift")
-            self.oppressionShift = oppressionShift.split()
-            a_param = read_from_xml_node(xmlNode, "A")
-            b_param = read_from_xml_node(xmlNode, "B")
+            oppressionShift = read_from_xml_node(xmlNode, self.oppressionShift.name)
+            self.oppressionShift.value = oppressionShift.split()
+            a_param = read_from_xml_node(xmlNode, self.a.name)
+            b_param = read_from_xml_node(xmlNode, self.b.name)
             if a_param is not None:
-                self.a = float(a_param)
+                self.a.value = float(a_param)
             if b_param is not None:
-                self.b = float(b_param)
+                self.b.value = float(b_param)
             return STATUS_SUCCESS
+
+    def get_etree_prototype(self):
+        result = VehicleRolePrototypeInfo.get_etree_prototype(self)
+        add_value_to_node(result, self.oppressionShift, lambda x: " ".join(x.value))
+        return result
 
 
 class VehicleRoleSniperPrototypeInfo(VehicleRolePrototypeInfo):
