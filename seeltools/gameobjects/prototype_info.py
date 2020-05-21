@@ -1487,7 +1487,7 @@ class TeamPrototypeInfo(PrototypeInfo):
         self.decisionMatrixName = AnnotatedValue("", "DecisionMatrix", group_type=GroupType.PRIMARY)
         self.removeWhenChildrenDead = AnnotatedValue(True, "RemoveWhenChildrenDead", group_type=GroupType.SECONDARY)
         self.formationPrototypeName = AnnotatedValue(TEAM_DEFAULT_FORMATION_PROTOTYPE, "Prototype",
-                                                     group_type=GroupType.PRIMARY)
+                                                     group_type=GroupType.PRIMARY, saving_type=SavingType.SPECIFIC)
         self.formationPrototypeId = -1
         self.overridesDistBetweenVehicles = AnnotatedValue(False, "OverridesDistBetweenVehicles",
                                                            group_type=GroupType.SECONDARY, read_only=True,
@@ -1513,6 +1513,21 @@ class TeamPrototypeInfo(PrototypeInfo):
 
     def PostLoad(self, prototype_manager):
         self.formationPrototypeId = prototype_manager.GetPrototypeId(self.formationPrototypeName.value)
+
+    def get_etree_prototype(self):
+        result = PrototypeInfo.get_etree_prototype(self)
+        # formation starts
+        if (
+            self.formationPrototypeName.value != self.formationPrototypeName.default_value
+            or self.formationDistBetweenVehicles.value != self.formationDistBetweenVehicles.default_value
+        ):
+            formation = etree.Element("Formation")
+            formation.set("Prototype", str(self.formationPrototypeName.value))
+            if(self.formationDistBetweenVehicles.value != self.formationDistBetweenVehicles.default_value):
+                formation.set("DistBetweenVehicles", str(self.formationDistBetweenVehicles.value))
+            result.append(formation)
+        # formation ends
+        return result
 
 
 class CaravanTeamPrototypeInfo(TeamPrototypeInfo):
