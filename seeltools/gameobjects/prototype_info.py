@@ -1913,57 +1913,66 @@ class InfectionLairPrototypeInfo(SettlementPrototypeInfo):
 class TownPrototypeInfo(SettlementPrototypeInfo):
     def __init__(self, server):
         SettlementPrototypeInfo.__init__(self, server)
-        self.musicName = ""
-        self.gateModelName = ""
-        self.maxDefenders = 1
-        self.desiredGunsInWorkshop = 0
-        self.gunAffixesCount = 0
-        self.cabinsAndBasketsAffixesCount = 0
-        self.numCollisionLayersBelowVehicle = 2
-        self.articles = []
+        self.musicName = AnnotatedValue("", "MusicName", group_type=GroupType.SECONDARY)
+        self.gateModelName = AnnotatedValue("", "GateModelFile", group_type=GroupType.SECONDARY)
+        self.maxDefenders = AnnotatedValue(1, "MaxDefenders", group_type=GroupType.SECONDARY)
+        self.gunGeneratorPrototypeName = AnnotatedValue("", "GunGenerator", group_type=GroupType.SECONDARY)
+        self.desiredGunsInWorkshop = AnnotatedValue(0, "DesiredGunsInWorkshop", group_type=GroupType.SECONDARY)
+        self.gunAffixGeneratorPrototypeName = AnnotatedValue("", "GunAffixGenerator", group_type=GroupType.SECONDARY)
+        self.gunAffixesCount = AnnotatedValue(0, "GunAffixesCount", group_type=GroupType.SECONDARY)
+        self.cabinsAndBasketsAffixGeneratorPrototypeName = AnnotatedValue("", "CabinsAndBasketsAffixGenerator",
+                                                                          group_type=GroupType.SECONDARY)
+        self.cabinsAndBasketsAffixesCount = AnnotatedValue(0, "CabinsAndBasketsAffixesCount",
+                                                           group_type=GroupType.SECONDARY)
+        self.numCollisionLayersBelowVehicle = AnnotatedValue(2, "NumCollisionLayersBelowVehicle",
+                                                             group_type=GroupType.SECONDARY)
+        self.articles = AnnotatedValue([], "", group_type=GroupType.SECONDARY, saving_type=SavingType.SPECIFIC)
+        self.collisionTrimeshAllowed = AnnotatedValue(True, "CollisionTrimeshAllowed", group_type=GroupType.SECONDARY)
+
         self.resourceIdToRandomCoeffMap = []
-        self.gunGeneratorPrototypeName = ""
         self.gunGeneratorPrototypeId = -1
-        self.gunAffixGeneratorPrototypeName = ""
         self.gunAffixGeneratorPrototypeId = -1
-        self.cabinsAndBasketsAffixGeneratorPrototypeName = ""
         self.cabinsAndBasketsAffixGeneratorPrototypeId = -1
-        self.collisionTrimeshAllowed = AnnotatedValue(True, "CollisionTrimeshAllowed",
-                                                      group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SettlementPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             self.SetGeomType("FROM_MODEL")
-            self.musicName = safe_check_and_set(self.musicName, xmlNode, "MusicName")
-            self.gateModelName = safe_check_and_set(self.gateModelName, xmlNode, "GateModelFile")
-            self.maxDefenders = safe_check_and_set(self.maxDefenders, xmlNode, "MaxDefenders", "int")
-            if self.maxDefenders > 5:
+            self.musicName.value = safe_check_and_set(self.musicName.default_value, xmlNode, self.musicName.name)
+            self.gateModelName.value = safe_check_and_set(self.gateModelName.default_value, xmlNode,
+                                                          self.gateModelName.name)
+            self.maxDefenders.value = safe_check_and_set(self.maxDefenders.default_value, xmlNode,
+                                                         self.maxDefenders.name, "int")
+            if self.maxDefenders.value > 5:
                 logger.error(f"For Town prototype '{self.prototypeName.value}' maxDefenders > MAX_VEHICLES_IN_TEAM (5)")
-            self.gunGeneratorPrototypeName = safe_check_and_set(self.gunGeneratorPrototypeName, xmlNode, "GunGenerator")
-            desiredGunsInWorkshop = safe_check_and_set(self.desiredGunsInWorkshop, xmlNode,
-                                                       "DesiredGunsInWorkshop", "int")
+            self.gunGeneratorPrototypeName.value = safe_check_and_set(self.gunGeneratorPrototypeName.default_value,
+                                                                      xmlNode, self.gunGeneratorPrototypeName.name)
+            desiredGunsInWorkshop = safe_check_and_set(self.desiredGunsInWorkshop.default_value, xmlNode,
+                                                       self.desiredGunsInWorkshop.name, "int")
             if desiredGunsInWorkshop >= 0:
-                self.desiredGunsInWorkshop = desiredGunsInWorkshop
-            self.gunAffixGeneratorPrototypeName = safe_check_and_set(self.gunAffixGeneratorPrototypeName, xmlNode,
-                                                                     "GunAffixGenerator")
-            gunAffixesCount = safe_check_and_set(self.gunAffixesCount, xmlNode, "GunAffixesCount", "int")
+                self.desiredGunsInWorkshop.value = desiredGunsInWorkshop
+            self.gunAffixGeneratorPrototypeName.value = safe_check_and_set(
+                self.gunAffixGeneratorPrototypeName.default_value, xmlNode,
+                self.gunAffixGeneratorPrototypeName.name)
+            gunAffixesCount = safe_check_and_set(self.gunAffixesCount.default_value, xmlNode,
+                                                 self.gunAffixesCount.name, "int")
             if gunAffixesCount >= 0:
-                self.gunAffixesCount = gunAffixesCount
-            self.cabinsAndBasketsAffixGeneratorPrototypeName = safe_check_and_set(
-                self.cabinsAndBasketsAffixGeneratorPrototypeName,
+                self.gunAffixesCount.value = gunAffixesCount
+            self.cabinsAndBasketsAffixGeneratorPrototypeName.value = safe_check_and_set(
+                self.cabinsAndBasketsAffixGeneratorPrototypeName.default_value,
                 xmlNode,
-                "CabinsAndBasketsAffixGenerator")
-            cabinsAndBasketsAffixesCount = safe_check_and_set(self.cabinsAndBasketsAffixesCount, xmlNode,
-                                                              "CabinsAndBasketsAffixesCount", "int")
+                self.cabinsAndBasketsAffixGeneratorPrototypeName.name)
+            cabinsAndBasketsAffixesCount = safe_check_and_set(self.cabinsAndBasketsAffixesCount.default_value, xmlNode,
+                                                              self.cabinsAndBasketsAffixesCount.name, "int")
             if cabinsAndBasketsAffixesCount >= 0:
-                self.cabinsAndBasketsAffixesCount = cabinsAndBasketsAffixesCount
+                self.cabinsAndBasketsAffixesCount.value = cabinsAndBasketsAffixesCount
 
-            numCollisionLayersBelowVehicle = safe_check_and_set(self.numCollisionLayersBelowVehicle, xmlNode,
-                                                                "NumCollisionLayersBelowVehicle", "int")
+            numCollisionLayersBelowVehicle = safe_check_and_set(self.numCollisionLayersBelowVehicle.default_value,
+                                                                xmlNode,
+                                                                self.numCollisionLayersBelowVehicle.name, "int")
             if numCollisionLayersBelowVehicle >= 0:
-                self.numCollisionLayersBelowVehicle = numCollisionLayersBelowVehicle
-            Article.LoadArticlesFromNode(self.articles, xmlFile, xmlNode, self.theServer.thePrototypeManager)
+                self.numCollisionLayersBelowVehicle.value = numCollisionLayersBelowVehicle
+            Article.LoadArticlesFromNode(self.articles.value, xmlFile, xmlNode, self.theServer.thePrototypeManager)
             self.LoadFromXmlResourceIdToRandomCoeffMap(xmlFile, xmlNode)
             return STATUS_SUCCESS
 
@@ -1989,13 +1998,20 @@ class TownPrototypeInfo(SettlementPrototypeInfo):
 
     def PostLoad(self, prototype_manager):
         SettlementPrototypeInfo.PostLoad(self, prototype_manager)
-        self.gunGeneratorPrototypeId = prototype_manager.GetPrototypeId(self.gunGeneratorPrototypeName)
-        self.gunAffixGeneratorPrototypeId = prototype_manager.GetPrototypeId(self.gunAffixGeneratorPrototypeName)
+        self.gunGeneratorPrototypeId = prototype_manager.GetPrototypeId(self.gunGeneratorPrototypeName.value)
+        self.gunAffixGeneratorPrototypeId = prototype_manager.GetPrototypeId(self.gunAffixGeneratorPrototypeName.value)
         self.cabinsAndBasketsAffixGeneratorPrototypeId = \
-            prototype_manager.GetPrototypeId(self.cabinsAndBasketsAffixGeneratorPrototypeName)
-        if self.articles:
-            for article in self.articles:
+            prototype_manager.GetPrototypeId(self.cabinsAndBasketsAffixGeneratorPrototypeName.value)
+        if self.articles.value:
+            for article in self.articles.value:
                 article.PostLoad(prototype_manager)
+
+    def get_etree_prototype(self):
+        result = PrototypeInfo.get_etree_prototype(self)
+        for articleItem in self.articles.value:
+            result.append(Article.get_etree_prototype(articleItem))
+        return result
+
 
     class RandomCoeffWithDispersion(object):
         def __init__(self):

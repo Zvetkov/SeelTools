@@ -1,5 +1,6 @@
 from math import sqrt, cos, pi
 from copy import deepcopy
+from lxml import etree
 
 from seeltools.utilities.log import logger
 
@@ -1403,8 +1404,21 @@ class Article(object):
             dispersion_percentage = self.dispersion * 0.01
             self.randomPriceCoefficient = f"Randomized value based on dispersion: {dispersion_percentage}"
         if self.sellable or self.buyable:
-            self.priceDynamic = True
-            self.amountDynamic = True
+            self.priceDynamic = 1
+            self.amountDynamic = 1
+
+    def get_etree_prototype(self):
+        article_node = etree.Element("Article")
+        article_node.set("Prototype", str(self.prototypeName))
+        article_node.set("Amount", str(self.amount))
+        article_node.set("ExternalPriceCoefficient", str(self.externalPriceCoefficient))
+        article_node.set("Import", str(self.buyable))
+        article_node.set("Export", str(self.sellable))
+        article_node.set("PriceDynamic", str(self.priceDynamic))
+        article_node.set("MinCount", str(self.minCount))
+        article_node.set("MaxCount", str(self.maxCount))
+        article_node.set("RegenerationPeriod", str(self.regenerationPeriod))
+        return article_node
 
 
 class Town(Settlement):
