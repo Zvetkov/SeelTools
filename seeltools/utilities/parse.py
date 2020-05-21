@@ -143,9 +143,9 @@ def log_comment(comment_node: objectify.ObjectifiedElement, parent_node: objecti
 def parse_str_to_bool(original_value, string: str, is_striped=False):
     if string is None:
         return original_value
-    if string.lower() == "true" or string == "1":
+    if string.lower() == "true" or string == "1" or string == "yes":
         return True
-    elif string.lower() == "false" or string == "0":
+    elif string.lower() == "false" or string == "0" or string == "no":
         return False
     else:
         if not is_striped:
