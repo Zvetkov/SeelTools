@@ -1236,11 +1236,11 @@ class DummyObjectPrototypeInfo(SimplePhysicObjPrototypeInfo):
         if result == STATUS_SUCCESS:
             self.disablePhysics.value = parse_str_to_bool(self.disablePhysics.value,
                                                           read_from_xml_node(xmlNode,
-                                                                             "DisablePhysics",
+                                                                             self.disablePhysics.name,
                                                                              do_not_warn=True))
             self.disableGeometry.value = parse_str_to_bool(self.disableGeometry.value,
                                                            read_from_xml_node(xmlNode,
-                                                                              "DisableGeometry",
+                                                                              self.disableGeometry.name,
                                                                               do_not_warn=True))
             return STATUS_SUCCESS
 
@@ -1259,37 +1259,39 @@ class LocationPrototypeInfo(SimplePhysicObjPrototypeInfo):
 class WheelPrototypeInfo(SimplePhysicObjPrototypeInfo):
     def __init__(self, server):
         SimplePhysicObjPrototypeInfo.__init__(self, server)
-        self.suspensionModelName = ""
-        self.suspensionRange = 0.5
-        self.suspensionCFM = 0.1
-        self.suspensionERP = 0.80000001
-        self.mU = 1.0
-        self.typeName = "BIG"
-        self.blowEffectName = "ET_PS_HARD_BLOW"
+        self.suspensionRange = AnnotatedValue(0.5, "SuspensionRange", group_type=GroupType.SECONDARY)
+        self.suspensionModelName = AnnotatedValue("", "SuspensionModelFile", group_type=GroupType.SECONDARY)
+        self.suspensionCFM = AnnotatedValue(0.1, "SuspensionCFM", group_type=GroupType.SECONDARY)
+        self.suspensionERP = AnnotatedValue(0.80000001, "SuspensionERP", group_type=GroupType.SECONDARY)
+        self.mU = AnnotatedValue(1.0, "mU", group_type=GroupType.SECONDARY)
+        self.typeName = AnnotatedValue("BIG", "EffectType", group_type=GroupType.SECONDARY)
+        self.blowEffectName = AnnotatedValue("ET_PS_HARD_BLOW", "BlowEffect", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            suspensionRange = read_from_xml_node(xmlNode, "SuspensionRange", do_not_warn=True)
+            suspensionRange = read_from_xml_node(xmlNode, self.suspensionRange.name, do_not_warn=True)
             if suspensionRange is not None:
-                self.suspensionRange = float(suspensionRange)
+                self.suspensionRange.value = float(suspensionRange)
 
-            self.suspensionModelName = read_from_xml_node(xmlNode, "SuspensionModelFile")
+            self.suspensionModelName.value = read_from_xml_node(xmlNode, self.suspensionModelName.name)
 
-            suspensionCFM = read_from_xml_node(xmlNode, "SuspensionCFM", do_not_warn=True)
+            suspensionCFM = read_from_xml_node(xmlNode, self.suspensionCFM.name, do_not_warn=True)
             if suspensionCFM is not None:
-                self.suspensionCFM = float(suspensionCFM)
+                self.suspensionCFM.value = float(suspensionCFM)
 
-            suspensionERP = read_from_xml_node(xmlNode, "SuspensionERP", do_not_warn=True)
+            suspensionERP = read_from_xml_node(xmlNode, self.suspensionERP.name, do_not_warn=True)
             if suspensionERP is not None:
-                self.suspensionERP = float(suspensionERP)
+                self.suspensionERP.value = float(suspensionERP)
 
-            mU = read_from_xml_node(xmlNode, "mU", do_not_warn=True)
+            mU = read_from_xml_node(xmlNode, self.mU.name, do_not_warn=True)
             if mU is not None:
-                self.mU = float(mU)
+                self.mU.value = float(mU)
 
-            self.typeName = safe_check_and_set(self.typeName, xmlNode, "EffectType")
-            self.blowEffectName = safe_check_and_set(self.blowEffectName, xmlNode, "BlowEffect")
+            self.typeName.value = safe_check_and_set(self.typeName.default_value, xmlNode, self.typeName.name)
+            self.blowEffectName.value = safe_check_and_set(self.blowEffectName.default_value,
+                                                           xmlNode,
+                                                           self.blowEffectName.name)
             return STATUS_SUCCESS
 
 
