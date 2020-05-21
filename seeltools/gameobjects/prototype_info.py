@@ -2836,23 +2836,28 @@ class MortarShellPrototypeInfo(ShellPrototypeInfo):
         ShellPrototypeInfo.__init__(self, server)
         self.velocity = 1.0
         self.acceleration = 1.0
-        self.flyTime = 1.0
+        self.flyTime = AnnotatedValue(1.0, "FlyTime", group_type=GroupType.PRIMARY)
+        self.blastWavePrototypeName = AnnotatedValue("", "BlastWavePrototype", group_type=GroupType.PRIMARY)
         self.blastWavePrototypeId = -1
-        self.blastWavePrototypeName = ""
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = ShellPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            flyTime = read_from_xml_node(xmlNode, "FlyTime")
+            flyTime = read_from_xml_node(xmlNode, self.flyTime.name)
             if flyTime is not None:
-                self.flyTime = float(flyTime)
-            self.blastWavePrototypeName = safe_check_and_set(self.blastWavePrototypeName, xmlNode, "BlastWavePrototype")
+                self.flyTime.value = float(flyTime)
+
+            self.blastWavePrototypeName.value = safe_check_and_set(self.blastWavePrototypeName.default_value,
+                                                                   xmlNode,
+                                                                   self.blastWavePrototypeName.name)
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
-        self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName)
-        if self.blastWavePrototypeId == -1 and self.blastWavePrototypeName:
-            logger.error(f"Unknown blast wave prototype name: {self.prototypeName.value}")
+        if self.blastWavePrototypeName.value:
+            self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName.value)
+            if self.blastWavePrototypeId == -1:
+                logger.error(f"Unknown blast wave prototype name: '{self.blastWavePrototypeName.value}' "
+                             f"for Mortar prototype: '{self.prototypeName.value}'")
 
 
 class MinePrototypeInfo(RocketPrototypeInfo):
