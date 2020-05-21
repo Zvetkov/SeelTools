@@ -2007,7 +2007,7 @@ class TownPrototypeInfo(SettlementPrototypeInfo):
                 article.PostLoad(prototype_manager)
 
     def get_etree_prototype(self):
-        result = PrototypeInfo.get_etree_prototype(self)
+        result = SettlementPrototypeInfo.get_etree_prototype(self)
         for articleItem in self.articles.value:
             result.append(Article.get_etree_prototype(articleItem))
         return result
