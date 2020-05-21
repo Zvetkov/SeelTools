@@ -1350,13 +1350,20 @@ class VehicleRoleMeatPrototypeInfo(VehicleRolePrototypeInfo):
 class VehicleRoleOppressorPrototypeInfo(VehicleRolePrototypeInfo):
     def __init__(self, server):
         VehicleRolePrototypeInfo.__init__(self, server)
+        self.oppressionShift = AnnotatedValue([], "OppressionShift", group_type=GroupType.PRIMARY,
+                                              saving_type=SavingType.SPECIFIC)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = VehicleRolePrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            oppressionShift = read_from_xml_node(xmlNode, "OppressionShift")
-            self.oppressionShift = oppressionShift.split()
+            oppressionShift = read_from_xml_node(xmlNode, self.oppressionShift.name)
+            self.oppressionShift.value = oppressionShift.split()
             return STATUS_SUCCESS
+
+    def get_etree_prototype(self):
+        result = VehicleRolePrototypeInfo.get_etree_prototype(self)
+        add_value_to_node(result, self.oppressionShift, lambda x: " ".join(x.value))
+        return result
 
 
 class VehicleRolePendulumPrototypeInfo(VehicleRolePrototypeInfo):
