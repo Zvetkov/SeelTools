@@ -1113,84 +1113,119 @@ class StaticAutoGunPrototypeInfo(ComplexPhysicObjPrototypeInfo):
 class VehiclePrototypeInfo(ComplexPhysicObjPrototypeInfo):
     def __init__(self, server):
         ComplexPhysicObjPrototypeInfo.__init__(self, server)
-        self.wheelInfos = []
-        self.selfbrakingCoeff = 0.0060000001
-        self.diffRatio = 1.0
-        self.maxEngineRpm = 1.0
-        self.lowGearShiftLimit = 1.0
-        self.highGearShiftLimit = 1.0
-        self.steeringSpeed = 1.0
-        self.takingRadius = 1.0
-        self.priority = -56
-        self.decisionMatrixNum = -1
-        self.hornSoundName = ""
-        self.cameraHeight = -1.0
-        self.cameraMaxDist = 25.0
-        self.destroyEffectNames = ["ET_PS_VEH_EXP" for i in range(4)]
-        self.blastWavePrototypeId = -1
-        self.additionalWheelsHover = 0.0
-        self.driftCoeff = 1.0
-        self.pressingForce = 1.0
-        self.healthRegeneration = 0.0
-        self.durabilityRegeneration = 0.0
-        self.blastWavePrototypeName = ""
+        self.diffRatio = AnnotatedValue(1.0, "DiffRatio", group_type=GroupType.SECONDARY)
+        self.maxEngineRpm = AnnotatedValue(1.0, "MaxEngineRpm", group_type=GroupType.SECONDARY)
+        self.lowGearShiftLimit = AnnotatedValue(1.0, "LowGearShiftLimit", group_type=GroupType.SECONDARY)
+        self.highGearShiftLimit = AnnotatedValue(1.0, "HighGearShiftLimit", group_type=GroupType.SECONDARY)
+        self.selfbrakingCoeff = AnnotatedValue(0.0060000001, "SelfBrakingCoeff", group_type=GroupType.SECONDARY)
+        self.steeringSpeed = AnnotatedValue(1.0, "SteeringSpeed", group_type=GroupType.SECONDARY)
+        self.takingRadius = AnnotatedValue(1.0, "TakingRadius", group_type=GroupType.SECONDARY)
+        self.priority = AnnotatedValue(-56, "Priority", group_type=GroupType.SECONDARY)
+        self.hornSoundName = AnnotatedValue("", "HornSound", group_type=GroupType.SECONDARY)
+        self.cameraHeight = AnnotatedValue(-1.0, "CameraHeight", group_type=GroupType.SECONDARY)
+        self.cameraMaxDist = AnnotatedValue(25.0, "CameraMaxDist", group_type=GroupType.SECONDARY)
+        self.destroyEffectNames = AnnotatedValue(["ET_PS_VEH_EXP" for i in range(4)], "DestroyEffectNames",
+                                                 group_type=GroupType.SECONDARY, saving_type=SavingType.SPECIFIC)
+        self.wheelInfos = AnnotatedValue([], "Wheel", group_type=GroupType.PRIMARY,
+                                         saving_type=SavingType.SPECIFIC)
+        self.blastWavePrototypeName = AnnotatedValue("", "BlastWave", group_type=GroupType.SECONDARY)
+        self.additionalWheelsHover = AnnotatedValue(0.0, "AdditionalWheelsHover", group_type=GroupType.SECONDARY)
+        self.driftCoeff = AnnotatedValue(1.0, "DriftCoeff", group_type=GroupType.SECONDARY)
+        self.pressingForce = AnnotatedValue(1.0, "PressingForce", group_type=GroupType.SECONDARY)
+        self.healthRegeneration = AnnotatedValue(0.0, "HealthRegeneration", group_type=GroupType.SECONDARY)
+        self.durabilityRegeneration = AnnotatedValue(0.0, "DurabilityRegeneration", group_type=GroupType.SECONDARY)
         self.visibleInEncyclopedia = AnnotatedValue(False, "VisibleInEncyclopedia", group_type=GroupType.SECONDARY)
+        self.decisionMatrixNum = -1
+        self.blastWavePrototypeId = -1
+        self.decisionMatrixName = AnnotatedValue("", "DecisionMatrix", group_type=GroupType.SECONDARY)  # new logic
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = ComplexPhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.diffRatio = safe_check_and_set(self.diffRatio, xmlNode, "DiffRatio", "float")
-            self.maxEngineRpm = safe_check_and_set(self.maxEngineRpm, xmlNode, "MaxEngineRpm", "float")
-            self.lowGearShiftLimit = safe_check_and_set(self.lowGearShiftLimit, xmlNode, "LowGearShiftLimit", "float")
-            self.highGearShiftLimit = safe_check_and_set(self.highGearShiftLimit, xmlNode,
-                                                         "HighGearShiftLimit", "float")
-            self.selfbrakingCoeff = safe_check_and_set(self.selfbrakingCoeff, xmlNode, "SelfBrakingCoeff", "float")
-            self.steeringSpeed = safe_check_and_set(self.steeringSpeed, xmlNode, "SteeringSpeed", "float")
-            decisionMatrixName = read_from_xml_node(xmlNode, "DecisionMatrix", do_not_warn=True)
+            self.diffRatio.value = safe_check_and_set(self.diffRatio.default_value, xmlNode,
+                                                      self.diffRatio.name, "float")
+            self.maxEngineRpm.value = safe_check_and_set(self.maxEngineRpm.default_value, xmlNode,
+                                                         self.maxEngineRpm.name, "float")
+            self.lowGearShiftLimit.value = safe_check_and_set(self.lowGearShiftLimit.default_value, xmlNode,
+                                                              self.lowGearShiftLimit.name, "float")
+            self.highGearShiftLimit.value = safe_check_and_set(self.highGearShiftLimit.default_value, xmlNode,
+                                                               self.highGearShiftLimit.name, "float")
+            self.selfbrakingCoeff.value = safe_check_and_set(self.selfbrakingCoeff.default_value, xmlNode,
+                                                             self.selfbrakingCoeff.name, "float")
+            self.steeringSpeed.value = safe_check_and_set(self.steeringSpeed.default_value, xmlNode,
+                                                          self.steeringSpeed.name, "float")
+            decisionMatrixName = read_from_xml_node(xmlNode, self.decisionMatrixName.name, do_not_warn=True)
+            self.decisionMatrixName.value = decisionMatrixName  # new logic
             # theAIManager.LoadMatrix(decisionMatrixName)
             # self.decisionMatrixNum = theAIManager.GetMatrixNum(decisionMatrixName)
             self.decisionMatrixNum = f"DummyMatrixNum_{decisionMatrixName}"  # ??? replace when AIManager is implemented
-            self.takingRadius = safe_check_and_set(self.takingRadius, xmlNode, "TakingRadius", "float")
-            self.priority = safe_check_and_set(self.priority, xmlNode, "Priority", "int")
-            self.hornSoundName = safe_check_and_set(self.hornSoundName, xmlNode, "HornSound")
-            self.cameraHeight = safe_check_and_set(self.cameraHeight, xmlNode, "CameraHeight", "float")
-            self.cameraMaxDist = safe_check_and_set(self.cameraMaxDist, xmlNode, "CameraMaxDist", "float")
+            self.takingRadius.value = safe_check_and_set(self.takingRadius.default_value, xmlNode,
+                                                         self.takingRadius.name, "float")
+            self.priority.value = safe_check_and_set(self.priority.default_value, xmlNode,
+                                                     self.priority.name, "int")
+            self.hornSoundName.value = safe_check_and_set(self.hornSoundName.default_value, xmlNode,
+                                                          self.hornSoundName.name)
+            self.cameraHeight.value = safe_check_and_set(self.cameraHeight.default_value, xmlNode,
+                                                         self.cameraHeight.name, "float")
+            self.cameraMaxDist.value = safe_check_and_set(self.cameraMaxDist.default_value, xmlNode,
+                                                          self.cameraMaxDist.name, "float")
             destroyEffectNames = [read_from_xml_node(xmlNode, name, do_not_warn=True) for name in DESTROY_EFFECT_NAMES]
-            for i in range(len(self.destroyEffectNames)):
+            for i in range(len(self.destroyEffectNames.value)):
                 if destroyEffectNames[i] is not None:
-                    self.destroyEffectNames[i] = destroyEffectNames[i]
+                    self.destroyEffectNames.value[i] = destroyEffectNames[i]
             wheels_info = child_from_xml_node(xmlNode, "Wheels", do_not_warn=True)
             if self.parentPrototypeName.value is not None and wheels_info is not None:
                 logger.error(f"Wheels info is present for inherited vehicle {self.prototypeName.value}")
             elif self.parentPrototypeName.value is None and wheels_info is None:
                 logger.error(f"Wheels info is not present for parent vehicle {self.prototypeName.value}")
             elif self.parentPrototypeName.value is None and wheels_info is not None:
-                check_mono_xml_node(wheels_info, "Wheel")
+                check_mono_xml_node(wheels_info, self.wheelInfos.name)
                 for wheel_node in wheels_info.iterchildren(tag="Wheel"):
                     steering = read_from_xml_node(wheel_node, "steering", do_not_warn=True)
                     wheel_prototype_name = read_from_xml_node(wheel_node, "Prototype")
                     wheel = self.WheelInfo(wheel_prototype_name, steering)
-                    self.wheelInfos.append(wheel)
-            self.blastWavePrototypeName = safe_check_and_set(self.blastWavePrototypeName, xmlNode, "BlastWave")
-            self.additionalWheelsHover = safe_check_and_set(self.additionalWheelsHover, xmlNode,
-                                                            "AdditionalWheelsHover", "float")
-            self.blastWavePrototypeName = safe_check_and_set(self.blastWavePrototypeName, xmlNode, "BlastWave")
-            self.driftCoeff = safe_check_and_set(self.driftCoeff, xmlNode, "DriftCoeff", "float")
-            self.pressingForce = safe_check_and_set(self.pressingForce, xmlNode, "PressingForce", "float")
-            self.healthRegeneration = safe_check_and_set(self.healthRegeneration, xmlNode,
-                                                         "HealthRegeneration", "float")
-            self.durabilityRegeneration = safe_check_and_set(self.durabilityRegeneration, xmlNode,
-                                                             "DurabilityRegeneration", "float")
+                    self.wheelInfos.value.append(wheel)
+            self.blastWavePrototypeName.value = safe_check_and_set(self.blastWavePrototypeName.default_value, xmlNode,
+                                                                   self.blastWavePrototypeName.name)
+            self.additionalWheelsHover.value = safe_check_and_set(self.additionalWheelsHover.default_value, xmlNode,
+                                                                  self.additionalWheelsHover.name, "float")
+            self.driftCoeff.value = safe_check_and_set(self.driftCoeff.default_value, xmlNode,
+                                                       self.driftCoeff.name, "float")
+            self.pressingForce.value = safe_check_and_set(self.pressingForce.default_value, xmlNode,
+                                                          self.pressingForce.name, "float")
+            self.healthRegeneration.value = safe_check_and_set(self.healthRegeneration.default_value, xmlNode,
+                                                               self.healthRegeneration.name, "float")
+            self.durabilityRegeneration.value = safe_check_and_set(self.durabilityRegeneration.default_value, xmlNode,
+                                                                   self.durabilityRegeneration.name, "float")
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
         ComplexPhysicObjPrototypeInfo.PostLoad(self, prototype_manager)
-        for wheel_info in self.wheelInfos:
+        for wheel_info in self.wheelInfos.value:
             wheel_info.wheelPrototypeId = prototype_manager.GetPrototypeId(wheel_info.wheelPrototypeName)
-        self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName)
+        self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName.value)
 
     def InternalCopyFrom(self, prot_to_copy_from):
         self.parent = prot_to_copy_from
+
+    def get_etree_prototype(self):
+        result = ComplexPhysicObjPrototypeInfo.get_etree_prototype(self)
+        # destroyEffectNames start
+        for i in range(len(DESTROY_EFFECT_NAMES)):
+            if self.destroyEffectNames.value[i] != self.destroyEffectNames.default_value[i]:
+                result.set(DESTROY_EFFECT_NAMES[i], self.destroyEffectNames.value[i])
+        # destroyEffectNames ends
+        # wheelInfos start
+
+        def add_wheel_info(wheelInfos):
+            wheelElement = etree.Element(wheelInfos.name)
+            for wheelInfo in wheelInfos.value:
+                wheelElement.append(self.WheelInfo.get_etree_prototype(wheelInfo))
+            return wheelElement
+
+        add_value_to_node_as_child(result, self.wheelInfos, lambda x: add_wheel_info(x))
+        # wheelInfos ends
+        return result
 
     class WheelInfo(object):
         def __init__(self, wheelPrototypeName, steering):
@@ -1200,6 +1235,13 @@ class VehiclePrototypeInfo(ComplexPhysicObjPrototypeInfo):
 
         def PostLoad(self, prototype_manager):
             self.wheelPrototypeId = prototype_manager.GetPrototypeId(self.wheelPrototypeName)
+
+        def get_etree_prototype(self):
+            result = etree.Element("Wheel")
+            result.set("Prototype", self.wheelPrototypeName)
+            if self.steering is not None:
+                result.set("steering", self.steering)
+            return result
 
 
 class ArticulatedVehiclePrototypeInfo(VehiclePrototypeInfo):
