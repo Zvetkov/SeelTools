@@ -2722,6 +2722,7 @@ class LocationPusherPrototypeInfo(GunPrototypeInfo):
 class MinePusherPrototypeInfo(GunPrototypeInfo):
     def __init__(self, server):
         GunPrototypeInfo.__init__(self, server)
+        # damageType save and load implemented in parrent
         self.damageType = AnnotatedValue(1, "DamageType", group_type=GroupType.PRIMARY,
                                          saving_type=SavingType.SPECIFIC)
 
@@ -2729,19 +2730,19 @@ class MinePusherPrototypeInfo(GunPrototypeInfo):
 class TurboAccelerationPusherPrototypeInfo(GunPrototypeInfo):
     def __init__(self, server):
         GunPrototypeInfo.__init__(self, server)
-        self.accelerationValue = 1.0
-        self.accelerationTime = 0.0
+        self.accelerationValue = AnnotatedValue(1.0, "AccelerationValue", group_type=GroupType.PRIMARY)
+        self.accelerationTime = AnnotatedValue(0.0, "AccelerationTime", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = GunPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            accelerationValue = read_from_xml_node(xmlNode, "AccelerationValue")
+            accelerationValue = read_from_xml_node(xmlNode, self.accelerationValue.name)
             if accelerationValue is not None:
-                self.accelerationValue = float(accelerationValue)
+                self.accelerationValue.value = float(accelerationValue)
 
-            accelerationTime = read_from_xml_node(xmlNode, "AccelerationTime")
+            accelerationTime = read_from_xml_node(xmlNode, self.accelerationTime.name)
             if accelerationTime is not None:
-                self.accelerationTime = float(accelerationTime)
+                self.accelerationTime.value = float(accelerationTime)
             return STATUS_SUCCESS
 
 
