@@ -2754,41 +2754,43 @@ class ShellPrototypeInfo(SimplePhysicObjPrototypeInfo):
 class RocketPrototypeInfo(ShellPrototypeInfo):
     def __init__(self, server):
         ShellPrototypeInfo.__init__(self, server)
-        self.velocity = 1.0
-        self.acceleration = 1.0
-        self.minTurningRadius = 1.0
-        self.flyTime = 1.0
+        self.velocity = AnnotatedValue(1.0, "Velocity", group_type=GroupType.PRIMARY)
+        self.acceleration = AnnotatedValue(1.0, "Acceleration", group_type=GroupType.PRIMARY)
+        self.minTurningRadius = AnnotatedValue(1.0, "MinTurningRadius", group_type=GroupType.PRIMARY)
+        self.flyTime = AnnotatedValue(1.0, "FlyTime", group_type=GroupType.PRIMARY)
         self.blastWavePrototypeId = -1
-        self.blastWavePrototypeName = ""
+        self.blastWavePrototypeName = AnnotatedValue("", "BlastWavePrototype", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = ShellPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         self.SetGeomType("BOX")
         if result == STATUS_SUCCESS:
-            velocity = read_from_xml_node(xmlNode, "Velocity")
+            velocity = read_from_xml_node(xmlNode, self.velocity.name)
             if velocity is not None:
-                self.velocity = float(velocity)
+                self.velocity.value = float(velocity)
 
-            acceleration = read_from_xml_node(xmlNode, "Acceleration")
+            acceleration = read_from_xml_node(xmlNode, self.acceleration.name)
             if acceleration is not None:
-                self.acceleration = float(acceleration)
+                self.acceleration.value = float(acceleration)
 
-            minTurningRadius = read_from_xml_node(xmlNode, "MinTurningRadius")
+            minTurningRadius = read_from_xml_node(xmlNode, self.minTurningRadius.name)
             if minTurningRadius is not None:
-                self.minTurningRadius = float(minTurningRadius)
+                self.minTurningRadius.value = float(minTurningRadius)
 
-            flyTime = read_from_xml_node(xmlNode, "FlyTime")
+            flyTime = read_from_xml_node(xmlNode, self.flyTime.name)
             if flyTime is not None:
-                self.flyTime = float(flyTime)
+                self.flyTime.value = float(flyTime)
 
-            self.blastWavePrototypeName = safe_check_and_set(self.blastWavePrototypeName, xmlNode, "BlastWavePrototype")
+            self.blastWavePrototypeName.value = safe_check_and_set(self.blastWavePrototypeName.default_value,
+                                                                   xmlNode, 
+                                                                   self.blastWavePrototypeName.name)
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
-        if self.blastWavePrototypeName:
-            self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName)
+        if self.blastWavePrototypeName.value:
+            self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName.value)
             if self.blastWavePrototypeId == -1:
-                logger.error(f"Unknown blast wave prototype name: '{self.blastWavePrototypeName}' "
+                logger.error(f"Unknown blast wave prototype name: '{self.blastWavePrototypeName.value}' "
                              f"for rocket prototype: '{self.prototypeName.value}'")
 
 
