@@ -2863,19 +2863,19 @@ class MortarShellPrototypeInfo(ShellPrototypeInfo):
 class MinePrototypeInfo(RocketPrototypeInfo):
     def __init__(self, server):
         RocketPrototypeInfo.__init__(self, server)
-        self.TTL = 100.0
-        self.timeForActivation = 0.0
+        self.TTL = AnnotatedValue(100.0, "TTL", group_type=GroupType.SECONDARY)
+        self.timeForActivation = AnnotatedValue(0.0, "TimeForActivation", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = RocketPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            TTL = read_from_xml_node(xmlNode, "TTL")
+            TTL = read_from_xml_node(xmlNode, self.TTL.name)
             if TTL is not None:
-                self.TTL = float(TTL)
+                self.TTL.value = float(TTL)
 
-            timeForActivation = read_from_xml_node(xmlNode, "TimeForActivation")
+            timeForActivation = read_from_xml_node(xmlNode, self.timeForActivation.name)
             if timeForActivation is not None:
-                self.timeForActivation = float(timeForActivation)
+                self.timeForActivation.value = float(timeForActivation)
             return STATUS_SUCCESS
 
 
