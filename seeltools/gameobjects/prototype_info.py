@@ -65,7 +65,7 @@ class PrototypeInfo(object):
             self.className.value = read_from_xml_node(xmlNode, "Class")
             self.protoClassObject = globals()[self.className.value]  # getting class object by name
             strResType = read_from_xml_node(xmlNode, "ResourceType", do_not_warn=True)
-            self.isUpdating.value = parse_str_to_bool(self.isUpdating.value,
+            self.isUpdating.value = parse_str_to_bool(self.isUpdating.default_value,
                                                       read_from_xml_node(xmlNode, "IsUpdating", do_not_warn=True))
             if strResType is not None:
                 self.resourceId.value = self.theServer.theResourceManager.GetResourceId(strResType)
@@ -76,16 +76,16 @@ class PrototypeInfo(object):
                     logger.info(f"Invalid ResourceType: {strResType} for prototype {self.prototypeName.value} "
                                 f" and its parent {self.parent.prototypeName.value}")
 
-            self.visibleInEncyclopedia.value = parse_str_to_bool(self.visibleInEncyclopedia.value,
+            self.visibleInEncyclopedia.value = parse_str_to_bool(self.visibleInEncyclopedia.default_value,
                                                                  read_from_xml_node(xmlNode,
                                                                                     "VisibleInEncyclopedia",
                                                                                     do_not_warn=True))
-            self.applyAffixes.value = parse_str_to_bool(self.applyAffixes.value,
+            self.applyAffixes.value = parse_str_to_bool(self.applyAffixes.default_value,
                                                         read_from_xml_node(xmlNode, "ApplyAffixes", do_not_warn=True))
             price = read_from_xml_node(xmlNode, "Price", do_not_warn=True)
             if price is not None:
                 self.price.value = int(price)
-            self.isAbstract.value = parse_str_to_bool(self.isAbstract.value,
+            self.isAbstract.value = parse_str_to_bool(self.isAbstract.default_value,
                                                       read_from_xml_node(xmlNode, "Abstract", do_not_warn=True))
             self.parentPrototypeName.value = read_from_xml_node(xmlNode, "ParentPrototype", do_not_warn=True)
             return STATUS_SUCCESS
@@ -144,7 +144,7 @@ class PhysicBodyPrototypeInfo(PrototypeInfo):
             if not self.engineModelName.value and not issubclass(type(self), CompoundVehiclePartPrototypeInfo):
                 logger.error(f"No model file is provided for prototype {self.prototypeName.value}")
             mass = read_from_xml_node(xmlNode, "Mass", do_not_warn=True)
-            self.collisionTrimeshAllowed.value = parse_str_to_bool(self.collisionTrimeshAllowed.value,
+            self.collisionTrimeshAllowed.value = parse_str_to_bool(self.collisionTrimeshAllowed.default_value,
                                                                    read_from_xml_node(xmlNode,
                                                                                       "CollisionTrimeshAllowed",
                                                                                       do_not_warn=True))
@@ -207,7 +207,7 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
             if repairCoef is not None:
                 self.repairCoef.value = float(repairCoef)
 
-            self.canBeUsedInAutogenerating.value = parse_str_to_bool(self.canBeUsedInAutogenerating.value,
+            self.canBeUsedInAutogenerating.value = parse_str_to_bool(self.canBeUsedInAutogenerating.default_value,
                                                                      read_from_xml_node(xmlNode,
                                                                                         "CanBeUsedInAutogenerating",
                                                                                         do_not_warn=True))
@@ -924,7 +924,7 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
                 self.massValue.value = float(mass)
             # ??? maybe should fallback to "" instead None
             self.engineModelName.value = read_from_xml_node(xmlNode, "ModelFile", do_not_warn=True)
-            self.collisionTrimeshAllowed.value = parse_str_to_bool(self.collisionTrimeshAllowed.value,
+            self.collisionTrimeshAllowed.value = parse_str_to_bool(self.collisionTrimeshAllowed.default_value,
                                                                    read_from_xml_node(xmlNode,
                                                                                       "CollisionTrimeshAllowed",
                                                                                       do_not_warn=True))
@@ -1276,11 +1276,11 @@ class DummyObjectPrototypeInfo(SimplePhysicObjPrototypeInfo):
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.disablePhysics.value = parse_str_to_bool(self.disablePhysics.value,
+            self.disablePhysics.value = parse_str_to_bool(self.disablePhysics.default_value,
                                                           read_from_xml_node(xmlNode,
                                                                              self.disablePhysics.name,
                                                                              do_not_warn=True))
-            self.disableGeometry.value = parse_str_to_bool(self.disableGeometry.value,
+            self.disableGeometry.value = parse_str_to_bool(self.disableGeometry.default_value,
                                                            read_from_xml_node(xmlNode,
                                                                               self.disableGeometry.name,
                                                                               do_not_warn=True))
@@ -1491,7 +1491,7 @@ class TeamPrototypeInfo(PrototypeInfo):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             self.decisionMatrixName.value = read_from_xml_node(xmlNode, "DecisionMatrix")
-            self.removeWhenChildrenDead.value = parse_str_to_bool(self.removeWhenChildrenDead,
+            self.removeWhenChildrenDead.value = parse_str_to_bool(self.removeWhenChildrenDead.default_value,
                                                                   read_from_xml_node(xmlNode, "RemoveWhenChildrenDead",
                                                                                      do_not_warn=True))
             formation = child_from_xml_node(xmlNode, "Formation", do_not_warn=True)
@@ -1552,16 +1552,23 @@ class CaravanTeamPrototypeInfo(TeamPrototypeInfo):
 class VagabondTeamPrototypeInfo(TeamPrototypeInfo):
     def __init__(self, server):
         TeamPrototypeInfo.__init__(self, server)
-        self.vehiclesGeneratorPrototype = ""
-        self.waresPrototypes = []
-        self.removeWhenChildrenDead.value = True
+        self.vehiclesGeneratorPrototype = AnnotatedValue("", "VehicleGeneratorPrototype",
+                                                         group_type=GroupType.SECONDARY)
+        self.waresPrototypes = AnnotatedValue([], "WaresPrototypes", group_type=GroupType.SECONDARY,
+                                              saving_type=SavingType.SPECIFIC)
+        self.removeWhenChildrenDead = AnnotatedValue(True, "RemoveWhenChildrenDead", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = TeamPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.vehiclesGeneratorPrototype = read_from_xml_node(xmlNode, "VehicleGeneratorPrototype")
-            self.waresPrototypes = read_from_xml_node(xmlNode, "WaresPrototypes").split()
+            self.vehiclesGeneratorPrototype.value = read_from_xml_node(xmlNode, self.vehiclesGeneratorPrototype.name)
+            self.waresPrototypes.value = read_from_xml_node(xmlNode, self.waresPrototypes.name).split()
             return STATUS_SUCCESS
+
+    def get_etree_prototype(self):
+        result = TeamPrototypeInfo.get_etree_prototype(self)
+        add_value_to_node(result, self.waresPrototypes, lambda x: " ".join(x.value))
+        return result
 
 
 class InfectionTeamPrototypeInfo(TeamPrototypeInfo):
