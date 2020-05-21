@@ -1867,9 +1867,9 @@ class FormationPrototypeInfo(PrototypeInfo):
 class SettlementPrototypeInfo(SimplePhysicObjPrototypeInfo):
     def __init__(self, server):
         SimplePhysicObjPrototypeInfo.__init__(self, server)
-        self.zoneInfos = []
+        self.zoneInfos = []  # newer used
         self.vehiclesPrototypeId = -1
-        self.vehiclesPrototypeName = ""
+        self.vehiclesPrototypeName = AnnotatedValue("", "Vehicles", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -1887,14 +1887,15 @@ class SettlementPrototypeInfo(SimplePhysicObjPrototypeInfo):
                 radius = read_from_xml_node(xmlNode["zone"], "radius", do_not_warn=True)
                 zone_info.radius = float(radius)
                 self.zoneInfos.append(zone_info)
-            self.vehiclesPrototypeName = safe_check_and_set(self.vehiclesPrototypeName, xmlNode, "Vehicles")
+            self.vehiclesPrototypeName.value = safe_check_and_set(self.vehiclesPrototypeName.default_value, xmlNode,
+                                                                  self.vehiclesPrototypeName.name)
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
-        if self.vehiclesPrototypeName:
-            self.vehiclesPrototypeId = prototype_manager.GetPrototypeId(self.vehiclesPrototypeName)
+        if self.vehiclesPrototypeName.value:
+            self.vehiclesPrototypeId = prototype_manager.GetPrototypeId(self.vehiclesPrototypeName.value)
             if self.vehiclesPrototypeId == -1:
-                logger.error(f"Invalid vehicles prototype '{self.vehiclesPrototypeName}' "
+                logger.error(f"Invalid vehicles prototype '{self.vehiclesPrototypeName.value}' "
                              f"for settlement prototype '{self.prototypeName.value}'")
 
     class AuxZoneInfo(object):
@@ -2005,22 +2006,24 @@ class TownPrototypeInfo(SettlementPrototypeInfo):
 class LairPrototypeInfo(SettlementPrototypeInfo):
     def __init__(self, server):
         SettlementPrototypeInfo.__init__(self, server)
-        self.maxAttackers = 1
-        self.maxDefenders = 1
+        self.maxAttackers = AnnotatedValue(1, "MaxAttackers", group_type=GroupType.SECONDARY)
+        self.maxDefenders = AnnotatedValue(1, "MaxDefenders", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SettlementPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             self.SetGeomType("BOX")
-            self.maxAttackers = safe_check_and_set(self.maxAttackers, xmlNode, "MaxAttackers", "int")
-            if self.maxAttackers > 5:
+            self.maxAttackers.value = safe_check_and_set(self.maxAttackers.default_value, xmlNode,
+                                                         self.maxAttackers.name, "int")
+            if self.maxAttackers.value > 5:
                 logger.error(f"Lair {self.prototypeName.value} attrib MaxAttackers: "
-                             f"{self.maxAttackers} is higher than permitted MAX_VEHICLES_IN_TEAM: 5")
+                             f"{self.maxAttackers.value} is higher than permitted MAX_VEHICLES_IN_TEAM: 5")
 
-            self.maxDefenders = safe_check_and_set(self.maxDefenders, xmlNode, "MaxDefenders", "int")
-            if self.maxDefenders > 5:
+            self.maxDefenders.value = safe_check_and_set(self.maxDefenders.default_value, xmlNode,
+                                                         self.maxDefenders.name, "int")
+            if self.maxDefenders.value > 5:
                 logger.error(f"Lair {self.prototypeName.value} attrib MaxDefenders: "
-                             f"{self.maxDefenders} is higher than permitted MAX_VEHICLES_IN_TEAM: 5")
+                             f"{self.maxDefenders.value} is higher than permitted MAX_VEHICLES_IN_TEAM: 5")
             return STATUS_SUCCESS
 
 
