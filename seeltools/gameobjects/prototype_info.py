@@ -2236,18 +2236,19 @@ class DynamicQuestDestroyPrototypeInfo(DynamicQuestPrototypeInfo):
 class DynamicQuestHuntPrototypeInfo(DynamicQuestPrototypeInfo):
     def __init__(self, server):
         DynamicQuestPrototypeInfo.__init__(self, server)
-        self.playerSchwarzPart = 0.0
+        self.playerSchwarzPart = AnnotatedValue(0.0, "PlayerSchwarzPart", group_type=GroupType.SECONDARY)
+        self.huntSeasonLength = AnnotatedValue(0.0, "HuntSeasonLength", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = DynamicQuestPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            playerSchwarzPart = read_from_xml_node(xmlNode, "PlayerSchwarzPart")
+            playerSchwarzPart = read_from_xml_node(xmlNode, self.playerSchwarzPart.name)
             if playerSchwarzPart is not None:
-                self.playerSchwarzPart = float(playerSchwarzPart)
+                self.playerSchwarzPart.value = float(playerSchwarzPart)
 
-            huntSeasonLength = read_from_xml_node(xmlNode, "HuntSeasonLength")
+            huntSeasonLength = read_from_xml_node(xmlNode, self.huntSeasonLength.name)
             if huntSeasonLength is not None:
-                self.huntSeasonLength = float(huntSeasonLength)
+                self.huntSeasonLength.value = float(huntSeasonLength)
             return STATUS_SUCCESS
 
 
