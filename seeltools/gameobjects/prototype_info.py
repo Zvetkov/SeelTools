@@ -2851,6 +2851,22 @@ class Boss04PrototypeInfo(ComplexPhysicObjPrototypeInfo):
         self.stationPrototypeId = prototype_manager.GetPrototypeId(self.stationPrototypeName.value)
         self.dronePrototypeId = prototype_manager.GetPrototypeId(self.dronePrototypeName.value)
 
+    def get_etree_prototype(self):
+        result = ComplexPhysicObjPrototypeInfo.get_etree_prototype(self)
+
+        def prepare_station_parts(stationToPartBindings):
+            stationToPartBindingsElement = etree.Element(stationToPartBindings.name)
+            for part in stationToPartBindings.value:
+                partElement = etree.Element("Station")
+                partElement.set("id", part["id"])
+                partElement.set("Parts", " ".join(part["parts"]))
+                stationToPartBindingsElement.append(partElement)
+            return stationToPartBindingsElement
+        add_value_to_node(result, self.timeBetweenDrones, lambda x: vector_short_to_string(x.value))
+        add_value_to_node(result, self.droneSpawningLpNames, lambda x: " ".join(x.value))
+        add_value_to_node_as_child(result, self.stationToPartBindings, lambda x: prepare_station_parts(x))
+        return result
+
 
 class BlastWavePrototypeInfo(SimplePhysicObjPrototypeInfo):
     def __init__(self, server):
