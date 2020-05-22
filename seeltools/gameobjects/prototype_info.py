@@ -1097,15 +1097,17 @@ class ComplexPhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
 class StaticAutoGunPrototypeInfo(ComplexPhysicObjPrototypeInfo):
     def __init__(self, server):
         ComplexPhysicObjPrototypeInfo.__init__(self, server)
-        self.maxHealth = 1.0
-        self.destroyedModelName = ""
+        self.maxHealth = AnnotatedValue(1.0, "MaxHealth", group_type=GroupType.SECONDARY)
+        self.destroyedModelName = AnnotatedValue("", "DestroyedModel", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = ComplexPhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             if self.parentPrototypeName.value is None:
-                self.maxHealth = safe_check_and_set(self.maxHealth, xmlNode, "MaxHealth", "float")
-                self.destroyedModelName = safe_check_and_set(self.destroyedModelName, xmlNode, "DestroyedModel")
+                self.maxHealth.value = safe_check_and_set(self.maxHealth.default_value, xmlNode,
+                                                          self.maxHealth.name, "float")
+                self.destroyedModelName.value = safe_check_and_set(self.destroyedModelName.default_value, xmlNode,
+                                                                   self.destroyedModelName.name)
             return STATUS_SUCCESS
 
 
