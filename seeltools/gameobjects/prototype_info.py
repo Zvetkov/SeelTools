@@ -2639,6 +2639,11 @@ class Boss04StationPartPrototypeInfo(VehiclePartPrototypeInfo):
         if strCriticalMeshGroups is not None:
             self.strCriticalMeshGroups.value = strCriticalMeshGroups.split()
 
+    def get_etree_prototype(self):
+        result = VehiclePartPrototypeInfo.get_etree_prototype(self)
+        add_value_to_node(result, self.strCriticalMeshGroups, lambda x: " ".join(x.value))
+        return result
+
 
 class Boss04StationPrototypeInfo(ComplexPhysicObjPrototypeInfo):
     def __init__(self, server):
