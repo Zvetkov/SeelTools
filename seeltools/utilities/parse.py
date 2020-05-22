@@ -20,30 +20,32 @@ def parse_logos_gam(path: str):
     return logo_list
 
 
-def parse_model_group_health(path: str):
-    logger.info(f"Trying to parse ModelGroups from '{path}'")
+def parse_model_group_health(relative_path: str):
+    logger.debug(f"Trying to parse ModelGroups from '{relative_path}'")
     group_health = {}
-    with open(path, 'rb') as f:
+    with open(os.path.join(WORKING_DIRECTORY, relative_path), 'rb') as f:
         str_from_file = f.read()
-
     if VehicleGamStruct.GROUP_HEALTH_HEADER.value in str_from_file:
-        group_health["Main"] = None
-        if VehicleGamStruct.BREAKABLE_BSTR.value in str_from_file:
-            main_breakable_raw = str_from_file.split(VehicleGamStruct.GROUP_HEALTH_HEADER.value)
-            breakables_raw = main_breakable_raw[1][main_breakable_raw[1].index(VehicleGamStruct.BREAKABLE_BSTR.value):]
-            breakable_list_raw = breakables_raw.split(VehicleGamStruct.BREAKABLE_DIV.value)
-            for byte_str in breakable_list_raw:
-                if VehicleGamStruct.BREAKABLE_BSTR.value in byte_str:
-                    breakable_name = byte_str[:11].decode('latin-1').replace('\x00', '')
-                    breakable_id = int(byte_str[11:][21:22].hex(), 16)
-                    group_health[breakable_name] = breakable_id
-        else:
-            logger.info(f"Model file '{path}' doesn't contain any breakable health zones.")
-            return group_health
+        main_header = VehicleGamStruct.GROUP_HEALTH_HEADER.value
+    elif VehicleGamStruct.GROUP_HEALTH_HEADER_URAL_CARGO.value in str_from_file:
+        main_header = VehicleGamStruct.GROUP_HEALTH_HEADER_URAL_CARGO.value
     else:
-        logger.warning(f"Model file '{path}' given doesn't contain GroupHealth header!")
+        logger.debug(f"Model file '{relative_path}' given doesn't contain known GroupHealth headers!")
         return None
-    return group_health
+    group_health["Main"] = None
+    if VehicleGamStruct.BREAKABLE_BSTR.value in str_from_file:
+        main_breakable_raw = str_from_file.split(main_header)
+        breakables_raw = main_breakable_raw[1][main_breakable_raw[1].index(VehicleGamStruct.BREAKABLE_BSTR.value):]
+        breakable_list_raw = breakables_raw.split(VehicleGamStruct.BREAKABLE_DIV.value)
+        for byte_str in breakable_list_raw:
+            if VehicleGamStruct.BREAKABLE_BSTR.value in byte_str:
+                breakable_name = byte_str[:11].decode('latin-1').replace('\x00', '')
+                breakable_id = int(byte_str[11:][21:22].hex(), 16)
+                group_health[breakable_name] = breakable_id
+        return group_health
+    else:
+        logger.debug(f"Model file '{relative_path}' doesn't contain any breakable health zones.")
+        return group_health
 
 
 def xml_to_objfy(path_to_file: str):
@@ -104,6 +106,7 @@ def is_xml_node_contains(xml_node: objectify.ObjectifiedElement, attrib_name: st
 
 
 def child_from_xml_node(xml_node: objectify.ObjectifiedElement, child_name: str, do_not_warn: bool = False):
+    '''Get child from ObjectifiedElement by name'''
     try:
         return xml_node[child_name]
     except AttributeError:
