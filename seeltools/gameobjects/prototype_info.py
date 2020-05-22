@@ -21,6 +21,9 @@ from seeltools.utilities.helper_functions import value_equel_default
 from seeltools.gameobjects.object_classes import *
 
 
+def vector_short_to_string(value):
+    return f'{value["x"]} {value["y"]}'
+
 def vector_to_string(value):
     return f'{value["x"]} {value["y"]} {value["z"]}'
 
@@ -1914,24 +1917,25 @@ class FormationPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
         self.maxVehicles = 5
-        self.polylinePoints = []
+        self.polylinePoints = AnnotatedValue([], "Polyline", group_type=GroupType.SECONDARY,
+                                             saving_type=SavingType.SPECIFIC)
         self.polylineLength = 0.0
         self.headOffset = 0.0
-        self.linearVelocity = 100.0
+        self.linearVelocity = AnnotatedValue(100.0, "LinearVelocity", group_type=GroupType.SECONDARY)
         self.headPosition = 0
         self.isUpdating = AnnotatedValue(False, "IsUpdating", group_type=GroupType.SECONDARY)
-        self.angularVelocity = 0.5
+        self.angularVelocity = AnnotatedValue(0.5, "AngularVelocity", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            linearVelocity = read_from_xml_node(xmlNode, "LinearVelocity", do_not_warn=True)
+            linearVelocity = read_from_xml_node(xmlNode, self.linearVelocity.name, do_not_warn=True)
             if linearVelocity is not None:
-                self.linearVelocity = float(linearVelocity)
+                self.linearVelocity.value = float(linearVelocity)
 
-            angularVelocity = read_from_xml_node(xmlNode, "AngularVelocity", do_not_warn=True)
+            angularVelocity = read_from_xml_node(xmlNode, self.angularVelocity.name, do_not_warn=True)
             if angularVelocity is not None:
-                self.angularVelocity = float(angularVelocity)
+                self.angularVelocity.value = float(angularVelocity)
 
             self.LoadPolylinePoints(xmlFile, xmlNode)
             return STATUS_SUCCESS
@@ -1942,10 +1946,10 @@ class FormationPrototypeInfo(PrototypeInfo):
     def CalcPolylineLengths(self):
         self.polylineLength = 0.0
         self.headOffset = 0.0
-        if self.polylinePoints:
-            for i in range(len(self.polylinePoints) - 1):
-                first_point = self.polylinePoints[i]
-                second_point = self.polylinePoints[i + 1]
+        if self.polylinePoints.value:
+            for i in range(len(self.polylinePoints.value) - 1):
+                first_point = self.polylinePoints.value[i]
+                second_point = self.polylinePoints.value[i + 1]
                 x_change = first_point['x'] - second_point['x']
                 y_change = first_point['y'] - second_point['y']
                 segmentLength = sqrt(x_change**2 + y_change**2)
@@ -1963,14 +1967,27 @@ class FormationPrototypeInfo(PrototypeInfo):
                     point = {"x": float(point[0]),
                              "y": float(point[1])}
                     if point["x"] == 0.0 or point["y"] == 0.0:
-                        if self.polylinePoints:
-                            self.headPosition = len(self.polylinePoints)
+                        if self.polylinePoints.value:
+                            self.headPosition = len(self.polylinePoints.value)
                         else:
                             self.headPosition = 0
-                        self.polylinePoints.append(point)
+                    self.polylinePoints.value.append(point)
                 else:
                     logger.error(f"Unexpected coordinate format for Formation {self.prototypeName.value}, "
                                  "expected two numbers")
+
+    def get_etree_prototype(self):
+        result = PrototypeInfo.get_etree_prototype(self)
+
+        def prepare_polylines(polylinePoints):
+            polyline_element = etree.Element(polylinePoints.name)
+            for item in polylinePoints.value:
+                point_element = etree.Element("Point")
+                point_element.set("Coord", vector_short_to_string(item))
+                polyline_element.append(point_element)
+            return polyline_element
+        add_value_to_node_as_child(result, self.polylinePoints, lambda x: prepare_polylines(x))
+        return result
 
 
 class SettlementPrototypeInfo(SimplePhysicObjPrototypeInfo):
