@@ -160,6 +160,17 @@ class AnimatedModelsServer(DataServer):
                     logger.warning(f"Duplicate model found in animmodels.xml with id: '{anim_model.model_id}'")
                 self.models[anim_model.model_id] = anim_model
 
+    def ParseProto(string_in: str, paramsPos):
+        if len(string_in) < 3:
+            logger.warning(f"No protocol found for '{string_in}'")
+        paramsPos = string_in.find(":")
+        if paramsPos == -1:
+            logger.warning(f"No protocol found for '{string_in}'")
+        elif string_in.find("new") == 0:
+            return 2
+        elif string_in.find("file") == 0:
+            return 1
+
     class AnimatedModel(object):
         def __init__(self):
             self.model_id = ""
@@ -172,13 +183,5 @@ class AnimatedModelsServer(DataServer):
             # self.bBoxMin = deepcopy(ZERO_VECTOR)
             # self.bBoxMax = deepcopy(ZERO_VECTOR)
 
-    def ParseProto(string_in: str, paramsPos):
-        if len(string_in) < 3:
-            logger.warning(f"No protocol found for '{string_in}'")
-        paramsPos = string_in.find(":")
-        if paramsPos == -1:
-            logger.warning(f"No protocol found for '{string_in}'")
-        elif string_in.find("new") == 0:
-            return 2
-        elif string_in.find("file") == 0:
-            return 1
+        def GetLoadPointIdByName(xmlNode, strLoadPointForLoad):
+            pass

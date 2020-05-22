@@ -222,8 +222,9 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
                                                                      read_from_xml_node(xmlNode,
                                                                                         "CanBeUsedInAutogenerating",
                                                                                         do_not_warn=True))
-            # custom logic
+            # custom implementation. Originally called from PrototypeManager -> RefreshFromXml
             self.RefreshFromXml(xmlFile, xmlNode)
+            # custom implementation ends
             return STATUS_SUCCESS
 
     def RefreshFromXml(self, xmlFile, xmlNode):
@@ -231,7 +232,7 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
         # original called from VehiclePartPrototypeInfo::_InitModelMeshes
         group_health_node = child_from_xml_node(xmlNode, "GroupsHealth", do_not_warn=True)
         PhysicBodyPrototypeInfo.RefreshFromXml(self, xmlFile, xmlNode)
-        if self.className.value in ["Cabin", "Basket", "Chass"]:
+        if self.className.value in ["Cabin", "Basket", "Chass", "BossArm"]:
             model_path = self.theServer.theAnimatedModelsServer.GetItemByName(self.engineModelName.value).file_name
             model_group_health = parse_model_group_health(model_path)
             if model_group_health is not None and group_health_node is not None:
@@ -2314,6 +2315,9 @@ class BossArmPrototypeInfo(VehiclePartPrototypeInfo):
         self.frameToPickUpLoad = AnnotatedValue(0, "FrameToPickUpLoad", group_type=GroupType.SECONDARY)
         self.turningSpeed = AnnotatedValue(0.5, "TurningSpeed", group_type=GroupType.PRIMARY)
         self.lpIdForLoad = -1
+        # custom display load value
+        self.strLoadPoint = AnnotatedValue("", "LoadPointForLoad", group_type=GroupType.SECONDARY)
+        # end
         self.cruticalNumExplodedLoads = AnnotatedValue(1, "CriticalNumExplodedLoads", group_type=GroupType.PRIMARY)
         self.attacks = AnnotatedValue([], "AttackActions", group_type=GroupType.SECONDARY,
                                       saving_type=SavingType.SPECIFIC)
@@ -2339,7 +2343,19 @@ class BossArmPrototypeInfo(VehiclePartPrototypeInfo):
             cruticalNumExplodedLoads = read_from_xml_node(xmlNode, "CriticalNumExplodedLoads", do_not_warn=True)
             if cruticalNumExplodedLoads is not None:
                 self.cruticalNumExplodedLoads.value = int(cruticalNumExplodedLoads)
+            # custom implementation. Originally called from PrototypeManager -> RefreshFromXml
+            self.RefreshFromXml(xmlFile, xmlNode)
+            # custom implementation ends
             return STATUS_SUCCESS
+
+    def RefreshFromXml(self, xmlFile, xmlNode):
+        # VehiclePartPrototypeInfo.RefreshFromXml(self, xmlFile, xmlNode)
+        # model_obj = anim_model_server.GetItemByName(self.engineModelName.value)
+        # if model_obj != -1:
+        self.strLoadPoint.value = safe_check_and_set(self.strLoadPoint.default_value, xmlNode, "LoadPointForLoad")
+        # m3d::AnimatedModel::GetLoadPointIdByName used to get actual 'lpIdForLoad'
+
+
 
     def get_etree_prototype(self):
         result = VehiclePartPrototypeInfo.get_etree_prototype(self)
