@@ -386,7 +386,7 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
         self.barrelModelName = ""
         self.withCharging = AnnotatedValue(True, "WithCharging", group_type=GroupType.PRIMARY)
         self.withShellsPoolLimit = AnnotatedValue(True, "WithShellsPoolLimit", group_type=GroupType.PRIMARY)
-        self.shellPrototypeId = AnnotatedValue(-1, "Damage", group_type=GroupType.PRIMARY)
+        self.shellPrototypeId = -1
         self.damage = AnnotatedValue(1.0, "Damage", group_type=GroupType.PRIMARY)
         self.damageType = AnnotatedValue(0, "DamageType", group_type=GroupType.PRIMARY,
                                          saving_type=SavingType.SPECIFIC)
@@ -1957,7 +1957,7 @@ class TownPrototypeInfo(SettlementPrototypeInfo):
                                                            group_type=GroupType.SECONDARY)
         self.numCollisionLayersBelowVehicle = AnnotatedValue(2, "NumCollisionLayersBelowVehicle",
                                                              group_type=GroupType.SECONDARY)
-        self.articles = AnnotatedValue([], "", group_type=GroupType.SECONDARY, saving_type=SavingType.SPECIFIC)
+        self.articles = AnnotatedValue([], "Articles", group_type=GroupType.SECONDARY, saving_type=SavingType.SPECIFIC)
         self.collisionTrimeshAllowed = AnnotatedValue(True, "CollisionTrimeshAllowed", group_type=GroupType.SECONDARY)
 
         self.resourceIdToRandomCoeffMap = []
@@ -3396,7 +3396,8 @@ class NpcPrototypeInfo(PrototypeInfo):
 class RepositoryObjectsGeneratorPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.objectDescriptions = []
+        self.objectDescriptions = AnnotatedValue([], "Objects", group_type=GroupType.SECONDARY,
+                                                 saving_type=SavingType.SPECIFIC)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -3404,23 +3405,34 @@ class RepositoryObjectsGeneratorPrototypeInfo(PrototypeInfo):
             objects = child_from_xml_node(xmlNode, "Object")
             for object_node in objects:
                 newDescription = self.ObjectDescription()
-                newDescription.prototypeName = safe_check_and_set("", xmlNode, "PrototypeName")
+                newDescription.prototypeName = safe_check_and_set("", object_node, "PrototypeName")
                 newDescription.prototypeId = -1
-                self.objectDescriptions.append(newDescription)
+                self.objectDescriptions.value.append(newDescription)
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
-        if self.objectDescriptions:
-            for obj_description in self.objectDescriptions:
+        if self.objectDescriptions.value:
+            for obj_description in self.objectDescriptions.value:
                 obj_description.prototypeId = prototype_manager.GetPrototypeId(obj_description.prototypeName)
                 if obj_description.prototypeId == -1:
                     logger.error(f"Unknown Object prototype: '{obj_description.prototypeName.value}' "
                                  f"for RepositoryObjectsGenerator: '{self.prototypeName.value}'")
 
+    def get_etree_prototype(self):
+        result = PrototypeInfo.get_etree_prototype(self)
+        for objectItem in self.objectDescriptions.value:
+            result.append(self.ObjectDescription.get_etree_prototype(objectItem))
+        return result
+
     class ObjectDescription(object):
         def __init__(self):
             self.prototypeName = ""
             self.prototypeId = -1
+
+        def get_etree_prototype(self):
+            object_node = etree.Element("Object")
+            object_node.set("PrototypeName", str(self.prototypeName))
+            return object_node
 
 
 # dict mapping Object Classes to PrototypeInfo Classes
