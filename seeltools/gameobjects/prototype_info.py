@@ -3267,25 +3267,25 @@ class VehicleSplinterPrototypeInfo(DummyObjectPrototypeInfo):
 class PhysicUnitPrototypeInfo(SimplePhysicObjPrototypeInfo):
     def __init__(self, server):
         SimplePhysicObjPrototypeInfo.__init__(self, server)
-        self.walkSpeed = 1.0
-        self.turnSpeed = 1.0
-        self.maxStandTime = 1.0
+        self.walkSpeed = AnnotatedValue(1.0, "WalkSpeed", group_type=GroupType.SECONDARY)
+        self.turnSpeed = AnnotatedValue(1.0, "MaxStandTime", group_type=GroupType.SECONDARY)
+        self.maxStandTime = AnnotatedValue(1.0, "TurnSpeed", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             self.SetGeomType("FROM_MODEL")
-            walkSpeed = read_from_xml_node(xmlNode, "WalkSpeed", do_not_warn=True)
+            walkSpeed = read_from_xml_node(xmlNode, self.walkSpeed.name, do_not_warn=True)
             if walkSpeed is not None:
-                self.walkSpeed = float(walkSpeed)
+                self.walkSpeed.value = float(walkSpeed)
 
-            maxStandTime = read_from_xml_node(xmlNode, "MaxStandTime", do_not_warn=True)
+            maxStandTime = read_from_xml_node(xmlNode, self.maxStandTime.name, do_not_warn=True)
             if maxStandTime is not None:
-                self.maxStandTime = float(maxStandTime)
+                self.maxStandTime.value = float(maxStandTime)
 
-            turnSpeed = read_from_xml_node(xmlNode, "TurnSpeed", do_not_warn=True)
+            turnSpeed = read_from_xml_node(xmlNode, self.turnSpeed.name, do_not_warn=True)
             if turnSpeed is not None:
-                self.turnSpeed = float(turnSpeed)
+                self.turnSpeed.value = float(turnSpeed)
             return STATUS_SUCCESS
 
 
