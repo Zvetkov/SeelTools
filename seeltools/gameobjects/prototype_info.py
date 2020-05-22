@@ -2542,24 +2542,26 @@ class BossMetalArmLoadPrototypeInfo(DummyObjectPrototypeInfo):
     def __init__(self, server):
         DummyObjectPrototypeInfo.__init__(self, server)
         self.blastWavePrototypeId = -1
-        self.explosionEffectName = ""
-        self.maxHealth = 1.0
-        self.blastWavePrototypeName = ""
+        self.explosionEffectName = AnnotatedValue("", "ExplosionEffect", group_type=GroupType.SECONDARY)
+        self.maxHealth = AnnotatedValue(1.0, "MaxHealth", group_type=GroupType.PRIMARY)
+        self.blastWavePrototypeName = AnnotatedValue("", "BlastWavePrototype", group_type=GroupType.SECONDARY)
         self.isUpdating = AnnotatedValue(True, "IsUpdating", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = DummyObjectPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.blastWavePrototypeName = safe_check_and_set(self.blastWavePrototypeName, xmlNode, "BlastWavePrototype")
-            self.explosionEffectName = safe_check_and_set(self.explosionEffectName, xmlNode, "ExplosionEffect")
+            self.blastWavePrototypeName.value = safe_check_and_set(self.blastWavePrototypeName.default_value, xmlNode,
+                                                                   "BlastWavePrototype")
+            self.explosionEffectName.value = safe_check_and_set(self.explosionEffectName.default_value, xmlNode,
+                                                                "ExplosionEffect")
 
             maxHealth = read_from_xml_node(xmlNode, "MaxHealth")
             if maxHealth is not None:
-                self.maxHealth = float(maxHealth)
+                self.maxHealth.value = float(maxHealth)
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
-        self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName)
+        self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName.value)
 
 
 class Boss03PartPrototypeInfo(VehiclePartPrototypeInfo):
