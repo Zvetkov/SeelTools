@@ -2375,8 +2375,6 @@ class BossArmPrototypeInfo(VehiclePartPrototypeInfo):
         self.strLoadPoint.value = safe_check_and_set(self.strLoadPoint.default_value, xmlNode, "LoadPointForLoad")
         # m3d::AnimatedModel::GetLoadPointIdByName used to get actual 'lpIdForLoad'
 
-
-
     def get_etree_prototype(self):
         result = VehiclePartPrototypeInfo.get_etree_prototype(self)
 
@@ -2484,6 +2482,9 @@ class BossMetalArmPrototypeInfo(SimplePhysicObjPrototypeInfo):
         self.numExplodedLoadsToDie = AnnotatedValue(1, "NumExplodedLoadsToDie", group_type=GroupType.PRIMARY)
         self.loadPrototypeNames = AnnotatedValue([], "LoadPrototypes", group_type=GroupType.PRIMARY,
                                                  saving_type=SavingType.SPECIFIC)
+        # custom display load value
+        self.strLoadPoint = AnnotatedValue("", "LoadPointForLoad", group_type=GroupType.SECONDARY)
+        # end
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -2512,7 +2513,11 @@ class BossMetalArmPrototypeInfo(SimplePhysicObjPrototypeInfo):
             numExplodedLoadsToDie = read_from_xml_node(xmlNode, "NumExplodedLoadsToDie", do_not_warn=True)
             if numExplodedLoadsToDie is not None:
                 self.numExplodedLoadsToDie.value = int(numExplodedLoadsToDie)
+            self.RefreshFromXml(xmlFile, xmlNode)
             return STATUS_SUCCESS
+
+    def RefreshFromXml(self, xmlFile, xmlNode):
+        self.strLoadPoint.value = safe_check_and_set(self.strLoadPoint.default_value, xmlNode, "LoadPointForLoad")
 
     def PostLoad(self, prototype_manager):
         if self.loadPrototypeNames.value:

@@ -158,7 +158,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def setupDockWindows(self):
         self.objectViewDock = QtWidgets.QDockWidget("QuickLook")
-        self.objectViewDock.setMinimumSize(170, 200)
+        self.objectViewDock.setMinimumSize(205, 210)
         self.objectViewDock.setAllowedAreas(QtCore.Qt.LeftDockWidgetArea | QtCore.Qt.RightDockWidgetArea)
         self.prot_grid = QtWidgets.QVBoxLayout()
 
