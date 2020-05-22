@@ -2364,14 +2364,18 @@ class BossArmPrototypeInfo(VehiclePartPrototypeInfo):
 class Boss02ArmPrototypeInfo(BossArmPrototypeInfo):
     def __init__(self, server):
         BossArmPrototypeInfo.__init__(self, server)
-        self.frameToPickUpContainerForBlock = 0
-        self.frameToReleaseContainerForBlock = 0
-        self.frameToPickUpContainerForDie = 0
-        self.frameToReleaseContainerForDie = 0
-        self.actionForBlock = 0
-        self.actionForDie = 0
+        self.frameToPickUpContainerForBlock = AnnotatedValue(0, "FrameToPickUpContainerForBlock",
+                                                             group_type=GroupType.SECONDARY)
+        self.frameToReleaseContainerForBlock = AnnotatedValue(0, "FrameToReleaseContainerForBlock",
+                                                              group_type=GroupType.SECONDARY)
+        self.frameToPickUpContainerForDie = AnnotatedValue(0, "FrameToPickUpContainerForDie",
+                                                           group_type=GroupType.SECONDARY)
+        self.frameToReleaseContainerForDie = AnnotatedValue(0, "FrameToReleaseContainerForDie",
+                                                            group_type=GroupType.SECONDARY)
+        self.actionForBlock = AnnotatedValue(0, "ActionForBlock", group_type=GroupType.PRIMARY)
+        self.actionForDie = AnnotatedValue(0, "ActionForDie", group_type=GroupType.PRIMARY)
         self.blockingContainerPrototypeId = -1
-        self.blockingContainerPrototypeName = ""
+        self.blockingContainerPrototypeName = AnnotatedValue("", "ContainerPrototype", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
         result = BossArmPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -2379,35 +2383,36 @@ class Boss02ArmPrototypeInfo(BossArmPrototypeInfo):
             frameToPickUpContainerForBlock = read_from_xml_node(xmlNode, "FrameToPickUpContainerForBlock",
                                                                 do_not_warn=True)
             if frameToPickUpContainerForBlock is not None:
-                self.frameToPickUpContainerForBlock = int(frameToPickUpContainerForBlock)
+                self.frameToPickUpContainerForBlock.value = int(frameToPickUpContainerForBlock)
 
             frameToReleaseContainerForBlock = read_from_xml_node(xmlNode, "FrameToReleaseContainerForBlock",
                                                                  do_not_warn=True)
             if frameToReleaseContainerForBlock is not None:
-                self.frameToReleaseContainerForBlock = int(frameToReleaseContainerForBlock)
+                self.frameToReleaseContainerForBlock.value = int(frameToReleaseContainerForBlock)
 
             frameToPickUpContainerForDie = read_from_xml_node(xmlNode, "FrameToPickUpContainerForDie",
                                                               do_not_warn=True)
             if frameToPickUpContainerForDie is not None:
-                self.frameToPickUpContainerForDie = int(frameToPickUpContainerForDie)
+                self.frameToPickUpContainerForDie.value = int(frameToPickUpContainerForDie)
 
             frameToReleaseContainerForDie = read_from_xml_node(xmlNode, "FrameToReleaseContainerForDie",
                                                                do_not_warn=True)
             if frameToReleaseContainerForDie is not None:
-                self.frameToReleaseContainerForDie = int(frameToReleaseContainerForDie)
+                self.frameToReleaseContainerForDie.value = int(frameToReleaseContainerForDie)
 
             actionForBlock = read_from_xml_node(xmlNode, "ActionForBlock")
-            self.actionForBlock = GetActionByName(actionForBlock)
+            self.actionForBlock.value = GetActionByName(actionForBlock)
 
             actionForDie = read_from_xml_node(xmlNode, "ActionForDie")
-            self.actionForDie = GetActionByName(actionForDie)
+            self.actionForDie.value = GetActionByName(actionForDie)
 
-            self.blockingContainerPrototypeName = safe_check_and_set(self.blockingContainerPrototypeName, xmlNode,
-                                                                     "ContainerPrototype")
+            self.blockingContainerPrototypeName.value = \
+                safe_check_and_set(self.blockingContainerPrototypeName.default_value,
+                                   xmlNode, "ContainerPrototype")
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
-        self.blockingContainerPrototypeId = prototype_manager.GetPrototypeId(self.blockingContainerPrototypeName)
+        self.blockingContainerPrototypeId = prototype_manager.GetPrototypeId(self.blockingContainerPrototypeName.value)
 
 
 class BossMetalArmPrototypeInfo(SimplePhysicObjPrototypeInfo):
