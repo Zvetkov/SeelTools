@@ -2736,24 +2736,24 @@ class Boss04PrototypeInfo(ComplexPhysicObjPrototypeInfo):
 class BlastWavePrototypeInfo(SimplePhysicObjPrototypeInfo):
     def __init__(self, server):
         SimplePhysicObjPrototypeInfo.__init__(self, server)
-        self.waveForceIntensity = 0.0
-        self.waveDamageIntensity = 0.0
-        self.effectName = ""
+        self.waveForceIntensity = AnnotatedValue(0.0, "WaveForceIntensity", group_type=GroupType.PRIMARY)
+        self.waveDamageIntensity = AnnotatedValue(0.0, "WaveDamageIntensity", group_type=GroupType.PRIMARY)
+        self.effectName = AnnotatedValue("", "Effect", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             self.SetGeomType("SPHERE")
-        waveForceIntensity = read_from_xml_node(xmlNode, "WaveForceIntensity")
-        if waveForceIntensity is not None:
-            self.waveForceIntensity = float(waveForceIntensity)
+            waveForceIntensity = read_from_xml_node(xmlNode, "WaveForceIntensity")
+            if waveForceIntensity is not None:
+                self.waveForceIntensity.value = float(waveForceIntensity)
 
-        waveDamageIntensity = read_from_xml_node(xmlNode, "WaveDamageIntensity")
-        if waveDamageIntensity is not None:
-            self.waveDamageIntensity = float(waveDamageIntensity)
+            waveDamageIntensity = read_from_xml_node(xmlNode, "WaveDamageIntensity")
+            if waveDamageIntensity is not None:
+                self.waveDamageIntensity.value = float(waveDamageIntensity)
 
-        self.effectName = read_from_xml_node(xmlNode, "Effect")
-        return STATUS_SUCCESS
+            self.effectName.value = safe_check_and_set(self.effectName.default_value, xmlNode, "Effect")
+            return STATUS_SUCCESS
 
     def InternalCopyFrom(self, prot_to_copy_from):
         self.parent = prot_to_copy_from
