@@ -255,15 +255,11 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
                 else:
                     read_value = None
                 if read_value is None:
-                    self.groupHealth.value[group_health] = \
-                        {"value": 0.0,
-                         "id": model_group_health[group_health]["id"],
-                         "variants": model_group_health[group_health]["variants"]}
+                    model_group_health[group_health]["health"] = 0.0
+                    self.groupHealth.value[group_health] = model_group_health[group_health]
                 else:
-                    self.groupHealth.value[group_health] = \
-                        {"value": float(read_value),
-                         "id": model_group_health[group_health]["id"],
-                         "variants": model_group_health[group_health]["variants"]}
+                    model_group_health[group_health]["health"] = float(read_value)
+                    self.groupHealth.value[group_health] = model_group_health[group_health]
 
     def get_etree_prototype(self):
         result = PhysicBodyPrototypeInfo.get_etree_prototype(self)
@@ -273,7 +269,7 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
         def prepare_groupHealth(groupHealth):
             groupHealthElement = etree.Element(groupHealth.name)
             for prop in groupHealth.value:
-                groupHealthElement.set(prop, str(groupHealth.value[prop]))
+                groupHealthElement.set(prop, str(groupHealth.value[prop]["health"]))
             return groupHealthElement
         add_value_to_node_as_child(result, self.groupHealth, lambda x: prepare_groupHealth(x))
         return result
