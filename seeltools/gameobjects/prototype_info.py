@@ -2473,46 +2473,51 @@ class Boss02ArmPrototypeInfo(BossArmPrototypeInfo):
 class BossMetalArmPrototypeInfo(SimplePhysicObjPrototypeInfo):
     def __init__(self, server):
         SimplePhysicObjPrototypeInfo.__init__(self, server)
-        self.explosionEffectName = ""
-        self.turningSpeed = 0.5
+        self.explosionEffectName = AnnotatedValue("", "ExplosionEffect", group_type=GroupType.SECONDARY)
+        # isn't initialised here for this class in original but is loaded in LoadFromXML
+        self.frameToPickUpLoad = AnnotatedValue(0, "FrameToPickUpLoad", group_type=GroupType.SECONDARY)
+        # end
+        self.turningSpeed = AnnotatedValue(0.5, "TurningSpeed", group_type=GroupType.SECONDARY)
         self.lpIdForLoad = -1
         self.loadProrotypeIds = []
-        self.attacks = []
-        self.numExplodedLoadsToDie = 1
-        self.loadPrototypeNames = []
+        self.attacks = AnnotatedValue([], "AttackActions", group_type=GroupType.PRIMARY,
+                                      saving_type=SavingType.SPECIFIC)
+        self.numExplodedLoadsToDie = AnnotatedValue(1, "NumExplodedLoadsToDie", group_type=GroupType.PRIMARY)
+        self.loadPrototypeNames = AnnotatedValue([], "LoadPrototypes", group_type=GroupType.PRIMARY,
+                                                 saving_type=SavingType.SPECIFIC)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             self.SetGeomType("FROM_MODEL")
-            self.explosionEffectName = read_from_xml_node(xmlNode, "ExplosionEffect")
+            self.explosionEffectName.value = read_from_xml_node(xmlNode, "ExplosionEffect")
             turningSpeed = read_from_xml_node(xmlNode, "TurningSpeed", do_not_warn=True)
             if turningSpeed is not None:
-                self.turningSpeed = float(turningSpeed)
+                self.turningSpeed.value = float(turningSpeed)
 
             frameToPickUpLoad = read_from_xml_node(xmlNode, "FrameToPickUpLoad", do_not_warn=True)
             if frameToPickUpLoad is not None:
-                self.frameToPickUpLoad = float(frameToPickUpLoad)
+                self.frameToPickUpLoad.value = float(frameToPickUpLoad)
 
             attack_actions = child_from_xml_node(xmlNode, "AttackActions")
             check_mono_xml_node(attack_actions, "Attack")
             for attack_node in attack_actions.iterchildren(tag="Attack"):
                 action = self.AttackActionInfo()
                 action.LoadFromXML(attack_node)
-                self.attacks.append(action)
+                self.attacks.value.append(action)
 
             loadPrototypeNames = read_from_xml_node(xmlNode, "LoadPrototypes", do_not_warn=True)
             if loadPrototypeNames is not None:
-                self.loadPrototypeNames = loadPrototypeNames.split()
+                self.loadPrototypeNames.value = loadPrototypeNames.split()
 
             numExplodedLoadsToDie = read_from_xml_node(xmlNode, "NumExplodedLoadsToDie", do_not_warn=True)
             if numExplodedLoadsToDie is not None:
-                self.numExplodedLoadsToDie = int(numExplodedLoadsToDie)
+                self.numExplodedLoadsToDie.value = int(numExplodedLoadsToDie)
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
-        if self.loadPrototypeNames:
-            for prot_name in self.loadPrototypeNames:
+        if self.loadPrototypeNames.value:
+            for prot_name in self.loadPrototypeNames.value:
                 prot_id = prototype_manager.GetPrototypeId(prot_name)
                 if prot_id == -1:
                     logger.error("Invalid loadPrototypes/IDs for BossMetalArm prototype")
