@@ -150,6 +150,12 @@ class PhysicBodyPrototypeInfo(PrototypeInfo):
                 logger.error(f"Mass is too low for prototype {self.prototypeName.value}")
             return STATUS_SUCCESS
 
+    def RefreshFromXml(self, xmlFile, xmlNode):
+        # originaly DataServer.GetItemByName
+        # self.engineModelId = self.server.theAnimatedModelsServer.GetItemByName(self.engineModelName.value)
+        # GetCollisionInfoByServerHandle(self.engineModelId, self.collisionInfos, self.collisionTrimeshAllowed)
+        pass
+
 
 # class SimplePhysicBodyPrototypeInfo(PhysicBodyPrototypeInfo):
 #     def __init__(self, server):
@@ -172,7 +178,8 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
         self.inds = []
         self.numsTris = []
         self.vertsStride = []
-        self.groupHealth = AnnotatedValue([], "RepairCoef", group_type=GroupType.SECONDARY)
+        self.groupHealth = AnnotatedValue({}, "GroupsHealth", group_type=GroupType.SECONDARY,
+                                          saving_type=SavingType.SPECIFIC)
         self.durabilityCoeffsForDamageTypes = AnnotatedValue([0.0, 0.0, 0.0], "DurCoeffsForDamageTypes",
                                                              group_type=GroupType.SECONDARY,
                                                              saving_type=SavingType.SPECIFIC)
@@ -180,7 +187,7 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PhysicBodyPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.blowEffectName.value = safe_check_and_set(self.blowEffectName.value, xmlNode, "BlowEffect")
+            self.blowEffectName.value = safe_check_and_set(self.blowEffectName.default_value, xmlNode, "BlowEffect")
             durability = read_from_xml_node(xmlNode, "Durability", do_not_warn=True)
             if durability is not None:
                 self.durability.value = float(durability)
@@ -203,19 +210,51 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
             if repairCoef is not None:
                 self.repairCoef.value = float(repairCoef)
 
-            self.canBeUsedInAutogenerating.value = parse_str_to_bool(self.canBeUsedInAutogenerating.value,
+            self.canBeUsedInAutogenerating.value = parse_str_to_bool(self.canBeUsedInAutogenerating.default_value,
                                                                      read_from_xml_node(xmlNode,
                                                                                         "CanBeUsedInAutogenerating",
                                                                                         do_not_warn=True))
-            self.load_from_xml_custom(xmlFile, xmlNode)
+            # custom logic
+            self.RefreshFromXml(xmlFile, xmlNode)
             return STATUS_SUCCESS
 
-    def load_from_xml_custom(self, xmlFile, xmlNode):
+    def RefreshFromXml(self, xmlFile, xmlNode):
         # custom logic
         # original called from VehiclePartPrototypeInfo::_InitModelMeshes
-        # using VehiclePartPrototypeInfo::RefreshFromXml
-        # model_group_health = parse_model_group_health(self.engineModelName.value)
-        pass # ToDo
+        group_health_node = child_from_xml_node(xmlNode, "GroupsHealth", do_not_warn=True)
+        PhysicBodyPrototypeInfo.RefreshFromXml(self, xmlFile, xmlNode)
+        if self.className.value in ["Cabin", "Basket", "Chass"]:
+            model_path = self.theServer.theAnimatedModelsServer.GetItemByName(self.engineModelName.value).file_name
+            model_group_health = parse_model_group_health(model_path)
+            if model_group_health is not None and group_health_node is not None:
+                for group_health in model_group_health:
+                    read_value = read_from_xml_node(group_health_node, group_health, do_not_warn=True)
+                    if read_value is None:
+                        logger.debug(f"Prototype {self.prototypeName.value} doesn't contain GroupHealth zone "
+                                     f"{group_health} specified in model! Will add unused properties!")
+                        self.groupHealth.value[group_health] = 0.0
+                    else:
+                        self.groupHealth.value[group_health] = float(read_value)
+            elif model_group_health is None:
+                logger.debug(f"Prototype {self.prototypeName.value} contains GroupsHealth properties, "
+                             "but model file doesn't support them! Will ignore unused properties.")
+            elif group_health_node is None:
+                for group_health in model_group_health:
+                    self.groupHealth.value[group_health] = 0.0
+                logger.debug(f"Prototype {self.prototypeName.value} doesn't contains GroupsHealth properties, "
+                             "but model file specifies them! Will add unused properties")
+        elif group_health_node is not None:
+            model_path = self.theServer.theAnimatedModelsServer.GetItemByName(self.engineModelName.value).file_name
+            model_group_health = parse_model_group_health(model_path)
+            if model_group_health is not None and group_health_node is not None:
+                for group_health in model_group_health:
+                    read_value = read_from_xml_node(group_health_node, group_health, do_not_warn=True)
+                    if read_value is None:
+                        logger.debug(f"Prototype {self.prototypeName.value} doesn't contain GroupHealth zone "
+                                     f"{group_health} specified in model! Will add unused properties!")
+                        self.groupHealth.value[group_health] = 0.0
+                    else:
+                        self.groupHealth.value[group_health] = float(read_value)
 
     def get_etree_prototype(self):
         result = PhysicBodyPrototypeInfo.get_etree_prototype(self)
