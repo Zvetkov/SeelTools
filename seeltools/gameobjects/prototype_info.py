@@ -2769,40 +2769,44 @@ class Boss03PrototypeInfo(ComplexPhysicObjPrototypeInfo):
 class Boss04PrototypeInfo(ComplexPhysicObjPrototypeInfo):
     def __init__(self, server):
         ComplexPhysicObjPrototypeInfo.__init__(self, server)
+        self.stationPrototypeName = AnnotatedValue("", "StationPrototype", group_type=GroupType.PRIMARY)
+        self.dronePrototypeName = AnnotatedValue("", "DronePrototype", group_type=GroupType.PRIMARY)
+        defaultTime = {"x": 10.0, "y": 20.0}
+        self.timeBetweenDrones = AnnotatedValue(defaultTime, "TimeBetweenDrones", group_type=GroupType.PRIMARY,
+                                                saving_type=SavingType.SPECIFIC)
         self.stationPrototypeId = -1
         self.dronePrototypeId = -1
-        self.timeBetweenDrones = {"x": 10.0, "y": 20.0}
-        self.maxDrones = 0
-        self.stationToPartBindings = []
+        self.maxDrones = AnnotatedValue(0, "MaxDrones", group_type=GroupType.PRIMARY)
+        self.stationToPartBindings = AnnotatedValue([], "StationToPartBindings", group_type=GroupType.SECONDARY,
+                                                    saving_type=SavingType.SPECIFIC)
         self.droneSpawningLpIds = []
-        self.stationPrototypeName = ""
-        self.dronePrototypeName = ""
-        self.droneSpawningLpNames = []
+        self.droneSpawningLpNames = AnnotatedValue([], "DroneSpawningLps", group_type=GroupType.SECONDARY,
+                                                   saving_type=SavingType.SPECIFIC)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = ComplexPhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.stationPrototypeName = read_from_xml_node(xmlNode, "StationPrototype")
-            self.dronePrototypeName = read_from_xml_node(xmlNode, "DronePrototype")
-            self.timeBetweenDrones = read_from_xml_node(xmlNode, "TimeBetweenDrones").split()
+            self.stationPrototypeName.value = read_from_xml_node(xmlNode, "StationPrototype")
+            self.dronePrototypeName.value = read_from_xml_node(xmlNode, "DronePrototype")
+            self.timeBetweenDrones.value = parse_str_to_vector(read_from_xml_node(xmlNode, "TimeBetweenDrones"), size=2)
             maxDrones = read_from_xml_node(xmlNode, "MaxDrones")
             if maxDrones is not None:
                 maxDrones = int(maxDrones)
                 if maxDrones > 0:
-                    self.maxDrones = maxDrones
-            self.droneSpawningLpNames = read_from_xml_node(xmlNode, "DroneSpawningLps").split()
+                    self.maxDrones.value = maxDrones
+            self.droneSpawningLpNames.value = read_from_xml_node(xmlNode, "DroneSpawningLps").split()
             stationToPartBindings = child_from_xml_node(xmlNode, "StationToPartBindings")
             check_mono_xml_node(stationToPartBindings, "Station")
             for station_node in stationToPartBindings.iterchildren(tag="Station"):
                 station = {"id": read_from_xml_node(station_node, "id"),
                            "parts": read_from_xml_node(station_node, "Parts").split()}
-                self.stationToPartBindings.append(station)
+                self.stationToPartBindings.value.append(station)
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
         ComplexPhysicObjPrototypeInfo.PostLoad(self, prototype_manager)
-        self.stationPrototypeId = prototype_manager.GetPrototypeId(self.stationPrototypeName)
-        self.dronePrototypeId = prototype_manager.GetPrototypeId(self.dronePrototypeName)
+        self.stationPrototypeId = prototype_manager.GetPrototypeId(self.stationPrototypeName.value)
+        self.dronePrototypeId = prototype_manager.GetPrototypeId(self.dronePrototypeName.value)
 
 
 class BlastWavePrototypeInfo(SimplePhysicObjPrototypeInfo):

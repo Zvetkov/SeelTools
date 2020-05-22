@@ -158,22 +158,31 @@ def parse_str_to_bool(original_value, string: str, is_striped=False):
             return False
 
 
-def parse_str_to_vector(string: str):
+def parse_str_to_vector(string: str, size: int = 3):
     '''Given string will try to parse dict of float x, y, z values'''
     if string is not None:
         split_str = string.split()
     else:
         split_str = []
     # default in case string is not valid
-    dictionary = {"x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0}
-    if len(split_str) == 3:
+    if size == 3:
+        dictionary = {"x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0}
+    elif size == 2:
+        dictionary = {"x": 0.0,
+                      "y": 0.0}
+    else:
+        logger.warn(f"Unsupported vector of size {size} asked! 2 and 3 size supported.")
+    if len(split_str) == 3 and size == 3:
         dictionary = {"x": float(split_str[0]),
                       "y": float(split_str[1]),
                       "z": float(split_str[2])}
+    elif len(split_str) == 2 and size == 2:
+        dictionary = {"x": float(split_str[0]),
+                      "y": float(split_str[1])}
     elif split_str:
-        logger.warn(f"Expected 3 vector attributes: {string} were given")
+        logger.warn(f"Expected {size} vector attributes: {string} were given")
 
     return dictionary
 
