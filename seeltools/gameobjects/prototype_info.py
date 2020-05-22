@@ -24,6 +24,7 @@ from seeltools.gameobjects.object_classes import *
 def vector_to_string(value):
     return f'{value["x"]} {value["y"]} {value["z"]}'
 
+
 def vector_long_to_string(value):
     return f'{value["x"]} {value["y"]} {value["z"]} {value["w"]}'
 
@@ -961,7 +962,7 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
         self.engineModelName = AnnotatedValue("", "ModelFile", group_type=GroupType.VISUAL)
         self.size = AnnotatedValue(deepcopy(ZERO_VECTOR), "Size", group_type=GroupType.INTERNAL,
                                    saving_type=SavingType.SPECIFIC, read_only=True)
-        self.radius = AnnotatedValue(1.0, "IntersectionRadius", group_type=GroupType.INTERNAL, read_only=True)
+        self.radius = AnnotatedValue(1.0, "Radius", group_type=GroupType.INTERNAL, read_only=True)
         self.massValue = AnnotatedValue(1.0, "Mass", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
@@ -976,13 +977,8 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
                                                                    read_from_xml_node(xmlNode,
                                                                                       "CollisionTrimeshAllowed",
                                                                                       do_not_warn=True))
-            # custom implementation. Originally called from RefreshFromXml
-            size = read_from_xml_node(xmlNode, "Size", do_not_warn=True)
-            if size is not None:
-                size_array = size.split()
-                self.size.value["x"] = size_array[0]
-                self.size.value["y"] = size_array[1]
-                self.size.value["z"] = size_array[2]
+            # custom implementation. Originally called from PrototypeManager -> RefreshFromXml
+            self.RefreshFromXml(xmlFile, xmlNode)
             # custom implementation ends
             return STATUS_SUCCESS
 
@@ -1008,6 +1004,19 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
         result = PhysicObjPrototypeInfo.get_etree_prototype(self)
         add_value_to_node(result, self.size, lambda x: vector_to_string(x.value))
         return result
+
+    def RefreshFromXml(self, xmlFile, xmlNode):
+        # anim_model_server = self.theServer.theAnimatedModelsServer
+        # model_obj = anim_model_server.GetItemByName(self.engineModelName.value)
+        # GetCollisionInfoByServerHandle(model_obj, self.collisionInfos, self.collisionTrimeshAllowed)
+        # speed = parse_str_to_vector(read_from_xml_node(xmlNode, "Size", do_not_warn=True))
+        # sizeFromDataServer = anim_model_server.GetBoundsSizes(self.engineModelName.value)
+        # self.radius.value = sizeFromDataServer.y * 0.5
+        size = read_from_xml_node(xmlNode, "Size", do_not_warn=True)
+        if size is not None:
+            self.size.value = parse_str_to_vector(size)
+        self.radius.value = safe_check_and_set(self.radius.default_value, xmlNode, "Radius", "float")
+        # self.SetGeomType(self.geom_type)
 
 
 class ChestPrototypeInfo(SimplePhysicObjPrototypeInfo):
