@@ -24,6 +24,9 @@ from seeltools.gameobjects.object_classes import *
 def vector_to_string(value):
     return f'{value["x"]} {value["y"]} {value["z"]}'
 
+def vector_long_to_string(value):
+    return f'{value["x"]} {value["y"]} {value["z"]} {value["w"]}'
+
 
 def add_value_to_node(node, annotatedValue, func=lambda x: str(x.value)):
     if not value_equel_default(annotatedValue.value, annotatedValue.default_value):
@@ -1468,10 +1471,11 @@ class TeamTacticWithRolesPrototypeInfo(PrototypeInfo):
 
     def get_etree_prototype(self):
         result = PrototypeInfo.get_etree_prototype(self)
-        for role in self.rolePrototypeNames.value:
-            roleElement = etree.Element("Role")
-            roleElement.set("Prototype", str(role))
-            result.append(roleElement)
+        if self.rolePrototypeNames.value != self.rolePrototypeNames.default_value:
+            for role in self.rolePrototypeNames.value:
+                roleElement = etree.Element("Role")
+                roleElement.set("Prototype", str(role))
+                result.append(roleElement)
         return result
 
 
@@ -2039,10 +2043,10 @@ class TownPrototypeInfo(SettlementPrototypeInfo):
 
     def get_etree_prototype(self):
         result = SettlementPrototypeInfo.get_etree_prototype(self)
-        for articleItem in self.articles.value:
-            result.append(Article.get_etree_prototype(articleItem))
+        if self.articles.value != self.articles.value:
+            for articleItem in self.articles.value:
+                result.append(Article.get_etree_prototype(articleItem))
         return result
-
 
     class RandomCoeffWithDispersion(object):
         def __init__(self):
@@ -3321,7 +3325,7 @@ class RopeObjPrototypeInfo(SimplePhysicObjPrototypeInfo):
 class ObjPrefabPrototypeInfo(SimplePhysicObjPrototypeInfo):
     def __init__(self, server):
         SimplePhysicObjPrototypeInfo.__init__(self, server)
-        self.objInfos = []
+        self.objInfos = AnnotatedValue([], "ObjInfos", group_type=GroupType.SECONDARY, saving_type=SavingType.SPECIFIC)
         self.isUpdating = AnnotatedValue(False, "IsUpdating", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
@@ -3345,15 +3349,26 @@ class ObjPrefabPrototypeInfo(SimplePhysicObjPrototypeInfo):
                             obj_info.scale = float(scale)
                     else:
                         logger.error(f"Invalid object info in {SimplePhysicObjPrototypeInfo.prototypeName.value}")
-                    self.objInfos.append(obj_info)
+                    self.objInfos.value.append(obj_info)
             else:
                 logger.error(f"Missing ObjectsInfo in {SimplePhysicObjPrototypeInfo.prototypeName.value}")
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
-        if self.objInfos:
-            for objInfo in self.objInfos:
+        if self.objInfos.value:
+            for objInfo in self.objInfos.value:
                 objInfo.prototypeId = prototype_manager.GetPrototypeId(objInfo.prototypeName)
+
+    def get_etree_prototype(self):
+        result = SimplePhysicObjPrototypeInfo.get_etree_prototype(self)
+
+        def prepare_objInfosElement(objInfos):
+            objInfosElement = etree.Element(objInfos.name)
+            for objInfoItem in objInfos.value:
+                objInfosElement.append(self.ObjInfo.get_etree_prototype(objInfoItem))
+            return objInfosElement
+        add_value_to_node_as_child(result, self.objInfos, lambda x: prepare_objInfosElement(x))
+        return result
 
     class ObjInfo(object):
         def __init__(self):
@@ -3368,11 +3383,20 @@ class ObjPrefabPrototypeInfo(SimplePhysicObjPrototypeInfo):
             self.prototypeId = prototype_manager.GetPrototypeId(self.prototypeName)
             logger.warning("This is not a fucking useless function after all!")
 
+        def get_etree_prototype(self):
+            objInfo_node = etree.Element("ObjInfo")
+            objInfo_node.set("Prototype", str(self.prototypeName))
+            objInfo_node.set("RelPos", vector_to_string(self.relPos))
+            objInfo_node.set("RelRot", vector_long_to_string(self.relRot))
+            objInfo_node.set("ModelName", str(self.modelName))
+            objInfo_node.set("Scale", str(self.scale))
+            return objInfo_node
+
 
 class BarricadePrototypeInfo(ObjPrefabPrototypeInfo):
     def __init__(self, server):
         ObjPrefabPrototypeInfo.__init__(self, server)
-        self.objInfos = []
+        self.objInfos = AnnotatedValue([], "ObjInfos", group_type=GroupType.SECONDARY, saving_type=SavingType.SPECIFIC)
         self.probability = 1.0
 
     def LoadFromXML(self, xmlFile, xmlNode):
@@ -3420,8 +3444,9 @@ class RepositoryObjectsGeneratorPrototypeInfo(PrototypeInfo):
 
     def get_etree_prototype(self):
         result = PrototypeInfo.get_etree_prototype(self)
-        for objectItem in self.objectDescriptions.value:
-            result.append(self.ObjectDescription.get_etree_prototype(objectItem))
+        if self.objectDescriptions.value != self.objectDescriptions.default_value:
+            for objectItem in self.objectDescriptions.value:
+                result.append(self.ObjectDescription.get_etree_prototype(objectItem))
         return result
 
     class ObjectDescription(object):
