@@ -2856,7 +2856,8 @@ class BulletLauncherPrototypeInfo(GunPrototypeInfo):
 class CompoundVehiclePartPrototypeInfo(VehiclePartPrototypeInfo):
     def __init__(self, server):
         VehiclePartPrototypeInfo.__init__(self, server)
-        self.partInfo = {}
+        self.partInfo = AnnotatedValue({}, "PartInfo", group_type=GroupType.PRIMARY,
+                                       saving_type=SavingType.SPECIFIC)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -2870,12 +2871,22 @@ class CompoundVehiclePartPrototypeInfo(VehiclePartPrototypeInfo):
                     part_id = safe_check_and_set(new_part.prototypeId, part_node, "id")
                     new_part.prototypeName = safe_check_and_set(new_part.prototypeName, part_node, "Prototype")
                     new_part.index = i
-                    self.partInfo[part_id] = new_part
+                    self.partInfo.value[part_id] = new_part
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
-        for tpart in self.partInfo.values():
+        for tpart in self.partInfo.value.values():
             tpart.prototypeId = prototype_manager.GetPrototypeId(tpart.prototypeName)
+
+    def get_etree_prototype(self):
+        result = VehiclePartPrototypeInfo.get_etree_prototype(self)
+        if self.partInfo.value != self.partInfo.default_value:
+            for key in self.partInfo.value:
+                partElement = etree.Element("Part")
+                partElement.set("id", key)
+                partElement.set("Prototype", self.partInfo.value[key].prototypeName)
+                result.append(partElement)
+        return result
 
     class TPartInfo(object):
         def __init__(self):
