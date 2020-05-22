@@ -3378,39 +3378,44 @@ class QuestItemPrototypeInfo(PrototypeInfo):
 class BreakableObjectPrototypeInfo(SimplePhysicObjPrototypeInfo):
     def __init__(self, server):
         SimplePhysicObjPrototypeInfo.__init__(self, server)
-        self.destroyable = 0
-        self.effectType = "WOOD"
-        self.destroyEffectType = "BLOW"
-        self.brokenModelName = "brokenTest"
-        self.destroyedModelName = "brokenTest"
-        self.breakEffect = ""
+        self.destroyable = AnnotatedValue(0, "Destroyable", group_type=GroupType.SECONDARY)
+        self.criticalHitEnergy = AnnotatedValue(None, "CriticalHitEnergy", group_type=GroupType.SECONDARY)
+        self.effectType = AnnotatedValue("WOOD", "EffectType", group_type=GroupType.SECONDARY)
+        self.destroyEffectType = AnnotatedValue("BLOW", "DestroyEffectType", group_type=GroupType.SECONDARY)
+        self.brokenModelName = AnnotatedValue("brokenTest", "BrokenModel", group_type=GroupType.SECONDARY)
+        self.destroyedModelName = AnnotatedValue("brokenTest", "DestroyedModel", group_type=GroupType.SECONDARY)
+        self.breakEffect = AnnotatedValue("", "BreakEffect", group_type=GroupType.SECONDARY)
         self.blastWavePrototypeId = -1
-        self.blastWavePrototypeName = ""
+        self.blastWavePrototypeName = AnnotatedValue("", "BlastWave", group_type=GroupType.SECONDARY)
         self.isUpdating = AnnotatedValue(False, "IsUpdating", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             self.SetGeomType("BOX")
-            destroyable = read_from_xml_node(xmlNode, "Destroyable")
+            destroyable = read_from_xml_node(xmlNode, self.destroyable.name)
             if destroyable is not None:
-                self.destroyable = int(destroyable)
+                self.destroyable.value = int(destroyable)
 
-            criticalHitEnergy = read_from_xml_node(xmlNode, "CriticalHitEnergy")
+            criticalHitEnergy = read_from_xml_node(xmlNode, self.criticalHitEnergy.name)
             if criticalHitEnergy is not None:
-                self.criticalHitEnergy = float(criticalHitEnergy)
+                self.criticalHitEnergy.value = float(criticalHitEnergy)
 
-            self.effectType = safe_check_and_set(self.effectType, xmlNode, "EffectType")
-            self.destroyEffectType = safe_check_and_set(self.destroyEffectType, xmlNode, "DestroyEffectType")
-            self.brokenModelName = safe_check_and_set(self.brokenModelName, xmlNode, "BrokenModel")
-            self.destroyedModelName = safe_check_and_set(self.destroyedModelName, xmlNode, "DestroyedModel")
-            self.breakEffect = safe_check_and_set(self.breakEffect, xmlNode, "BreakEffect")
-            self.blastWavePrototypeName = safe_check_and_set(self.blastWavePrototypeName, xmlNode, "BlastWave")
+            self.effectType.value = safe_check_and_set(self.effectType.default_value, xmlNode, self.effectType.name)
+            self.destroyEffectType.value = safe_check_and_set(self.destroyEffectType.default_value, xmlNode,
+                                                              self.destroyEffectType.name)
+            self.brokenModelName.value = safe_check_and_set(self.brokenModelName.default_value, xmlNode,
+                                                            self.brokenModelName.name)
+            self.destroyedModelName.value = safe_check_and_set(self.destroyedModelName.default_value, xmlNode,
+                                                               self.destroyedModelName.name)
+            self.breakEffect.value = safe_check_and_set(self.breakEffect.default_value, xmlNode, self.breakEffect.name)
+            self.blastWavePrototypeName.value = safe_check_and_set(self.blastWavePrototypeName.default_value, xmlNode,
+                                                                   self.blastWavePrototypeName.name)
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
-        if self.blastWavePrototypeName:
-            self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName)
+        if self.blastWavePrototypeName.value:
+            self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName.value)
 
 
 class ParticleSplinterPrototypeInfo(DummyObjectPrototypeInfo):
