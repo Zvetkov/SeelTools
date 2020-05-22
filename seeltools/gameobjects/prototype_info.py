@@ -2703,76 +2703,82 @@ class AnimatedComplexPhysicObjPrototypeInfo(ComplexPhysicObjPrototypeInfo):
 class Boss03PrototypeInfo(ComplexPhysicObjPrototypeInfo):
     def __init__(self, server):
         AnimatedComplexPhysicObjPrototypeInfo.__init__(self, server)
+        self.dronePrototypeNames = AnnotatedValue([], "DronePrototypes", group_type=GroupType.PRIMARY,
+                                                  saving_type=SavingType.SPECIFIC)
         self.dronePrototypeIds = []
-        self.maxDrones = 1
+        self.maxDrones = AnnotatedValue(1, "MaxDrones", group_type=GroupType.PRIMARY)
+        self.maxHealth = AnnotatedValue(1.0, "MaxHealth", group_type=GroupType.PRIMARY)
         self.droneRelPosition = deepcopy(ZERO_VECTOR)
         self.droneRelRotation = deepcopy(IDENTITY_QUATERNION)
-        self.maxHorizAngularVelocity = 0.0
-        self.horizAngularAcceleration = 0.0
-        self.maxVertAngularVelocity = 0.0
-        self.vertAngularAcceleration = 0.0
-        self.maxLinearVelocity = 0.0
-        self.linearAcceleration = 0.0
-        self.pathTrackTiltAngle = 0.0
-        self.maxHealth = 1.0
-        self.maxShootingTime = 1.0
-        self.defaultHover = 10.0
-        self.hoverForPlacingDrones = 10.0
-        self.dronePrototypeNames = []
+        self.maxHorizAngularVelocity = AnnotatedValue(0.0, "MaxHorizAngularVelocity", group_type=GroupType.SECONDARY)
+        self.horizAngularAcceleration = AnnotatedValue(0.0, "HorizAngularAcceleration", group_type=GroupType.SECONDARY)
+        self.maxVertAngularVelocity = AnnotatedValue(0.0, "MaxVertAngularVelocity", group_type=GroupType.SECONDARY)
+        self.vertAngularAcceleration = AnnotatedValue(0.0, "VertAngularAcceleration", group_type=GroupType.SECONDARY)
+        self.maxLinearVelocity = AnnotatedValue(0.0, "MaxLinearVelocity", group_type=GroupType.SECONDARY)
+        self.linearAcceleration = AnnotatedValue(0.0, "LinearAcceleration", group_type=GroupType.SECONDARY)
+        self.pathTrackTiltAngle = AnnotatedValue(0.0, "PathTrackTiltAngle", group_type=GroupType.SECONDARY,
+                                                 saving_type=SavingType.SPECIFIC)
+        self.maxShootingTime = AnnotatedValue(1.0, "MaxShootingTime", group_type=GroupType.PRIMARY)
+        self.defaultHover = AnnotatedValue(10.0, "DefaultHover", group_type=GroupType.SECONDARY)
+        self.hoverForPlacingDrones = AnnotatedValue(10.0, "HoverForPlacingDrones", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = ComplexPhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.dronePrototypeNames = read_from_xml_node(xmlNode, "DronePrototypes").split()
+            self.dronePrototypeNames.value = read_from_xml_node(xmlNode, "DronePrototypes").split()
             maxDrones = read_from_xml_node(xmlNode, "MaxDrones")
             if maxDrones is not None:
-                self.maxDrones = int(maxDrones)
+                self.maxDrones.value = int(maxDrones)
 
             maxHealth = read_from_xml_node(xmlNode, "MaxHealth")
             if maxHealth is not None:
-                self.maxHealth = float(maxHealth)
+                self.maxHealth.value = float(maxHealth)
 
             maxHorizAngularVelocity = read_from_xml_node(xmlNode, "MaxHorizAngularVelocity")
             if maxHorizAngularVelocity is not None:
-                self.maxHorizAngularVelocity = float(maxHorizAngularVelocity)
+                self.maxHorizAngularVelocity.value = float(maxHorizAngularVelocity)
 
             horizAngularAcceleration = read_from_xml_node(xmlNode, "HorizAngularAcceleration")
             if horizAngularAcceleration is not None:
-                self.horizAngularAcceleration = float(horizAngularAcceleration)
+                self.horizAngularAcceleration.value = float(horizAngularAcceleration)
+
+            maxVertAngularVelocity = read_from_xml_node(xmlNode, "MaxVertAngularVelocity")
+            if maxVertAngularVelocity is not None:
+                self.maxVertAngularVelocity.value = float(maxVertAngularVelocity)
 
             vertAngularAcceleration = read_from_xml_node(xmlNode, "VertAngularAcceleration")
             if vertAngularAcceleration is not None:
-                self.vertAngularAcceleration = float(vertAngularAcceleration)
+                self.vertAngularAcceleration.value = float(vertAngularAcceleration)
 
             maxLinearVelocity = read_from_xml_node(xmlNode, "MaxLinearVelocity")
             if maxLinearVelocity is not None:
-                self.maxLinearVelocity = float(maxLinearVelocity)
+                self.maxLinearVelocity.value = float(maxLinearVelocity)
 
             linearAcceleration = read_from_xml_node(xmlNode, "LinearAcceleration")
             if linearAcceleration is not None:
-                self.linearAcceleration = float(linearAcceleration)
+                self.linearAcceleration.value = float(linearAcceleration)
 
             pathTrackTiltAngle = read_from_xml_node(xmlNode, "PathTrackTiltAngle")
             if pathTrackTiltAngle is not None:
-                self.pathTrackTiltAngle = float(pathTrackTiltAngle) * pi / 180  # 0.017453292
+                self.pathTrackTiltAngle.value = float(pathTrackTiltAngle) * pi / 180  # 0.017453292
 
             maxShootingTime = read_from_xml_node(xmlNode, "MaxShootingTime")
             if maxShootingTime is not None:
-                self.maxShootingTime = float(maxShootingTime)
+                self.maxShootingTime.value = float(maxShootingTime)
 
             defaultHover = read_from_xml_node(xmlNode, "DefaultHover")
             if defaultHover is not None:
-                self.defaultHover = float(defaultHover)
+                self.defaultHover.value = float(defaultHover)
 
             hoverForPlacingDrones = read_from_xml_node(xmlNode, "HoverForPlacingDrones")
             if hoverForPlacingDrones is not None:
-                self.hoverForPlacingDrones = float(hoverForPlacingDrones)
+                self.hoverForPlacingDrones.value = float(hoverForPlacingDrones)
 
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
         ComplexPhysicObjPrototypeInfo.PostLoad(self, prototype_manager)
-        for prot_name in self.dronePrototypeNames:
+        for prot_name in self.dronePrototypeNames.value:
             dronePrototypeId = prototype_manager.GetPrototypeId(prot_name)
             if dronePrototypeId == -1:
                 logger.error("Invalid drone prototype/prototype ID for Boss03")
