@@ -2156,14 +2156,14 @@ class CinematicMoverPrototypeInfo(PrototypeInfo):
 class DynamicQuestPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.minReward = 0
+        self.minReward = AnnotatedValue(0, "MinReward", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             minReward = read_from_xml_node(xmlNode, "MinReward")
             if minReward is not None:
-                self.minReward = int(minReward)
+                self.minReward.value = int(minReward)
             return STATUS_SUCCESS
 
 
