@@ -122,13 +122,13 @@ class PrototypeManager(object):
         for prototype_class in self.prototypeClasses:
             folder = etree.Element("Folder")
             folder.set("Name", prototype_class)
-            folder.set("Path", 'new_%s.xml' % prototype_class)
+            folder.set("File", f'new_{prototype_class.lower()}.xml')
             prototypesTree.append(folder)
 
         save_to_file(prototypesTree, fullPath)
 
     def generateSpecificPrototypesFile(self, className, pathToFolder):
-        filename = 'new_%s.xml' % className
+        filename = f'new_{className.lower()}.xml'
         fullPath = path.join(pathToFolder, filename)
 
         prototypesTree = etree.Element("Prototypes")

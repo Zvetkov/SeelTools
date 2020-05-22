@@ -460,7 +460,7 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
         self.reChargingTimePerShell = AnnotatedValue(0.0, "ReChargingTimePerShell", group_type=GroupType.PRIMARY)
         self.shellsPoolSize = AnnotatedValue(12, "ShellsPoolSize", group_type=GroupType.PRIMARY)
         self.blastWavePrototypeId = -1
-        self.firingType = AnnotatedValue(0, "FiringType", group_type=GroupType.PRIMARY,
+        self.firingType = AnnotatedValue(-1, "FiringType", group_type=GroupType.PRIMARY,  # default changed
                                          saving_type=SavingType.SPECIFIC)
         self.fireLpMatrices = []
         self.explosionTypeName = AnnotatedValue("BIG", "ExplosionType", group_type=GroupType.PRIMARY)
@@ -2213,7 +2213,7 @@ class CinematicMoverPrototypeInfo(PrototypeInfo):
 class DynamicQuestPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.minReward = AnnotatedValue(0, "MinReward", group_type=GroupType.PRIMARY)
+        self.minReward = AnnotatedValue(-1, "MinReward", group_type=GroupType.PRIMARY)  # default changed
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -2750,35 +2750,43 @@ class Boss03PrototypeInfo(ComplexPhysicObjPrototypeInfo):
         result = ComplexPhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             self.dronePrototypeNames.value = read_from_xml_node(xmlNode, "DronePrototypes").split()
-            maxDrones = read_from_xml_node(xmlNode, "MaxDrones")
+            # experimental do_not_warn
+            maxDrones = read_from_xml_node(xmlNode, "MaxDrones", do_not_warn=True)
             if maxDrones is not None:
                 self.maxDrones.value = int(maxDrones)
 
-            maxHealth = read_from_xml_node(xmlNode, "MaxHealth")
+            # experimental do_not_warn
+            maxHealth = read_from_xml_node(xmlNode, "MaxHealth", do_not_warn=True)
             if maxHealth is not None:
                 self.maxHealth.value = float(maxHealth)
 
-            maxHorizAngularVelocity = read_from_xml_node(xmlNode, "MaxHorizAngularVelocity")
+            # experimental do_not_warn
+            maxHorizAngularVelocity = read_from_xml_node(xmlNode, "MaxHorizAngularVelocity", do_not_warn=True)
             if maxHorizAngularVelocity is not None:
                 self.maxHorizAngularVelocity.value = float(maxHorizAngularVelocity)
 
-            horizAngularAcceleration = read_from_xml_node(xmlNode, "HorizAngularAcceleration")
+            # experimental do_not_warn
+            horizAngularAcceleration = read_from_xml_node(xmlNode, "HorizAngularAcceleration", do_not_warn=True)
             if horizAngularAcceleration is not None:
                 self.horizAngularAcceleration.value = float(horizAngularAcceleration)
 
-            maxVertAngularVelocity = read_from_xml_node(xmlNode, "MaxVertAngularVelocity")
+            # experimental do_not_warn
+            maxVertAngularVelocity = read_from_xml_node(xmlNode, "MaxVertAngularVelocity", do_not_warn=True)
             if maxVertAngularVelocity is not None:
                 self.maxVertAngularVelocity.value = float(maxVertAngularVelocity)
 
-            vertAngularAcceleration = read_from_xml_node(xmlNode, "VertAngularAcceleration")
+            # experimental do_not_warn
+            vertAngularAcceleration = read_from_xml_node(xmlNode, "VertAngularAcceleration", do_not_warn=True)
             if vertAngularAcceleration is not None:
                 self.vertAngularAcceleration.value = float(vertAngularAcceleration)
 
-            maxLinearVelocity = read_from_xml_node(xmlNode, "MaxLinearVelocity")
+            # experimental do_not_warn
+            maxLinearVelocity = read_from_xml_node(xmlNode, "MaxLinearVelocity", do_not_warn=True)
             if maxLinearVelocity is not None:
                 self.maxLinearVelocity.value = float(maxLinearVelocity)
 
-            linearAcceleration = read_from_xml_node(xmlNode, "LinearAcceleration")
+            # experimental do_not_warn
+            linearAcceleration = read_from_xml_node(xmlNode, "LinearAcceleration", do_not_warn=True)
             if linearAcceleration is not None:
                 self.linearAcceleration.value = float(linearAcceleration)
 
@@ -3460,7 +3468,7 @@ class QuestItemPrototypeInfo(PrototypeInfo):
 class BreakableObjectPrototypeInfo(SimplePhysicObjPrototypeInfo):
     def __init__(self, server):
         SimplePhysicObjPrototypeInfo.__init__(self, server)
-        self.destroyable = AnnotatedValue(0, "Destroyable", group_type=GroupType.SECONDARY)
+        self.destroyable = AnnotatedValue(-1, "Destroyable", group_type=GroupType.SECONDARY)  # default changed
         self.criticalHitEnergy = AnnotatedValue(None, "CriticalHitEnergy", group_type=GroupType.SECONDARY)
         self.effectType = AnnotatedValue("WOOD", "EffectType", group_type=GroupType.SECONDARY)
         self.destroyEffectType = AnnotatedValue("BLOW", "DestroyEffectType", group_type=GroupType.SECONDARY)
