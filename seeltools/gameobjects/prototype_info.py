@@ -2530,6 +2530,19 @@ class BossMetalArmPrototypeInfo(SimplePhysicObjPrototypeInfo):
         else:
             logger.error(f"Empty loadPrototypes for BossMetalArm prototype {self.prototypeName.value}!")
 
+    def get_etree_prototype(self):
+        result = SimplePhysicObjPrototypeInfo.get_etree_prototype(self)
+        add_value_to_node(result, self.loadPrototypeNames, lambda x: " ".join(x.value))
+
+        def prepare_attack_actions(attacks):
+            attacksElement = etree.Element(attacks.name)
+            for attack in attacks.value:
+                attacksElement.append(self.AttackActionInfo.get_etree_prototype(attack))
+            return attacksElement
+
+        add_value_to_node_as_child(result, self.attacks, lambda x: prepare_attack_actions(x))
+        return result
+
     class AttackActionInfo(object):
         def __init__(self):
             self.frameToReleaseLoad = 0
@@ -2541,6 +2554,12 @@ class BossMetalArmPrototypeInfo(SimplePhysicObjPrototypeInfo):
                 self.frameToReleaseLoad = int(frameToReleaseLoad)
             action = read_from_xml_node(xmlNode, "Action")
             self.action = GetActionByName(action)
+
+        def get_etree_prototype(self):
+            attackElement = etree.Element("Attack")
+            attackElement.set("Action", GetActionByNum(self.action))
+            attackElement.set("FrameToReleaseLoad", str(self.frameToReleaseLoad))
+            return attackElement
 
 
 class BossMetalArmLoadPrototypeInfo(DummyObjectPrototypeInfo):
@@ -2764,6 +2783,12 @@ class Boss03PrototypeInfo(ComplexPhysicObjPrototypeInfo):
             if dronePrototypeId == -1:
                 logger.error("Invalid drone prototype/prototype ID for Boss03")
             self.dronePrototypeIds.append(dronePrototypeId)
+
+    def get_etree_prototype(self):
+        result = ComplexPhysicObjPrototypeInfo.get_etree_prototype(self)
+        add_value_to_node(result, self.dronePrototypeNames, lambda x: " ".join(x.value))
+        add_value_to_node(result, self.pathTrackTiltAngle, lambda x: str(x.value / pi * 180))
+        return result
 
 
 class Boss04PrototypeInfo(ComplexPhysicObjPrototypeInfo):
