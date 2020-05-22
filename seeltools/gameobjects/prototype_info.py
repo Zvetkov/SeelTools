@@ -267,6 +267,13 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
         result = PhysicBodyPrototypeInfo.get_etree_prototype(self)
         add_value_to_node(result, self.loadPoints, lambda x: " ".join(map(str, x.value)))
         add_value_to_node(result, self.durabilityCoeffsForDamageTypes, lambda x: " ".join(map(str, x.value)))
+
+        def prepare_groupHealth(groupHealth):
+            groupHealthElement = etree.Element(groupHealth.name)
+            for prop in groupHealth.value:
+                groupHealthElement.set(prop, str(groupHealth.value[prop]))
+            return groupHealthElement
+        add_value_to_node_as_child(result, self.groupHealth, lambda x: prepare_groupHealth(x))
         return result
 
 
