@@ -2254,14 +2254,14 @@ class DynamicQuestHuntPrototypeInfo(DynamicQuestPrototypeInfo):
 class DynamicQuestPeacePrototypeInfo(DynamicQuestPrototypeInfo):
     def __init__(self, server):
         DynamicQuestPrototypeInfo.__init__(self, server)
-        self.playerMoneyPart = 0.0
+        self.playerMoneyPart = AnnotatedValue(0.0, "PlayerMoneyPart", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = DynamicQuestPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            playerMoneyPart = read_from_xml_node(xmlNode, "PlayerMoneyPart")
+            playerMoneyPart = read_from_xml_node(xmlNode, self.playerMoneyPart.name)
             if playerMoneyPart is not None:
-                self.playerMoneyPart = float(playerMoneyPart)
+                self.playerMoneyPart.value = float(playerMoneyPart)
             return STATUS_SUCCESS
 
 
