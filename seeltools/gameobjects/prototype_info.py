@@ -259,7 +259,7 @@ class CabinPrototypeInfo(VehiclePartPrototypeInfo):
         VehiclePartPrototypeInfo.__init__(self, server)
         self.maxPower = AnnotatedValue(1.0, "MaxPower", group_type=GroupType.PRIMARY)
         self.maxTorque = AnnotatedValue(1.0, "MaxTorque", group_type=GroupType.PRIMARY)
-        self.maxSpeed = AnnotatedValue(1.0, "MaxSpeed", group_type=GroupType.PRIMARY,
+        self.maxSpeed = AnnotatedValue(1.0 * 0.27777779, "MaxSpeed", group_type=GroupType.PRIMARY,
                                        saving_type=SavingType.SPECIFIC)
         self.fuelConsumption = AnnotatedValue(1.0, "FuelConsumption", group_type=GroupType.PRIMARY)
         self.gadgetSlots = AnnotatedValue([], "GadgetDescription", group_type=GroupType.PRIMARY,
@@ -282,6 +282,7 @@ class CabinPrototypeInfo(VehiclePartPrototypeInfo):
             maxSpeed = read_from_xml_node(xmlNode, self.maxSpeed.name, do_not_warn=True)
             if maxSpeed is not None:
                 self.maxSpeed.value = float(maxSpeed)
+                self.maxSpeed.value = self.maxSpeed.value * 0.27777779  # ~5/18 or 50/180
 
             fuelConsumption = read_from_xml_node(xmlNode, self.fuelConsumption.name, do_not_warn=True)
             if fuelConsumption is not None:
@@ -299,8 +300,6 @@ class CabinPrototypeInfo(VehiclePartPrototypeInfo):
                 self.control.value = float(control)
             if self.control.value < 0.0 or self.control.value > 100.0:
                 self.control.value = 100.0
-
-            self.maxSpeed.value = self.maxSpeed.value * 0.27777779  # ~5/18 or 50/180
 
             gadgetDescriptions = child_from_xml_node(xmlNode, self.gadgetSlots.name, do_not_warn=True)
             if gadgetDescriptions is not None:
@@ -1637,32 +1636,39 @@ class InfectionZonePrototypeInfo(PrototypeInfo):
         self.blindTeamTime = AnnotatedValue(0.0, "BlindTeamTime", group_type=GroupType.PRIMARY)
         self.dropOutSegmentAngle = AnnotatedValue(180, "DropOutSegmentAngle", group_type=GroupType.PRIMARY)
 
+        # DropOutTimeOut  # used in ai::InfectionZone::Registration()
+        self.dropOutTimeOut = AnnotatedValue(0, "DropOutTimeOut", group_type=GroupType.PRIMARY)
+
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            minDistToPlayer = read_from_xml_node(xmlNode, "MinDistToPlayer", do_not_warn=True)
+            minDistToPlayer = read_from_xml_node(xmlNode, self.minDistToPlayer.name, do_not_warn=True)
             if minDistToPlayer is not None:
                 self.minDistToPlayer.value = float(minDistToPlayer)
 
-            criticalTeamDist = read_from_xml_node(xmlNode, "CriticalTeamDist", do_not_warn=True)
+            criticalTeamDist = read_from_xml_node(xmlNode, self.criticalTeamDist.name, do_not_warn=True)
             if criticalTeamDist is not None:
                 self.criticalTeamDist.value = float(criticalTeamDist)
 
-            criticalTeamTime = read_from_xml_node(xmlNode, "CriticalTeamTime", do_not_warn=True)
+            criticalTeamTime = read_from_xml_node(xmlNode, self.criticalTeamTime.name, do_not_warn=True)
             if criticalTeamTime is not None:
                 self.criticalTeamTime.value = float(criticalTeamTime)
 
-            blindTeamDist = read_from_xml_node(xmlNode, "BlindTeamDist", do_not_warn=True)
+            blindTeamDist = read_from_xml_node(xmlNode, self.blindTeamDist.name, do_not_warn=True)
             if blindTeamDist is not None:
                 self.blindTeamDist.value = float(blindTeamDist)
 
-            blindTeamTime = read_from_xml_node(xmlNode, "BlindTeamTime", do_not_warn=True)
+            blindTeamTime = read_from_xml_node(xmlNode, self.blindTeamTime.name, do_not_warn=True)
             if blindTeamTime is not None:
                 self.blindTeamTime.value = float(blindTeamTime)
 
-            dropOutSegmentAngle = read_from_xml_node(xmlNode, "DropOutSegmentAngle", do_not_warn=True)
+            dropOutSegmentAngle = read_from_xml_node(xmlNode, self.dropOutSegmentAngle.name, do_not_warn=True)
             if dropOutSegmentAngle is not None:
                 self.dropOutSegmentAngle.value = int(dropOutSegmentAngle)
+
+            dropOutTimeOut = read_from_xml_node(xmlNode, self.dropOutTimeOut.name, do_not_warn=True)
+            if dropOutTimeOut is not None:
+                self.dropOutTimeOut.value = float(dropOutTimeOut)
             return STATUS_SUCCESS
 
 
@@ -3070,35 +3076,44 @@ class EngineOilLocationPrototypeInfo(TemporaryLocationPrototypeInfo):
 class SubmarinePrototypeInfo(DummyObjectPrototypeInfo):
     def __init__(self, server):
         DummyObjectPrototypeInfo.__init__(self, server)
-        self.maxLinearVelocity = 0.0
-        self.linearAcceleration = 0.0
-        self.platformOpenFps = 2
-        self.vehicleMaxSpeed = 72.0
+        self.maxLinearVelocity = AnnotatedValue(0.0 * 0.27777779, "MaxLinearVelocity",
+                                                group_type=GroupType.PRIMARY,
+                                                saving_type=SavingType.SPECIFIC)
+        self.linearAcceleration = AnnotatedValue(0.0, "LinearAcceleration", group_type=GroupType.SECONDARY)
+        self.platformOpenFps = AnnotatedValue(2, "PlatformOpenFps", group_type=GroupType.SECONDARY)
+        self.vehicleMaxSpeed = AnnotatedValue(72.0 * 0.27777779, "VehicleMaxSpeed",
+                                              group_type=GroupType.PRIMARY,
+                                              saving_type=SavingType.SPECIFIC)
         self.vehicleRelativePosition = deepcopy(ZERO_VECTOR)
         self.isUpdating = AnnotatedValue(True, "IsUpdating", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
-        result = ShellPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        result = DummyObjectPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            maxLinearVelocity = read_from_xml_node(xmlNode, "MaxLinearVelocity")
+            maxLinearVelocity = read_from_xml_node(xmlNode, self.maxLinearVelocity.name)
             if maxLinearVelocity is not None:
-                self.maxLinearVelocity = float(maxLinearVelocity)
+                self.maxLinearVelocity.value = float(maxLinearVelocity)
+                self.maxLinearVelocity.value = self.maxLinearVelocity.value * 0.27777779  # ~5/18 or 50/180
 
-            linearAcceleration = read_from_xml_node(xmlNode, "LinearAcceleration")
+            linearAcceleration = read_from_xml_node(xmlNode, self.linearAcceleration.name)
             if linearAcceleration is not None:
-                self.linearAcceleration = float(linearAcceleration)
+                self.linearAcceleration.value = float(linearAcceleration)
 
-            platformOpenFps = read_from_xml_node(xmlNode, "PlatformOpenFps")
+            platformOpenFps = read_from_xml_node(xmlNode, self.platformOpenFps.name)
             if platformOpenFps is not None:
-                self.platformOpenFps = int(platformOpenFps)
+                self.platformOpenFps.value = int(platformOpenFps)
 
-            vehicleMaxSpeed = read_from_xml_node(xmlNode, "VehicleMaxSpeed", do_not_warn=True)
+            vehicleMaxSpeed = read_from_xml_node(xmlNode, self.vehicleMaxSpeed.name, do_not_warn=True)
             if vehicleMaxSpeed is not None:
-                self.vehicleMaxSpeed = float(vehicleMaxSpeed)
-
-            self.maxLinearVelocity *= 0.27777779  # ~5/18 or 50/180
-            self.vehicleMaxSpeed *= 0.27777779
+                self.vehicleMaxSpeed.value = float(vehicleMaxSpeed)
+                self.vehicleMaxSpeed.value = self.vehicleMaxSpeed.value * 0.27777779  # ~5/18 or 50/180
             return STATUS_SUCCESS
+
+    def get_etree_prototype(self):
+        result = DummyObjectPrototypeInfo.get_etree_prototype(self)
+        add_value_to_node(result, self.maxLinearVelocity, lambda x: str(x.value / 0.27777779))
+        add_value_to_node(result, self.vehicleMaxSpeed, lambda x: str(x.value / 0.27777779))
+        return result
 
 
 class BuildingPrototypeInfo(PrototypeInfo):
