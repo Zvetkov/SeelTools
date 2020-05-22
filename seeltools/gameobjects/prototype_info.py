@@ -2212,12 +2212,13 @@ class DynamicQuestReachPrototypeInfo(DynamicQuestPrototypeInfo):
 class SgNodeObjPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.engineModelName = ""
+        self.engineModelName = AnnotatedValue("", "ModelFile", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.engineModelName = safe_check_and_set(self.engineModelName, xmlNode, "ModelFile")
+            self.engineModelName.value = safe_check_and_set(self.engineModelName.default_value, xmlNode,
+                                                            self.engineModelName.name)
             return STATUS_SUCCESS
 
 
