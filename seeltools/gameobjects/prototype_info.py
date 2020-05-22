@@ -2293,33 +2293,34 @@ class LightObjPrototypeInfo(SgNodeObjPrototypeInfo):
 class BossArmPrototypeInfo(VehiclePartPrototypeInfo):
     def __init__(self, server):
         VehiclePartPrototypeInfo.__init__(self, server)
-        self.frameToPickUpLoad = 0
-        self.turningSpeed = 0.5
+        self.frameToPickUpLoad = AnnotatedValue(0, "FrameToPickUpLoad", group_type=GroupType.SECONDARY)
+        self.turningSpeed = AnnotatedValue(0.5, "TurningSpeed", group_type=GroupType.PRIMARY)
         self.lpIdForLoad = -1
-        self.cruticalNumExplodedLoads = 1
-        self.attacks = []
+        self.cruticalNumExplodedLoads = AnnotatedValue(1, "CriticalNumExplodedLoads", group_type=GroupType.PRIMARY)
+        self.attacks = AnnotatedValue([], "AttackActions", group_type=GroupType.SECONDARY,
+                                      saving_type=SavingType.SPECIFIC)
 
     def LoadFromXML(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
         result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             turningSpeed = read_from_xml_node(xmlNode, "TurningSpeed", do_not_warn=True)
             if turningSpeed is not None:
-                self.turningSpeed = float(turningSpeed)
+                self.turningSpeed.value = float(turningSpeed)
 
             frameToPickUpLoad = read_from_xml_node(xmlNode, "FrameToPickUpLoad", do_not_warn=True)
             if frameToPickUpLoad is not None:
-                self.frameToPickUpLoad = int(frameToPickUpLoad)
+                self.frameToPickUpLoad.value = int(frameToPickUpLoad)
 
             attack_actions = child_from_xml_node(xmlNode, "AttackActions")
             check_mono_xml_node(attack_actions, "Attack")
             for attack_node in attack_actions.iterchildren(tag="Attack"):
                 action = self.AttackActionInfo()
                 action.LoadFromXML(attack_node)
-                self.attacks.append(action)
+                self.attacks.value.append(action)
 
             cruticalNumExplodedLoads = read_from_xml_node(xmlNode, "CriticalNumExplodedLoads", do_not_warn=True)
             if cruticalNumExplodedLoads is not None:
-                self.cruticalNumExplodedLoads = int(cruticalNumExplodedLoads)
+                self.cruticalNumExplodedLoads.value = int(cruticalNumExplodedLoads)
             return STATUS_SUCCESS
 
     class AttackActionInfo(object):
