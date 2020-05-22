@@ -2206,24 +2206,24 @@ class DynamicQuestPrototypeInfo(PrototypeInfo):
 class DynamicQuestConvoyPrototypeInfo(DynamicQuestPrototypeInfo):
     def __init__(self, server):
         DynamicQuestPrototypeInfo.__init__(self, server)
-        self.playerSchwarzPart = 0.0
-        self.criticalDistFromPlayer = 100.0
-        self.criticalTime = 20.0
+        self.playerSchwarzPart = AnnotatedValue(0.0, "PlayerSchwarzPart", group_type=GroupType.SECONDARY)
+        self.criticalDistFromPlayer = AnnotatedValue(100.0, "CriticalDistFromPlayer", group_type=GroupType.SECONDARY)
+        self.criticalTime = AnnotatedValue(20.0, "CriticalTime", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = DynamicQuestPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            playerSchwarzPart = read_from_xml_node(xmlNode, "PlayerSchwarzPart")
+            playerSchwarzPart = read_from_xml_node(xmlNode, self.playerSchwarzPart.name)
             if playerSchwarzPart is not None:
-                self.playerSchwarzPart = float(playerSchwarzPart)
+                self.playerSchwarzPart.value = float(playerSchwarzPart)
 
-            criticalDistFromPlayer = read_from_xml_node(xmlNode, "CriticalDistFromPlayer")
+            criticalDistFromPlayer = read_from_xml_node(xmlNode, self.criticalDistFromPlayer.name)
             if criticalDistFromPlayer is not None:
-                self.criticalDistFromPlayer = float(criticalDistFromPlayer)
+                self.criticalDistFromPlayer.value = float(criticalDistFromPlayer)
 
-            criticalTime = read_from_xml_node(xmlNode, "CriticalTime")
+            criticalTime = read_from_xml_node(xmlNode, self.criticalTime.name)
             if criticalTime is not None:
-                self.criticalTime = float(criticalTime)
+                self.criticalTime.value = float(criticalTime)
 
             return STATUS_SUCCESS
 
@@ -2231,14 +2231,14 @@ class DynamicQuestConvoyPrototypeInfo(DynamicQuestPrototypeInfo):
 class DynamicQuestDestroyPrototypeInfo(DynamicQuestPrototypeInfo):
     def __init__(self, server):
         DynamicQuestPrototypeInfo.__init__(self, server)
-        self.targetSchwarzPart = 0.0
+        self.targetSchwarzPart = AnnotatedValue(0.0, "TargetSchwarzPart", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = DynamicQuestPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            targetSchwarzPart = read_from_xml_node(xmlNode, "TargetSchwarzPart")
+            targetSchwarzPart = read_from_xml_node(xmlNode, self.targetSchwarzPart.name)
             if targetSchwarzPart is not None:
-                self.targetSchwarzPart = float(targetSchwarzPart)
+                self.targetSchwarzPart.value = float(targetSchwarzPart)
             return STATUS_SUCCESS
 
 
