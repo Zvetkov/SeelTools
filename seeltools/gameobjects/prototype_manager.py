@@ -133,7 +133,11 @@ class PrototypeManager(object):
 
         prototypesTree = etree.Element("Prototypes")
         filteredPrototypes = [x for x in self.prototypes if x.className.value == className]
-        filteredPrototypes.sort(key=lambda x: x.prototypeName.value, reverse=False)
+        if className == "Vehicle":
+            filteredPrototypes.sort(key=lambda x: x.isAbstract.value, reverse=True)
+        else:
+            filteredPrototypes.sort(key=lambda x: x.prototypeName.value, reverse=False)
+
         for prototype in filteredPrototypes:
             prototypesTree.append(prototype.get_etree_prototype())
         save_to_file(prototypesTree, fullPath)
