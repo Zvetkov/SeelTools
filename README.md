@@ -4,6 +4,7 @@ Work in progress GUI toolkit for Ex Machina / Hard Truck Apocalypse, currently a
 
 Core developers: 
 [Aleksandr Parfenenkov](mailto:work.zvetkov@gmail.com)
+
 [Andrey Shpilevoy](https://github.com/AndreyShpilevoy)
 
 ## Features
