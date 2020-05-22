@@ -2373,8 +2373,10 @@ class Boss02ArmPrototypeInfo(BossArmPrototypeInfo):
                                                            group_type=GroupType.SECONDARY)
         self.frameToReleaseContainerForDie = AnnotatedValue(0, "FrameToReleaseContainerForDie",
                                                             group_type=GroupType.SECONDARY)
-        self.actionForBlock = AnnotatedValue(0, "ActionForBlock", group_type=GroupType.PRIMARY)
-        self.actionForDie = AnnotatedValue(0, "ActionForDie", group_type=GroupType.PRIMARY)
+        self.actionForBlock = AnnotatedValue(-1, "ActionForBlock", group_type=GroupType.PRIMARY,
+                                             saving_type=SavingType.SPECIFIC)
+        self.actionForDie = AnnotatedValue(-1, "ActionForDie", group_type=GroupType.PRIMARY,
+                                           saving_type=SavingType.SPECIFIC)
         self.blockingContainerPrototypeId = -1
         self.blockingContainerPrototypeName = AnnotatedValue("", "ContainerPrototype", group_type=GroupType.PRIMARY)
 
@@ -2414,6 +2416,12 @@ class Boss02ArmPrototypeInfo(BossArmPrototypeInfo):
 
     def PostLoad(self, prototype_manager):
         self.blockingContainerPrototypeId = prototype_manager.GetPrototypeId(self.blockingContainerPrototypeName.value)
+
+    def get_etree_prototype(self):
+        result = BossArmPrototypeInfo.get_etree_prototype(self)
+        add_value_to_node(result, self.actionForBlock, lambda x: GetActionByNum(x.value))
+        add_value_to_node(result, self.actionForDie, lambda x: GetActionByNum(x.value))
+        return result
 
 
 class BossMetalArmPrototypeInfo(SimplePhysicObjPrototypeInfo):
