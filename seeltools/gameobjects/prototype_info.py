@@ -768,7 +768,7 @@ class WanderersGeneratorPrototypeInfo(PrototypeInfo):  # special save and displa
         def prepare_vehicles(vehicles_array):
             vehiclesTree = etree.Element("Vehicles")
             for vehicle in vehicles_array:
-                vehiclesTree.append(vehicle.get_etree_prototype())
+                vehiclesTree.append(self.VehicleDescription.get_etree_prototype(vehicle))
             return vehiclesTree
 
         add_value_to_node_as_child(result, self.vehicleDescriptions, lambda x: prepare_vehicles(x.value))
@@ -1641,34 +1641,53 @@ class VagabondTeamPrototypeInfo(TeamPrototypeInfo):
 class InfectionTeamPrototypeInfo(TeamPrototypeInfo):
     def __init__(self, server):
         TeamPrototypeInfo.__init__(self, server)
-        self.items = []
-        self.vehiclesGeneratorProtoName = ""
+        self.items = AnnotatedValue([], "Vehicles", group_type=GroupType.PRIMARY,
+                                    saving_type=SavingType.SPECIFIC)
+        self.vehiclesGeneratorProtoName = AnnotatedValue("", "VehiclesGenerator", group_type=GroupType.PRIMARY)
         self.vehiclesGeneratorProtoId = -1
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = TeamPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.vehiclesGeneratorProtoName = safe_check_and_set(self.vehiclesGeneratorProtoName, xmlNode,
-                                                                 "VehiclesGenerator")
+            self.vehiclesGeneratorProtoName.value = safe_check_and_set(self.vehiclesGeneratorProtoName.default_value,
+                                                                       xmlNode,
+                                                                       self.vehiclesGeneratorProtoName.name)
             vehicles = child_from_xml_node(xmlNode, "Vehicles", do_not_warn=True)
             if vehicles is not None and len(vehicles.getchildren()) >= 1:
                 check_mono_xml_node(vehicles, "Vehicle")
                 for vehicle in vehicles.iterchildren(tag="Vehicle"):
                     item = {"protoName": read_from_xml_node(vehicle, "PrototypeName"),
                             "count": int(read_from_xml_node(vehicle, "Count"))}
-                    self.items.append(item)
+                    self.items.value.append(item)
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
         TeamPrototypeInfo.PostLoad(self, prototype_manager)
-        self.vehiclesGeneratorProtoId = prototype_manager.GetPrototypeId(self.vehiclesGeneratorProtoName)
+        self.vehiclesGeneratorProtoId = prototype_manager.GetPrototypeId(self.vehiclesGeneratorProtoName.value)
         if self.vehiclesGeneratorProtoId == -1:
-            if not self.items:
-                if self.vehiclesGeneratorProtoName:
-                    logger.error(f"Unknown '{self.vehiclesGeneratorProtoName}' VehiclesGenerator "
+            if not self.items.value:
+                if self.vehiclesGeneratorProtoName.value:
+                    logger.error(f"Unknown '{self.vehiclesGeneratorProtoName.value}' VehiclesGenerator "
                                  f"for infection team '{self.prototypeName.value}'")
                 else:
                     logger.error(f"No vehicle generator and no vehicles for InfectionTeam '{self.prototypeName.value}'")
+
+    def get_etree_prototype(self):
+        result = TeamPrototypeInfo.get_etree_prototype(self)
+        # Vehicles start
+
+        def prepare_vehicles(vehicles_array):
+            vehiclesTree = etree.Element("Vehicles")
+            for vehicle in vehicles_array:
+                vehicle_node = etree.Element("Vehicle")
+                vehicle_node.set("PrototypeName", str(vehicle["protoName"]))
+                vehicle_node.set("Count", str(vehicle["count"]))
+                vehiclesTree.append(vehicle_node)
+            return vehiclesTree
+
+        add_value_to_node_as_child(result, self.items, lambda x: prepare_vehicles(x.value))
+        # Vehicles end
+        return result
 
 
 class InfectionZonePrototypeInfo(PrototypeInfo):
