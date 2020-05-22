@@ -2575,14 +2575,14 @@ class Boss04PartPrototypeInfo(VehiclePartPrototypeInfo):
 class Boss04DronePrototypeInfo(ComplexPhysicObjPrototypeInfo):
     def __init__(self, server):
         ComplexPhysicObjPrototypeInfo.__init__(self, server)
-        self.maxLinearVelocity = 0.0
+        self.maxLinearVelocity = AnnotatedValue(0.0, "MaxLinearVelocity", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = ComplexPhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             maxLinearVelocity = read_from_xml_node(xmlNode, "MaxLinearVelocity")
             if maxLinearVelocity is not None:
-                self.maxLinearVelocity = float(maxLinearVelocity)
+                self.maxLinearVelocity.value = float(maxLinearVelocity)
             return STATUS_SUCCESS
 
 
