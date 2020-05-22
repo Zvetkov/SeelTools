@@ -1698,7 +1698,7 @@ class InfectionTeamPrototypeInfo(TeamPrototypeInfo):
 
     def get_etree_prototype(self):
         result = TeamPrototypeInfo.get_etree_prototype(self)
-        # Vehicles start
+        # Vehicles start (ignore default)
         vehiclesTree = etree.Element("Vehicles")
         for vehicle in self.items.value:
             vehicle_node = etree.Element("Vehicle")
