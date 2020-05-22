@@ -32,7 +32,7 @@ def GetActionByName(actionName):
     if action_id is not None:
         return action_id
     else:
-        return 0
+        return -1
 
 
 def GetActionByNum(num):
