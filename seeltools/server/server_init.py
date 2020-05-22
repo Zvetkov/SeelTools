@@ -51,7 +51,7 @@ class Server(object):
         logger.info("Loading Server")
         self.saveType = saveType
         if not isContiniousMap:
-            logger.info("Loading Realtionship")
+            logger.info("Loading Relationship")
             self.theRelationship = Relationship()
             self.theRelationship.LoadFromXML(self.theGlobalProperties.pathToRelationship, copy_to_default=True)
         logger.info("Skipping loading SoilProps")

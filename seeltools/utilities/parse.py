@@ -159,6 +159,7 @@ def parse_str_to_bool(original_value, string: str, is_striped=False):
 
 
 def parse_str_to_vector(string: str):
+    '''Given string will try to parse dict of float x, y, z values'''
     if string is not None:
         split_str = string.split()
     else:
