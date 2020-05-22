@@ -957,12 +957,11 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
         self.collisionInfos = []
         self.collisionTrimeshAllowed = AnnotatedValue(False, "CollisionTrimeshAllowed",
                                                       group_type=GroupType.SECONDARY)
-        self.geomType = AnnotatedValue(0, "GeomType", group_type=GroupType.INTERNAL, read_only=True,
-                                       saving_type=SavingType.IGNORE)
+        self.geomType = 0
         self.engineModelName = AnnotatedValue("", "ModelFile", group_type=GroupType.VISUAL)
-        self.size = AnnotatedValue(deepcopy(ZERO_VECTOR), "Size", group_type=GroupType.INTERNAL,
-                                   saving_type=SavingType.SPECIFIC, read_only=True)
-        self.radius = AnnotatedValue(1.0, "Radius", group_type=GroupType.INTERNAL, read_only=True)
+        self.size = AnnotatedValue(deepcopy(ZERO_VECTOR), "Size", group_type=GroupType.SECONDARY,
+                                   saving_type=SavingType.SPECIFIC)
+        self.radius = AnnotatedValue(1.0, "Radius", group_type=GroupType.SECONDARY)
         self.massValue = AnnotatedValue(1.0, "Mass", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
@@ -983,20 +982,20 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
             return STATUS_SUCCESS
 
     def SetGeomType(self, geom_type):
-        self.geomType.value = GEOM_TYPE[geom_type]
-        if self.geomType.value == 6:
+        self.geomType = GEOM_TYPE[geom_type]
+        if self.geomType == 6:
             return
         collision_info = CollisionInfo()
         collision_info.Init()
-        if self.geomType.value == 1:
+        if self.geomType == 1:
             collision_info.geomType = 1
             collision_info.size["x"] = self.size.value["x"]
             collision_info.size["y"] = self.size.value["y"]
             collision_info.size["z"] = self.size.value["z"]
-        elif self.geomType.value == 2:
+        elif self.geomType == 2:
             collision_info.geomType = 2
             collision_info.radius = self.radius.value
-        elif self.geomType.value == 5:
+        elif self.geomType == 5:
             logger.warning(f"Obsolete GeomType: TriMesh! in {self.prototypeName.value}")
         self.collisionInfos.append(collision_info)
 
@@ -1543,7 +1542,7 @@ class NPCMotionControllerPrototypeInfo(PrototypeInfo):
 class TeamPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.decisionMatrixNum = AnnotatedValue(-1, "DecisionMatrixNum", group_type=GroupType.INTERNAL)
+        self.decisionMatrixNum = -1
         # placeholder for AIManager functionality ???
         self.decisionMatrixName = AnnotatedValue("", "DecisionMatrix", group_type=GroupType.PRIMARY)
         self.removeWhenChildrenDead = AnnotatedValue(True, "RemoveWhenChildrenDead", group_type=GroupType.SECONDARY)
