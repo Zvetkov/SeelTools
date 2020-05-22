@@ -2222,14 +2222,14 @@ class DynamicQuestConvoyPrototypeInfo(DynamicQuestPrototypeInfo):
 class DynamicQuestDestroyPrototypeInfo(DynamicQuestPrototypeInfo):
     def __init__(self, server):
         DynamicQuestPrototypeInfo.__init__(self, server)
-        self.targetSchwarzPart = 0.0
+        self.targetSchwarzPart = AnnotatedValue(0.0, "TargetSchwarzPart", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = DynamicQuestPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            targetSchwarzPart = read_from_xml_node(xmlNode, "TargetSchwarzPart")
+            targetSchwarzPart = read_from_xml_node(xmlNode, self.targetSchwarzPart.name)
             if targetSchwarzPart is not None:
-                self.targetSchwarzPart = float(targetSchwarzPart)
+                self.targetSchwarzPart.value = float(targetSchwarzPart)
             return STATUS_SUCCESS
 
 
