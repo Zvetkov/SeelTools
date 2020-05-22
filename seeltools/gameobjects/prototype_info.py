@@ -2077,26 +2077,26 @@ class LairPrototypeInfo(SettlementPrototypeInfo):
 class PlayerPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.modelName = ""
-        self.skinNumber = 0
-        self.cfgNumber = 0
+        self.modelName = AnnotatedValue("", "ModelFile", group_type=GroupType.SECONDARY)
+        self.skinNumber = AnnotatedValue(0, "SkinNum", group_type=GroupType.SECONDARY)
+        self.cfgNumber = AnnotatedValue(0, "CfgNum", group_type=GroupType.SECONDARY)
         # ??? some magic with World SceneGraph
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.modelName = read_from_xml_node(xmlNode, "ModelFile")
-            skinNum = read_from_xml_node(xmlNode, "SkinNum", do_not_warn=True)
+            self.modelName.value = read_from_xml_node(xmlNode, self.modelName.name)
+            skinNum = read_from_xml_node(xmlNode, self.skinNumber.name, do_not_warn=True)
             if skinNum is not None:
                 skinNum = int(skinNum)
                 if skinNum > 0:
-                    self.skinNumber = skinNum
+                    self.skinNumber.value = skinNum
 
-            cfgNum = read_from_xml_node(xmlNode, "CfgNum", do_not_warn=True)
+            cfgNum = read_from_xml_node(xmlNode, self.cfgNumber.name, do_not_warn=True)
             if cfgNum is not None:
                 cfgNum = int(cfgNum)
                 if cfgNum > 0:
-                    self.cfgNumber = cfgNum
+                    self.cfgNumber.value = cfgNum
             return STATUS_SUCCESS
 
 
