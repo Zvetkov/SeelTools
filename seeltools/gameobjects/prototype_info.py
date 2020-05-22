@@ -2784,6 +2784,12 @@ class Boss03PrototypeInfo(ComplexPhysicObjPrototypeInfo):
                 logger.error("Invalid drone prototype/prototype ID for Boss03")
             self.dronePrototypeIds.append(dronePrototypeId)
 
+    def get_etree_prototype(self):
+        result = ComplexPhysicObjPrototypeInfo.get_etree_prototype(self)
+        add_value_to_node(result, self.dronePrototypeNames, lambda x: " ".join(x.value))
+        add_value_to_node(result, self.pathTrackTiltAngle, lambda x: str(x.value / pi * 180))
+        return result
+
 
 class Boss04PrototypeInfo(ComplexPhysicObjPrototypeInfo):
     def __init__(self, server):
