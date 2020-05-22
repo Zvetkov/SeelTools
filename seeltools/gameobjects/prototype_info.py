@@ -1699,17 +1699,13 @@ class InfectionTeamPrototypeInfo(TeamPrototypeInfo):
     def get_etree_prototype(self):
         result = TeamPrototypeInfo.get_etree_prototype(self)
         # Vehicles start
-
-        def prepare_vehicles(vehicles_array):
-            vehiclesTree = etree.Element("Vehicles")
-            for vehicle in vehicles_array:
-                vehicle_node = etree.Element("Vehicle")
-                vehicle_node.set("PrototypeName", str(vehicle["protoName"]))
-                vehicle_node.set("Count", str(vehicle["count"]))
-                vehiclesTree.append(vehicle_node)
-            return vehiclesTree
-
-        add_value_to_node_as_child(result, self.items, lambda x: prepare_vehicles(x.value))
+        vehiclesTree = etree.Element("Vehicles")
+        for vehicle in self.items.value:
+            vehicle_node = etree.Element("Vehicle")
+            vehicle_node.set("PrototypeName", str(vehicle["protoName"]))
+            vehicle_node.set("Count", str(vehicle["count"]))
+            vehiclesTree.append(vehicle_node)
+        result.append(vehiclesTree)
         # Vehicles end
         return result
 
