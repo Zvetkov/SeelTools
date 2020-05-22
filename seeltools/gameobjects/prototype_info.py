@@ -1187,7 +1187,7 @@ class VehiclePrototypeInfo(ComplexPhysicObjPrototypeInfo):
         self.cameraMaxDist = AnnotatedValue(25.0, "CameraMaxDist", group_type=GroupType.SECONDARY)
         self.destroyEffectNames = AnnotatedValue(["ET_PS_VEH_EXP" for i in range(4)], "DestroyEffectNames",
                                                  group_type=GroupType.SECONDARY, saving_type=SavingType.SPECIFIC)
-        self.wheelInfos = AnnotatedValue([], "Wheel", group_type=GroupType.PRIMARY,
+        self.wheelInfos = AnnotatedValue([], "Wheels", group_type=GroupType.PRIMARY,
                                          saving_type=SavingType.SPECIFIC)
         self.blastWavePrototypeName = AnnotatedValue("", "BlastWave", group_type=GroupType.SECONDARY)
         self.additionalWheelsHover = AnnotatedValue(0.0, "AdditionalWheelsHover", group_type=GroupType.SECONDARY)
@@ -1234,13 +1234,13 @@ class VehiclePrototypeInfo(ComplexPhysicObjPrototypeInfo):
             for i in range(len(self.destroyEffectNames.value)):
                 if destroyEffectNames[i] is not None:
                     self.destroyEffectNames.value[i] = destroyEffectNames[i]
-            wheels_info = child_from_xml_node(xmlNode, "Wheels", do_not_warn=True)
+            wheels_info = child_from_xml_node(xmlNode, self.wheelInfos.name, do_not_warn=True)
             if self.parentPrototypeName.value is not None and wheels_info is not None:
                 logger.error(f"Wheels info is present for inherited vehicle {self.prototypeName.value}")
             elif self.parentPrototypeName.value is None and wheels_info is None:
                 logger.error(f"Wheels info is not present for parent vehicle {self.prototypeName.value}")
             elif self.parentPrototypeName.value is None and wheels_info is not None:
-                check_mono_xml_node(wheels_info, self.wheelInfos.name)
+                check_mono_xml_node(wheels_info, "Wheel")
                 for wheel_node in wheels_info.iterchildren(tag="Wheel"):
                     steering = read_from_xml_node(wheel_node, "steering", do_not_warn=True)
                     wheel_prototype_name = read_from_xml_node(wheel_node, "Prototype")
