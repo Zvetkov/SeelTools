@@ -1635,6 +1635,11 @@ class CaravanTeamPrototypeInfo(TeamPrototypeInfo):
             logger.error(f"Unknown VehiclesGenerator '{self.guardsGeneratorPrototypeName.value}' "
                          f"for guards of CaravanTeam {self.prototypeName.value}")
 
+    def get_etree_prototype(self):
+        result = TeamPrototypeInfo.get_etree_prototype(self)
+        add_value_to_node(result, self.waresPrototypes, lambda x: " ".join(x.value))
+        return result
+
 
 class VagabondTeamPrototypeInfo(TeamPrototypeInfo):
     def __init__(self, server):
