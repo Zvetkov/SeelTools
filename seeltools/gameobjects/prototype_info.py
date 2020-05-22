@@ -13,7 +13,7 @@ from seeltools.utilities.constants import (STATUS_SUCCESS, DEFAULT_TURNING_SPEED
                                            DESTROY_EFFECT_NAMES, TEAM_DEFAULT_FORMATION_PROTOTYPE, GEOM_TYPE,
                                            ZERO_VECTOR, ONE_VECTOR, IDENTITY_QUATERNION)
 
-from seeltools.utilities.global_functions import GetActionByName  # , AIParam
+from seeltools.utilities.global_functions import GetActionByName, GetActionByNum  # , AIParam
 
 from seeltools.utilities.value_classes import AnnotatedValue, DisplayType, GroupType, SavingType
 from seeltools.utilities.helper_functions import value_equel_default
@@ -2319,7 +2319,7 @@ class BossArmPrototypeInfo(VehiclePartPrototypeInfo):
             if frameToPickUpLoad is not None:
                 self.frameToPickUpLoad.value = int(frameToPickUpLoad)
 
-            attack_actions = child_from_xml_node(xmlNode, "AttackActions")
+            attack_actions = child_from_xml_node(xmlNode, self.attacks.name)
             check_mono_xml_node(attack_actions, "Attack")
             for attack_node in attack_actions.iterchildren(tag="Attack"):
                 action = self.AttackActionInfo()
@@ -2330,6 +2330,17 @@ class BossArmPrototypeInfo(VehiclePartPrototypeInfo):
             if cruticalNumExplodedLoads is not None:
                 self.cruticalNumExplodedLoads.value = int(cruticalNumExplodedLoads)
             return STATUS_SUCCESS
+
+    def get_etree_prototype(self):
+        result = VehiclePartPrototypeInfo.get_etree_prototype(self)
+
+        def prepare_attacsElement(attacks):
+            attacksElement = etree.Element(attacks.name)
+            for attackItem in attacks.value:
+                attacksElement.append(self.AttackActionInfo.get_etree_prototype(attackItem))
+            return attacksElement
+        add_value_to_node_as_child(result, self.attacks, lambda x: prepare_attacsElement(x))
+        return result
 
     class AttackActionInfo(object):
         def __init__(self):
@@ -2342,6 +2353,12 @@ class BossArmPrototypeInfo(VehiclePartPrototypeInfo):
                 self.frameToReleaseLoad = int(frameToReleaseLoad)
             action = read_from_xml_node(xmlNode, "Action")
             self.action = GetActionByName(action)
+
+        def get_etree_prototype(self):
+            attack_node = etree.Element("Attack")
+            attack_node.set("Action", GetActionByNum(self.action))
+            attack_node.set("FrameToReleaseLoad", str(self.frameToReleaseLoad))
+            return attack_node
 
 
 class Boss02ArmPrototypeInfo(BossArmPrototypeInfo):
