@@ -65,6 +65,8 @@ class PrototypeInfo(object):
                                                   display_type=DisplayType.PROTOTYPE_NAME)
         self.parentPrototypeId = -1
         self.protoClassObject = 0
+        # custom logic
+        self.lookupModelFile = False
 
     def LoadFromXML(self, xmlFile, xmlNode):
         if xmlNode.tag == "Prototype":
@@ -226,47 +228,42 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
                                                                                         "CanBeUsedInAutogenerating",
                                                                                         do_not_warn=True))
             # custom implementation. Originally called from PrototypeManager -> RefreshFromXml
-            self.RefreshFromXml(xmlFile, xmlNode)
+            VehiclePartPrototypeInfo.RefreshFromXml(self, xmlFile, xmlNode)
             # custom implementation ends
             return STATUS_SUCCESS
 
     def RefreshFromXml(self, xmlFile, xmlNode):
         # custom logic
         # original called from VehiclePartPrototypeInfo::_InitModelMeshes
+        # PhysicBodyPrototypeInfo.RefreshFromXml(self, xmlFile, xmlNode)
+
         group_health_node = child_from_xml_node(xmlNode, "GroupsHealth", do_not_warn=True)
-        PhysicBodyPrototypeInfo.RefreshFromXml(self, xmlFile, xmlNode)
-        if self.className.value in ["Cabin", "Basket", "Chass", "BossArm"]:
+        # Cabin, Basket, Chassis will use model file as source of truth
+        # all other classes will look in model only if GroupHealth specified in xml
+        if self.lookupModelFile or group_health_node is not None:
+            # if not self.lookupModelFile and group_health_node is not None:
+            #     if str(group_health_node.keys()) == "['Main']":
+            #         self.groupHealth.value["Main"] = \
+            #             {"value": None,
+            #              "id": None,
+            #              "variants": None}
             model_path = self.theServer.theAnimatedModelsServer.GetItemByName(self.engineModelName.value).file_name
             model_group_health = parse_model_group_health(model_path)
-            if model_group_health is not None and group_health_node is not None:
-                for group_health in model_group_health:
+            for group_health in model_group_health:
+                if group_health_node is not None:
                     read_value = read_from_xml_node(group_health_node, group_health, do_not_warn=True)
-                    if read_value is None:
-                        logger.debug(f"Prototype {self.prototypeName.value} doesn't contain GroupHealth zone "
-                                     f"{group_health} specified in model! Will add unused properties!")
-                        self.groupHealth.value[group_health] = 0.0
-                    else:
-                        self.groupHealth.value[group_health] = float(read_value)
-            elif model_group_health is None:
-                logger.debug(f"Prototype {self.prototypeName.value} contains GroupsHealth properties, "
-                             "but model file doesn't support them! Will ignore unused properties.")
-            elif group_health_node is None:
-                for group_health in model_group_health:
-                    self.groupHealth.value[group_health] = 0.0
-                logger.debug(f"Prototype {self.prototypeName.value} doesn't contains GroupsHealth properties, "
-                             "but model file specifies them! Will add unused properties")
-        elif group_health_node is not None:
-            model_path = self.theServer.theAnimatedModelsServer.GetItemByName(self.engineModelName.value).file_name
-            model_group_health = parse_model_group_health(model_path)
-            if model_group_health is not None and group_health_node is not None:
-                for group_health in model_group_health:
-                    read_value = read_from_xml_node(group_health_node, group_health, do_not_warn=True)
-                    if read_value is None:
-                        logger.debug(f"Prototype {self.prototypeName.value} doesn't contain GroupHealth zone "
-                                     f"{group_health} specified in model! Will add unused properties!")
-                        self.groupHealth.value[group_health] = 0.0
-                    else:
-                        self.groupHealth.value[group_health] = float(read_value)
+                else:
+                    read_value = None
+                if read_value is None:
+                    self.groupHealth.value[group_health] = \
+                        {"value": 0.0,
+                         "id": model_group_health[group_health]["id"],
+                         "variants": model_group_health[group_health]["variants"]}
+                else:
+                    self.groupHealth.value[group_health] = \
+                        {"value": float(read_value),
+                         "id": model_group_health[group_health]["id"],
+                         "variants": model_group_health[group_health]["variants"]}
 
     def get_etree_prototype(self):
         result = PhysicBodyPrototypeInfo.get_etree_prototype(self)
@@ -290,6 +287,8 @@ class ChassisPrototypeInfo(VehiclePartPrototypeInfo):
         self.brakingSoundName = AnnotatedValue("", "BrakingSound", group_type=GroupType.SOUND)
         self.pneumoSoundName = AnnotatedValue("", "PneumoSound", group_type=GroupType.SOUND)
         self.gearShiftSoundName = AnnotatedValue("", "GearShiftSound", group_type=GroupType.SOUND)
+        # custom logic
+        self.lookupModelFile = True
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -321,6 +320,8 @@ class CabinPrototypeInfo(VehiclePartPrototypeInfo):
         self.control = AnnotatedValue(50.0, "Control", group_type=GroupType.PRIMARY)
         self.engineHighSoundName = AnnotatedValue("", "EngineHighSound", group_type=GroupType.SOUND)
         self.engineLowSoundName = AnnotatedValue("", "EngineLowSound", group_type=GroupType.SOUND)
+        # custom logic
+        self.lookupModelFile = True
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -391,6 +392,8 @@ class BasketPrototypeInfo(VehiclePartPrototypeInfo):
         self.repositorySize = AnnotatedValue({"x": 10, "y": 10}, "RepositorySize",
                                              group_type=GroupType.PRIMARY,
                                              saving_type=SavingType.SPECIFIC)
+        # custom logic
+        self.lookupModelFile = True
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -2619,6 +2622,21 @@ class Boss04StationPartPrototypeInfo(VehiclePartPrototypeInfo):
         self.collisionTrimeshAllowed = AnnotatedValue(False, "CollisionTrimeshAllowed",
                                                       group_type=GroupType.SECONDARY)
         self.maxHealth = 0.0
+        # custom value, only created and used in RefreshFromXml in original
+        self.strCriticalMeshGroups = AnnotatedValue("", "CriticalMeshGroups", group_type=GroupType.SECONDARY,
+                                                    saving_type=SavingType.SPECIFIC)
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        # custom implementation. Originally called from PrototypeManager -> RefreshFromXml
+        result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            self.RefreshFromXml(xmlFile, xmlNode)
+            return STATUS_SUCCESS
+
+    def RefreshFromXml(self, xmlFile, xmlNode):
+        strCriticalMeshGroups = read_from_xml_node(xmlNode, "CriticalMeshGroups", do_not_warn=True)
+        if strCriticalMeshGroups is not None:
+            self.strCriticalMeshGroups.value = strCriticalMeshGroups.split()
 
 
 class Boss04StationPrototypeInfo(ComplexPhysicObjPrototypeInfo):

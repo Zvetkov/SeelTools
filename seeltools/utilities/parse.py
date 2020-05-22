@@ -32,16 +32,39 @@ def parse_model_group_health(relative_path: str):
     else:
         logger.debug(f"Model file '{relative_path}' given doesn't contain known GroupHealth headers!")
         return None
-    group_health["Main"] = None
+    group_health["Main"] = {"id": None,
+                            "variants": None}
     if VehicleGamStruct.BREAKABLE_BSTR.value in str_from_file:
         main_breakable_raw = str_from_file.split(main_header)
         breakables_raw = main_breakable_raw[1][main_breakable_raw[1].index(VehicleGamStruct.BREAKABLE_BSTR.value):]
-        breakable_list_raw = breakables_raw.split(VehicleGamStruct.BREAKABLE_DIV.value)
-        for byte_str in breakable_list_raw:
-            if VehicleGamStruct.BREAKABLE_BSTR.value in byte_str:
-                breakable_name = byte_str[:11].decode('latin-1').replace('\x00', '')
-                breakable_id = int(byte_str[11:][21:22].hex(), 16)
-                group_health[breakable_name] = breakable_id
+        current_index = 0
+        while True:
+            if breakables_raw[current_index:current_index + 3] == b"\x49\x56\x52":  # IVR
+                break
+            # finding amount of variants for groups which dictates chunk length
+            variants = breakables_raw[current_index + 28]
+            if variants == 2:
+                chunk_size = 60
+            elif variants == 3:
+                chunk_size = 72
+            else:
+                logger.error(f"Tried to parse HealthGroups for model containing group with {variants} variants!"
+                             "Only 2 and 3 are supported by toolkit!")
+
+            breakable_string = breakables_raw[current_index:current_index + chunk_size]
+
+            if VehicleGamStruct.BREAKABLE_BSTR.value in breakable_string:
+                breakable_name = breakable_string[:11].decode('latin-1').replace('\x00', '')
+                breakable_id = int(breakable_string[11:][21:22].hex(), 16)
+                group_health[breakable_name] = {"id": breakable_id,
+                                                "variants": variants}
+            current_index += chunk_size
+
+        # for byte_str in breakables_list:
+        #     if VehicleGamStruct.BREAKABLE_BSTR.value in byte_str:
+        #         breakable_name = byte_str[:11].decode('latin-1').replace('\x00', '')
+        #         breakable_id = int(byte_str[11:][21:22].hex(), 16)
+        #         group_health[breakable_name] = breakable_id
         return group_health
     else:
         logger.debug(f"Model file '{relative_path}' doesn't contain any breakable health zones.")

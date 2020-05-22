@@ -33,21 +33,20 @@ class Server(object):
         self.theAffixManager.LoadFromXML(self.theGlobalProperties.pathToAffixes)
         app = Application()
         app.LoadServers("data/models/commonservers.xml")
-        app.LoadAdditionalServers("data/maps/r1m1/servers.xml")
-        app.LoadAdditionalServers("data/maps/r1m2/servers.xml")
-        app.LoadAdditionalServers("data/maps/r1m3/servers.xml")
-        app.LoadAdditionalServers("data/maps/r1m4/servers.xml")
-        app.LoadAdditionalServers("data/maps/r2m1/servers.xml")
-        app.LoadAdditionalServers("data/maps/r2m2/servers.xml")
-        app.LoadAdditionalServers("data/maps/r3m1/servers.xml")
-        app.LoadAdditionalServers("data/maps/r3m2/servers.xml")
-        app.LoadAdditionalServers("data/maps/r4m1/servers.xml")
-        app.LoadAdditionalServers("data/maps/r4m2/servers.xml")
+        # app.LoadAdditionalServers("data/maps/r1m1/servers.xml")
+        # app.LoadAdditionalServers("data/maps/r1m2/servers.xml")
+        # app.LoadAdditionalServers("data/maps/r1m3/servers.xml")
+        # app.LoadAdditionalServers("data/maps/r1m4/servers.xml")
+        # app.LoadAdditionalServers("data/maps/r2m1/servers.xml")
+        # app.LoadAdditionalServers("data/maps/r2m2/servers.xml")
+        # app.LoadAdditionalServers("data/maps/r3m1/servers.xml")
+        # app.LoadAdditionalServers("data/maps/r3m2/servers.xml")
+        # app.LoadAdditionalServers("data/maps/r4m1/servers.xml")
+        # app.LoadAdditionalServers("data/maps/r4m2/servers.xml")
         self.theAnimatedModelsServer = app.servers['AnimatedModelsServer'].server
 
     def Load(self, a2: int = 0, startupMode=0, xmlFile=0, xmlNode=0, isContiniousMap=0, saveType=0):
-        start = timer()
-        logger.debug("Starting timer")
+        logger.info("Starting timer")
         logger.info("Loading Server")
         self.saveType = saveType
         if not isContiniousMap:
@@ -81,8 +80,6 @@ class Server(object):
             #     level_file_name = self.level.GetFullPathNameA(self.level, allowed_classes, self.level.dsSrvName)
             #     self.theDynamicScene.LoadSceneFromXML(self.pDynamicScene, level_file_name, allowedClasses)
             # logger.info("DynamicScene loaded")
-        end = timer()
-        logger.debug(f"Loading Server Total time: {end - start}")
 
     def LoadGlobalPropertiesFromXML(self, fileName):
         xmlFile = xml_to_objfy(fileName)
@@ -105,7 +102,10 @@ class Server(object):
         self.thePrototypeManager.save_to_xml(self.theGlobalProperties.pathToGameObjects)
 
 
+start = timer()
 theKernel = Kernel()
 theServer = Server()
 theServer.InitOnce(theKernel)
 theServer.Load()
+end = timer()
+logger.info(f"Loading Server Total time: {end - start}")

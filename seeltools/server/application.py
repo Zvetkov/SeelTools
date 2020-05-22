@@ -34,7 +34,7 @@ class Application(object):
         logger.info(f"Loading Servers: {file_name}")
 
         xml_file_node = xml_to_objfy(file_name)
-        if xml_file_node:
+        if xml_file_node is not None:
             for server_node in xml_file_node.iterchildren():
                 server_container = self.servers.get(server_node.tag)
                 if server_container is not None:
