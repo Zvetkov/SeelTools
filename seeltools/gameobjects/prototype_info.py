@@ -1290,12 +1290,13 @@ class VehiclePrototypeInfo(ComplexPhysicObjPrototypeInfo):
 class ArticulatedVehiclePrototypeInfo(VehiclePrototypeInfo):
     def __init__(self, server):
         VehiclePrototypeInfo.__init__(self, server)
-        self.trailerPrototypeName = ""
+        self.trailerPrototypeName = AnnotatedValue("", "TrailerPrototype", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = VehiclePrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.trailerPrototypeName = safe_check_and_set(self.trailerPrototypeName, xmlNode, "TrailerPrototype")
+            self.trailerPrototypeName.value = safe_check_and_set(self.trailerPrototypeName.default_value, xmlNode,
+                                                                 "TrailerPrototype")
             return STATUS_SUCCESS
 
     def InternalCopyFrom(self, prot_to_copy_from):
@@ -1303,7 +1304,7 @@ class ArticulatedVehiclePrototypeInfo(VehiclePrototypeInfo):
 
     def PostLoad(self, prototype_manager):
         VehiclePrototypeInfo.PostLoad(self, prototype_manager)
-        self.trailerPrototypeId = prototype_manager.GetPrototypeId(self.trailerPrototypeName)
+        self.trailerPrototypeId = prototype_manager.GetPrototypeId(self.trailerPrototypeName.value)
 
 
 class DummyObjectPrototypeInfo(SimplePhysicObjPrototypeInfo):
@@ -3455,15 +3456,15 @@ class ObjPrefabPrototypeInfo(SimplePhysicObjPrototypeInfo):
 class BarricadePrototypeInfo(ObjPrefabPrototypeInfo):
     def __init__(self, server):
         ObjPrefabPrototypeInfo.__init__(self, server)
-        self.objInfos = AnnotatedValue([], "ObjInfos", group_type=GroupType.SECONDARY, saving_type=SavingType.SPECIFIC)
-        self.probability = 1.0
+        self.objInfos = AnnotatedValue([], "ObjInfos", group_type=GroupType.PRIMARY, saving_type=SavingType.SPECIFIC)
+        self.probability = AnnotatedValue(1.0, "Probability", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = ObjPrefabPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             probability = read_from_xml_node(xmlNode, "Probability")
             if probability is not None:
-                self.probability = float(probability)
+                self.probability.value = float(probability)
             return STATUS_SUCCESS
 
     def InternalCopyFrom(self, prot_to_copy_from):
