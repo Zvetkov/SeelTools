@@ -27,6 +27,8 @@ class SavingType(Enum):
     SPECIFIC = 1  # saving behaviour implemented in Class by itself
     RESOURCE = 2  # saving behaviout for ResourceType specifically
     IGNORE = 3  # ignore property during saving. Default if GroupType is INTERNAL
+    REQUIRED = 4  # save REQUIRED, even if equel to default_value. Saving behaviour implemented in PrototypeInfo
+    REQUIRED_SPECIFIC = 5  # save REQUIRED, even if equel to default_value. Saving behaviour implemented in Class itself
 
 
 class AnnotatedValue(object):

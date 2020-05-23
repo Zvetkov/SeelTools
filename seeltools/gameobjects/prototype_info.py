@@ -16,34 +16,10 @@ from seeltools.utilities.constants import (STATUS_SUCCESS, DEFAULT_TURNING_SPEED
 from seeltools.utilities.global_functions import GetActionByName, GetActionByNum  # , AIParam
 
 from seeltools.utilities.value_classes import AnnotatedValue, DisplayType, GroupType, SavingType
-from seeltools.utilities.helper_functions import value_equel_default
+from seeltools.utilities.helper_functions import (vector_short_to_string, vector_to_string, vector_long_to_string,
+                                                  add_value_to_node, add_value_to_node_as_child, should_be_saved)
 
 from seeltools.gameobjects.object_classes import *
-
-
-def vector_short_to_string(value):
-    return f'{value["x"]} {value["y"]}'
-
-def vector_to_string(value):
-    return f'{value["x"]} {value["y"]} {value["z"]}'
-
-
-def vector_long_to_string(value):
-    return f'{value["x"]} {value["y"]} {value["z"]} {value["w"]}'
-
-
-def add_value_to_node(node, annotatedValue, func=lambda x: str(x.value)):
-    if not value_equel_default(annotatedValue.value, annotatedValue.default_value):
-        node.set(annotatedValue.name, func(annotatedValue))
-
-
-def add_value_to_node_as_child(node, annotatedValue, func):
-    if not value_equel_default(annotatedValue.value, annotatedValue.default_value):
-        result = func(annotatedValue)
-        if isinstance(result, list):
-            node.extend(result)
-        else:
-            node.append(result)
 
 
 class PrototypeInfo(object):
@@ -128,8 +104,9 @@ class PrototypeInfo(object):
                 if (
                     attrib.saving_type != SavingType.IGNORE
                     and attrib.saving_type != SavingType.SPECIFIC
+                    and attrib.saving_type != SavingType.REQUIRED_SPECIFIC
                 ):
-                    if attrib.saving_type == SavingType.COMMON:
+                    if attrib.saving_type == SavingType.COMMON or attrib.saving_type == SavingType.REQUIRED:
                         add_value_to_node(result, attrib)
                     elif attrib.saving_type == SavingType.RESOURCE:
                         add_value_to_node(result, attrib,
@@ -416,10 +393,7 @@ class BasketPrototypeInfo(VehiclePartPrototypeInfo):
         result = VehiclePartPrototypeInfo.get_etree_prototype(self)
         # save RepositoryDescription
         # too complex to be transformed to lambda
-        if (
-            self.repositorySize.value != self.repositorySize.default_value
-            or self.slots.value != self.slots.default_value
-        ):
+        if should_be_saved(self.repositorySize) or should_be_saved(self.slots):
             repositoryDescription = etree.Element("RepositoryDescription")
             repositoryDescription.set(self.repositorySize.name,
                                       f'{self.repositorySize.value["x"]} {self.repositorySize.value["y"]}')
@@ -460,8 +434,8 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
         self.reChargingTimePerShell = AnnotatedValue(0.0, "ReChargingTimePerShell", group_type=GroupType.PRIMARY)
         self.shellsPoolSize = AnnotatedValue(12, "ShellsPoolSize", group_type=GroupType.PRIMARY)
         self.blastWavePrototypeId = -1
-        self.firingType = AnnotatedValue(-1, "FiringType", group_type=GroupType.PRIMARY,  # default changed
-                                         saving_type=SavingType.SPECIFIC)
+        self.firingType = AnnotatedValue(0, "FiringType", group_type=GroupType.PRIMARY,
+                                         saving_type=SavingType.REQUIRED_SPECIFIC)
         self.fireLpMatrices = []
         self.explosionTypeName = AnnotatedValue("BIG", "ExplosionType", group_type=GroupType.PRIMARY)
         self.shellPrototypeName = AnnotatedValue("", "BulletPrototype", group_type=GroupType.PRIMARY)
@@ -1529,7 +1503,7 @@ class TeamTacticWithRolesPrototypeInfo(PrototypeInfo):
 
     def get_etree_prototype(self):
         result = PrototypeInfo.get_etree_prototype(self)
-        if self.rolePrototypeNames.value != self.rolePrototypeNames.default_value:
+        if should_be_saved(self.rolePrototypeNames):
             for role in self.rolePrototypeNames.value:
                 roleElement = etree.Element("Role")
                 roleElement.set("Prototype", str(role))
@@ -1580,13 +1554,10 @@ class TeamPrototypeInfo(PrototypeInfo):
     def get_etree_prototype(self):
         result = PrototypeInfo.get_etree_prototype(self)
         # formation starts
-        if (
-            self.formationPrototypeName.value != self.formationPrototypeName.default_value
-            or self.formationDistBetweenVehicles.value != self.formationDistBetweenVehicles.default_value
-        ):
+        if should_be_saved(self.formationPrototypeName) or should_be_saved(self.formationDistBetweenVehicles):
             formation = etree.Element("Formation")
             formation.set("Prototype", str(self.formationPrototypeName.value))
-            if(self.formationDistBetweenVehicles.value != self.formationDistBetweenVehicles.default_value):
+            if should_be_saved(self.formationDistBetweenVehicles):
                 formation.set("DistBetweenVehicles", str(self.formationDistBetweenVehicles.value))
             result.append(formation)
         # formation ends
@@ -1666,7 +1637,7 @@ class InfectionTeamPrototypeInfo(TeamPrototypeInfo):
     def __init__(self, server):
         TeamPrototypeInfo.__init__(self, server)
         self.items = AnnotatedValue([], "Vehicles", group_type=GroupType.PRIMARY,
-                                    saving_type=SavingType.SPECIFIC)
+                                    saving_type=SavingType.REQUIRED_SPECIFIC)
         self.vehiclesGeneratorProtoName = AnnotatedValue("", "VehiclesGenerator", group_type=GroupType.PRIMARY)
         self.vehiclesGeneratorProtoId = -1
 
@@ -1698,14 +1669,18 @@ class InfectionTeamPrototypeInfo(TeamPrototypeInfo):
 
     def get_etree_prototype(self):
         result = TeamPrototypeInfo.get_etree_prototype(self)
-        # Vehicles start (ignore default)
-        vehiclesTree = etree.Element("Vehicles")
-        for vehicle in self.items.value:
-            vehicle_node = etree.Element("Vehicle")
-            vehicle_node.set("PrototypeName", str(vehicle["protoName"]))
-            vehicle_node.set("Count", str(vehicle["count"]))
-            vehiclesTree.append(vehicle_node)
-        result.append(vehiclesTree)
+        # Vehicles start
+
+        def prepare_vehicles(vehicles_array):
+            vehiclesTree = etree.Element("Vehicles")
+            for vehicle in self.items.value:
+                vehicle_node = etree.Element("Vehicle")
+                vehicle_node.set("PrototypeName", str(vehicle["protoName"]))
+                vehicle_node.set("Count", str(vehicle["count"]))
+                vehiclesTree.append(vehicle_node)
+            return vehiclesTree
+
+        add_value_to_node_as_child(result, self.items, lambda x: prepare_vehicles(x.value))
         # Vehicles end
         return result
 
@@ -2136,11 +2111,11 @@ class TownPrototypeInfo(SettlementPrototypeInfo):
 
     def get_etree_prototype(self):
         result = SettlementPrototypeInfo.get_etree_prototype(self)
-        if self.articles.value != self.articles.default_value:
+        if should_be_saved(self.articles):
             for articleItem in self.articles.value:
                 result.append(Article.get_etree_prototype(articleItem))
 
-        if self.resourceIdToRandomCoeffMap.value != self.resourceIdToRandomCoeffMap.default_value:
+        if should_be_saved(self.resourceIdToRandomCoeffMap):
             for resourceCoeffItem in self.resourceIdToRandomCoeffMap.value:
                 resourceCoeffElement = etree.Element("ResourceCoeff")
                 resourceCoeffElement.set("Coeff", str(resourceCoeffItem["second"].baseCoeff))
@@ -2148,7 +2123,7 @@ class TownPrototypeInfo(SettlementPrototypeInfo):
                 resourceCoeffElement.set("Resource",
                                          self.theServer.theResourceManager.GetResourceName(resourceCoeffItem["first"]))
                 result.append(resourceCoeffElement)
-            pass
+
         return result
 
     class RandomCoeffWithDispersion(object):
@@ -2220,7 +2195,7 @@ class CinematicMoverPrototypeInfo(PrototypeInfo):
 class DynamicQuestPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.minReward = AnnotatedValue(-1, "MinReward", group_type=GroupType.PRIMARY)  # default changed
+        self.minReward = AnnotatedValue(0, "MinReward", group_type=GroupType.PRIMARY, saving_type=SavingType.REQUIRED)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -2423,10 +2398,10 @@ class Boss02ArmPrototypeInfo(BossArmPrototypeInfo):
                                                            group_type=GroupType.SECONDARY)
         self.frameToReleaseContainerForDie = AnnotatedValue(0, "FrameToReleaseContainerForDie",
                                                             group_type=GroupType.SECONDARY)
-        self.actionForBlock = AnnotatedValue(-1, "ActionForBlock", group_type=GroupType.PRIMARY,
-                                             saving_type=SavingType.SPECIFIC)
-        self.actionForDie = AnnotatedValue(-1, "ActionForDie", group_type=GroupType.PRIMARY,
-                                           saving_type=SavingType.SPECIFIC)
+        self.actionForBlock = AnnotatedValue(0, "ActionForBlock", group_type=GroupType.PRIMARY,
+                                             saving_type=SavingType.REQUIRED_SPECIFIC)
+        self.actionForDie = AnnotatedValue(0, "ActionForDie", group_type=GroupType.PRIMARY,
+                                           saving_type=SavingType.REQUIRED_SPECIFIC)
         self.blockingContainerPrototypeId = -1
         self.blockingContainerPrototypeName = AnnotatedValue("", "ContainerPrototype", group_type=GroupType.PRIMARY)
 
@@ -2982,7 +2957,7 @@ class CompoundVehiclePartPrototypeInfo(VehiclePartPrototypeInfo):
 
     def get_etree_prototype(self):
         result = VehiclePartPrototypeInfo.get_etree_prototype(self)
-        if self.partInfo.value != self.partInfo.default_value:
+        if should_be_saved(self.partInfo):
             for key in self.partInfo.value:
                 partElement = etree.Element("Part")
                 partElement.set("id", key)
@@ -3378,8 +3353,8 @@ class SubmarinePrototypeInfo(DummyObjectPrototypeInfo):
 class BuildingPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.buildingType = AnnotatedValue(-1, "BuildingType", group_type=GroupType.SECONDARY,
-                                           saving_type=SavingType.SPECIFIC)
+        self.buildingType = AnnotatedValue(5, "BuildingType", group_type=GroupType.SECONDARY,
+                                           saving_type=SavingType.REQUIRED_SPECIFIC)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -3398,7 +3373,8 @@ class BuildingPrototypeInfo(PrototypeInfo):
 class BarPrototypeInfo(BuildingPrototypeInfo):
     def __init__(self, server):
         BuildingPrototypeInfo.__init__(self, server)
-        self.withBarman = AnnotatedValue(None, "WithBarman", group_type=GroupType.SECONDARY)
+        self.withBarman = AnnotatedValue(True, "WithBarman", group_type=GroupType.SECONDARY,
+                                         saving_type=SavingType.REQUIRED)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = BuildingPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -3475,7 +3451,8 @@ class QuestItemPrototypeInfo(PrototypeInfo):
 class BreakableObjectPrototypeInfo(SimplePhysicObjPrototypeInfo):
     def __init__(self, server):
         SimplePhysicObjPrototypeInfo.__init__(self, server)
-        self.destroyable = AnnotatedValue(-1, "Destroyable", group_type=GroupType.SECONDARY)  # default changed
+        self.destroyable = AnnotatedValue(0, "Destroyable", group_type=GroupType.SECONDARY,
+                                          saving_type=SavingType.REQUIRED)
         self.criticalHitEnergy = AnnotatedValue(None, "CriticalHitEnergy", group_type=GroupType.SECONDARY)
         self.effectType = AnnotatedValue("WOOD", "EffectType", group_type=GroupType.SECONDARY)
         self.destroyEffectType = AnnotatedValue("BLOW", "DestroyEffectType", group_type=GroupType.SECONDARY)
@@ -3701,7 +3678,7 @@ class RepositoryObjectsGeneratorPrototypeInfo(PrototypeInfo):
 
     def get_etree_prototype(self):
         result = PrototypeInfo.get_etree_prototype(self)
-        if self.objectDescriptions.value != self.objectDescriptions.default_value:
+        if should_be_saved(self.objectDescriptions):
             for objectItem in self.objectDescriptions.value:
                 result.append(self.ObjectDescription.get_etree_prototype(objectItem))
         return result
