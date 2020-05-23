@@ -7,7 +7,7 @@ from seeltools.utilities.log import logger
 from seeltools.utilities.id_manager import theIdManager
 
 from seeltools.utilities.parse import safe_check_and_set, parse_str_to_bool, read_from_xml_node, child_from_xml_node
-from seeltools.utilities.constants import (STATUS_SUCCESS, ZERO_VECTOR, INITIAL_OBJECTS_DIRECTION, BUILDING_TYPE,
+from seeltools.utilities.constants import (STATUS_SUCCESS, ZERO_VECTOR, INITIAL_OBJECTS_DIRECTION, BuildingType,
                                            IDENTITY_QUATERNION)
 from seeltools.utilities.global_functions import MassSetBoxTotal
 
@@ -1101,10 +1101,10 @@ class Building(Obj):
         self.npcs = []
 
     def GetBuildingTypeByName(name):
-        return BUILDING_TYPE.get(name.upper())
+        return BuildingType[name].value
 
     def GetBuildingTypeNameByNum(num):
-        return (list(BUILDING_TYPE.keys())[list(BUILDING_TYPE.values()).index(num)])
+        return BuildingType(num).name
 
 
 class Bar(Building):

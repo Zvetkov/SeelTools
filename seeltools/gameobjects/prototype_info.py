@@ -3378,7 +3378,7 @@ class SubmarinePrototypeInfo(DummyObjectPrototypeInfo):
 class BuildingPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.buildingType = AnnotatedValue(5, "BuildingType", group_type=GroupType.SECONDARY,
+        self.buildingType = AnnotatedValue(-1, "BuildingType", group_type=GroupType.SECONDARY,
                                            saving_type=SavingType.SPECIFIC)
 
     def LoadFromXML(self, xmlFile, xmlNode):
@@ -3398,7 +3398,7 @@ class BuildingPrototypeInfo(PrototypeInfo):
 class BarPrototypeInfo(BuildingPrototypeInfo):
     def __init__(self, server):
         BuildingPrototypeInfo.__init__(self, server)
-        self.withBarman = AnnotatedValue(True, "WithBarman", group_type=GroupType.SECONDARY)
+        self.withBarman = AnnotatedValue(None, "WithBarman", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = BuildingPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)

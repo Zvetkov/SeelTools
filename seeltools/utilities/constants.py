@@ -227,14 +227,6 @@ TOLLERANCE = {"RS_ENEMY": 0x1,
               "RS_OWN": 0x4,
               "RS_MAX": 0x5}
 
-BUILDING_TYPE = {"ADMINISTRATION": 0x0,
-                 "BAR": 0x1,
-                 "SHOP": 0x2,
-                 "WORKSHOP": 0x3,
-                 "GARAGE": 0x4,
-                 "NUM_BUILDINGTYPES": 0x5,
-                 "INVALID_BUILDINGTYPE": 0x5}
-
 ITEM_TYPE = {"GADGET": 0x0,
              "VEHICLE_PART_CABIN": 0x1,
              "VEHICLE_PART_BASKET": 0x2,
@@ -380,3 +372,13 @@ class VehicleGamStruct(Enum):
     GROUP_HEALTH_HEADER_URAL_CARGO = b'\xC3\x38\x67\x40\xD1'
     GROUP_HEALTH_DIV = b'\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00'
     BREAKABLE_BSTR = b'\x42\x72\x65\x61\x6B\x61\x62\x6C\x65'
+
+
+class BuildingType(Enum):
+    Administration = 0x0,
+    Bar = 0x1
+    Shop = 0x2
+    Workshop = 0x3
+    Garage = 0x4
+    NUM_BUILDINGTYPES = 0x5
+    INVALID_BUILDINGTYPE = 0x5
