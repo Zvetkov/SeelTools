@@ -2056,7 +2056,8 @@ class TownPrototypeInfo(SettlementPrototypeInfo):
         self.articles = AnnotatedValue([], "Articles", group_type=GroupType.SECONDARY, saving_type=SavingType.SPECIFIC)
         self.collisionTrimeshAllowed = AnnotatedValue(True, "CollisionTrimeshAllowed", group_type=GroupType.SECONDARY)
 
-        self.resourceIdToRandomCoeffMap = []
+        self.resourceIdToRandomCoeffMap = AnnotatedValue([], "ResourceCoeff", group_type=GroupType.SECONDARY,
+                                                         saving_type=SavingType.SPECIFIC)
         self.gunGeneratorPrototypeId = -1
         self.gunAffixGeneratorPrototypeId = -1
         self.cabinsAndBasketsAffixGeneratorPrototypeId = -1
@@ -2104,7 +2105,7 @@ class TownPrototypeInfo(SettlementPrototypeInfo):
             return STATUS_SUCCESS
 
     def LoadFromXmlResourceIdToRandomCoeffMap(self, xmlFile, xmlNode):
-        self.resourceIdToRandomCoeffMap = []
+        # self.resourceIdToRandomCoeffMap = []
         resource_coeffs = child_from_xml_node(xmlNode, "ResourceCoeff", do_not_warn=True)
         if resource_coeffs is not None:
             for resource_coeff_node in resource_coeffs:
@@ -2121,7 +2122,7 @@ class TownPrototypeInfo(SettlementPrototypeInfo):
                              "second": self.RandomCoeffWithDispersion()}
                     coeff["second"].baseCoeff = newRandomCoeff
                     coeff["second"].baseDispersion = newRandomCoeff_4
-                    self.resourceIdToRandomCoeffMap.append(coeff)
+                    self.resourceIdToRandomCoeffMap.value.append(coeff)
 
     def PostLoad(self, prototype_manager):
         SettlementPrototypeInfo.PostLoad(self, prototype_manager)
@@ -2135,9 +2136,19 @@ class TownPrototypeInfo(SettlementPrototypeInfo):
 
     def get_etree_prototype(self):
         result = SettlementPrototypeInfo.get_etree_prototype(self)
-        if self.articles.value != self.articles.value:
+        if self.articles.value != self.articles.default_value:
             for articleItem in self.articles.value:
                 result.append(Article.get_etree_prototype(articleItem))
+
+        if self.resourceIdToRandomCoeffMap.value != self.resourceIdToRandomCoeffMap.default_value:
+            for resourceCoeffItem in self.resourceIdToRandomCoeffMap.value:
+                resourceCoeffElement = etree.Element("ResourceCoeff")
+                resourceCoeffElement.set("Coeff", str(resourceCoeffItem["second"].baseCoeff))
+                resourceCoeffElement.set("Dispersion", str(resourceCoeffItem["second"].baseDispersion))
+                resourceCoeffElement.set("Resource",
+                                         self.theServer.theResourceManager.GetResourceName(resourceCoeffItem["first"]))
+                result.append(resourceCoeffElement)
+            pass
         return result
 
     class RandomCoeffWithDispersion(object):
