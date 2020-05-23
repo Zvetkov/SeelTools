@@ -101,16 +101,11 @@ class PrototypeInfo(object):
         prot_attribs = vars(self)
         for attrib in prot_attribs.values():
             if isinstance(attrib, AnnotatedValue):
-                if (
-                    attrib.saving_type != SavingType.IGNORE
-                    and attrib.saving_type != SavingType.SPECIFIC
-                    and attrib.saving_type != SavingType.REQUIRED_SPECIFIC
-                ):
-                    if attrib.saving_type == SavingType.COMMON or attrib.saving_type == SavingType.REQUIRED:
-                        add_value_to_node(result, attrib)
-                    elif attrib.saving_type == SavingType.RESOURCE:
-                        add_value_to_node(result, attrib,
-                                          lambda x: self.theServer.theResourceManager.GetResourceName(x.value))
+                if attrib.saving_type == SavingType.COMMON or attrib.saving_type == SavingType.REQUIRED:
+                    add_value_to_node(result, attrib)
+                elif attrib.saving_type == SavingType.RESOURCE:
+                    add_value_to_node(result, attrib,
+                                        lambda x: self.theServer.theResourceManager.GetResourceName(x.value))
         return result
 
 
