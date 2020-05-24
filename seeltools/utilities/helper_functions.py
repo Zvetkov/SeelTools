@@ -19,7 +19,7 @@ def should_be_saved(annotatedValue: AnnotatedValue):
         or annotatedValue.saving_type == SavingType.REQUIRED_SPECIFIC
         or (
             annotatedValue.value != annotatedValue.default_value
-            and (annotatedValue.value != '' or annotatedValue.value is not None)
+            and (annotatedValue.value != '' and annotatedValue.value is not None)
         )
     ):
         return True
