@@ -17,7 +17,10 @@ def should_be_saved(annotatedValue: AnnotatedValue):
     if (
         annotatedValue.saving_type == SavingType.REQUIRED
         or annotatedValue.saving_type == SavingType.REQUIRED_SPECIFIC
-        or (annotatedValue.value != annotatedValue.default_value and bool(annotatedValue.value))
+        or (
+            annotatedValue.value != annotatedValue.default_value
+            and (annotatedValue.value != '' or annotatedValue.value is not None)
+        )
     ):
         return True
     else:
