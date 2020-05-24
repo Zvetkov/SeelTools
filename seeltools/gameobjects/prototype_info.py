@@ -371,7 +371,7 @@ class BasketPrototypeInfo(VehiclePartPrototypeInfo):
             repositorySize = repositorySize.split()
             self.repositorySize.value = {"x": repositorySize[0],
                                          "y": repositorySize[1]}
-            if len(repositoryDescriptions.getchildren()) > 1:
+            if len(repositoryDescriptions.getchildren()) >= 1:
                 check_mono_xml_node(repositoryDescriptions, "Slot")
                 for slot_node in repositoryDescriptions.iterchildren(tag="Slot"):
                     pos = read_from_xml_node(slot_node, "Pos").split()
