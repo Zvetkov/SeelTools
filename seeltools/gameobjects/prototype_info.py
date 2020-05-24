@@ -993,14 +993,14 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
 class ChestPrototypeInfo(SimplePhysicObjPrototypeInfo):
     def __init__(self, server):
         SimplePhysicObjPrototypeInfo.__init__(self, server)
-        self.lifeTime = AnnotatedValue(0.0, "LifeTime", group_type=GroupType.SECONDARY)
+        self.lifeTime = AnnotatedValue(-1.0, "LifeTime", group_type=GroupType.SECONDARY)
         self.withLifeTime = False
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             self.SetGeomType("BOX")
-            self.lifeTime.value = safe_check_and_set(-1, xmlNode, self.lifeTime.name, "float")
+            self.lifeTime.value = safe_check_and_set(self.lifeTime.default_value, xmlNode, self.lifeTime.name, "float")
             if self.lifeTime.value <= 0.0:
                 self.withLifeTime = False
             else:
