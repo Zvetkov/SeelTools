@@ -27,7 +27,7 @@ def should_be_saved(annotatedValue: AnnotatedValue):
         return False
 
 
-def add_value_to_node(node, annotatedValue: AnnotatedValue, func=lambda x: str(x.value)):
+def add_value_to_node(node, annotatedValue: AnnotatedValue, func):
     if should_be_saved(annotatedValue):
         node.set(annotatedValue.name, func(annotatedValue))
 

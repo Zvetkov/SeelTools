@@ -2,6 +2,7 @@ from math import pi, sqrt
 from copy import deepcopy
 from lxml import objectify, etree
 from enum import Enum
+from math import ceil, log10
 
 from seeltools.utilities.log import logger
 
@@ -102,10 +103,14 @@ class PrototypeInfo(object):
         for attrib in prot_attribs.values():
             if isinstance(attrib, AnnotatedValue):
                 if attrib.saving_type == SavingType.COMMON or attrib.saving_type == SavingType.REQUIRED:
-                    add_value_to_node(result, attrib)
+                    if type(attrib.value) == float and attrib.value < 1:
+                        precision = int(ceil(abs(log10(abs(attrib.value))))) if attrib.value != 0 else 1
+                        add_value_to_node(result, attrib, lambda x: f'{x.value:.{precision}f}')
+                    else:
+                        add_value_to_node(result, attrib, lambda x: str(x.value))
                 elif attrib.saving_type == SavingType.RESOURCE:
                     add_value_to_node(result, attrib,
-                                        lambda x: self.theServer.theResourceManager.GetResourceName(x.value))
+                                      lambda x: self.theServer.theResourceManager.GetResourceName(x.value))
         return result
 
 
@@ -371,7 +376,7 @@ class BasketPrototypeInfo(VehiclePartPrototypeInfo):
             repositorySize = repositorySize.split()
             self.repositorySize.value = {"x": repositorySize[0],
                                          "y": repositorySize[1]}
-            if len(repositoryDescriptions.getchildren()) >= 1:
+            if len(repositoryDescriptions.getchildren()) > 0:
                 check_mono_xml_node(repositoryDescriptions, "Slot")
                 for slot_node in repositoryDescriptions.iterchildren(tag="Slot"):
                     pos = read_from_xml_node(slot_node, "Pos").split()
@@ -1106,7 +1111,7 @@ class ComplexPhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
             lpNames = read_from_xml_node(xmlNode, "lpName", do_not_warn=True)
             if lpNames is not None:
                 self.lpNames = lpNames.split()
-            if len(xmlNode.getchildren()) >= 1:
+            if len(xmlNode.getchildren()) > 0:
                 check_mono_xml_node(xmlNode, "PartDescription")
                 for description_node in xmlNode.iterchildren(tag="PartDescription"):
                     part_description = ComplexPhysicObjPrototypeInfo.ComplexPhysicObjPartDescription()
@@ -1645,7 +1650,7 @@ class InfectionTeamPrototypeInfo(TeamPrototypeInfo):
                                                                        xmlNode,
                                                                        self.vehiclesGeneratorProtoName.name)
             vehicles = child_from_xml_node(xmlNode, "Vehicles", do_not_warn=True)
-            if vehicles is not None and len(vehicles.getchildren()) >= 1:
+            if vehicles is not None and len(vehicles.getchildren()) > 0:
                 check_mono_xml_node(vehicles, "Vehicle")
                 for vehicle in vehicles.iterchildren(tag="Vehicle"):
                     item = {"protoName": read_from_xml_node(vehicle, "PrototypeName"),
@@ -1771,7 +1776,7 @@ class VehiclesGeneratorPrototypeInfo(PrototypeInfo):
                     logger.error(f"VehicleGenerator {self.prototypeName.value} attrib DesiredCount high value: "
                                  f"{self.desiredCountHigh.value} is higher than permitted MAX_VEHICLES_IN_TEAM: 5")
 
-            if len(xmlNode.getchildren()) > 1:
+            if len(xmlNode.getchildren()) > 0:
                 check_mono_xml_node(xmlNode, "Description")
                 for description_entry in xmlNode.iterchildren(tag="Description"):
                     veh_description = self.VehicleDescription(xmlFile, description_entry)

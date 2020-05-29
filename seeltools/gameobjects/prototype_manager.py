@@ -133,7 +133,9 @@ class PrototypeManager(object):
 
         prototypesTree = etree.Element("Prototypes")
         filteredPrototypes = [x for x in self.prototypes if x.className.value == className]
-        if className == "Vehicle":
+        if className == "Ware":
+            filteredPrototypes.sort(key=lambda x: x.price.value, reverse=False)
+        elif className == "Vehicle":
             filteredPrototypes.sort(key=lambda x: x.isAbstract.value, reverse=True)
         else:
             filteredPrototypes.sort(key=lambda x: x.prototypeName.value, reverse=False)
