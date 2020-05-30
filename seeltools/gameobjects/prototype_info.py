@@ -432,7 +432,7 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
         self.chargeSize = AnnotatedValue(20, "ChargeSize", group_type=GroupType.PRIMARY)
         self.reChargingTime = AnnotatedValue(1.0, "RechargingTime", group_type=GroupType.PRIMARY)
         self.reChargingTimePerShell = AnnotatedValue(0.0, "ReChargingTimePerShell", group_type=GroupType.PRIMARY)
-        self.shellsPoolSize = AnnotatedValue(12, "ShellsPoolSize", group_type=GroupType.PRIMARY)
+        self.shellsPoolSize = AnnotatedValue(0, "ShellsPoolSize", group_type=GroupType.PRIMARY) # original default 12
         self.blastWavePrototypeId = -1
         self.firingType = AnnotatedValue(0, "FiringType", group_type=GroupType.PRIMARY,
                                          saving_type=SavingType.REQUIRED_SPECIFIC)
