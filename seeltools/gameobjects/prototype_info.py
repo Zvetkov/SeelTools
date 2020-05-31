@@ -173,6 +173,9 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
         self.durabilityCoeffsForDamageTypes = AnnotatedValue([0.0, 0.0, 0.0], "DurCoeffsForDamageTypes",
                                                              group_type=GroupType.SECONDARY,
                                                              saving_type=SavingType.SPECIFIC)
+        # simplification for ease of display, actually stores in size property of first CollisionInfo for model
+        self.collision_size = AnnotatedValue(None, "Size", group_type=GroupType.INTERNAL,
+                                             saving_type=SavingType.SPECIFIC)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PhysicBodyPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -237,6 +240,10 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
                 else:
                     model_group_health[group_health]["health"] = float(read_value)
                     self.groupHealth.value[group_health] = model_group_health[group_health]
+
+            size = read_from_xml_node(xmlNode, "Size", do_not_warn=True)
+            if size is not None:
+                self.collision_size.value = parse_str_to_vector(size)
 
     def get_etree_prototype(self):
         result = PhysicBodyPrototypeInfo.get_etree_prototype(self)
@@ -443,6 +450,9 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
 
         self.engineModelName = AnnotatedValue("", "ModelFile", group_type=GroupType.VISUAL,
                                               saving_type=SavingType.SPECIFIC)
+        # Init moved from RefreshFromXml
+        self.lowStopAngle = AnnotatedValue(None, "LowStop", group_type=GroupType.INTERNAL)
+        self.highStopAngle = AnnotatedValue(None, "HighStop", group_type=GroupType.INTERNAL)
 
     def LoadFromXML(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
         result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -528,6 +538,9 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
                 self.ignoreStopAnglesWhenFire.default_value, read_from_xml_node(xmlNode,
                                                                                 self.ignoreStopAnglesWhenFire.name,
                                                                                 do_not_warn=True))
+            # custom implementation. Originally called from PrototypeManager -> RefreshFromXml
+            self.RefreshFromXml(xmlFile, xmlNode)
+            # custom implementation ends
             return STATUS_SUCCESS
 
     def Str2FiringType(firing_type_name: str):
@@ -553,12 +566,23 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
             logger.error(
                 f"Unknown blastwave prototype {self.blastWavePrototypeName.value} for {self.prototypeName.value}")
 
+    def RefreshFromXml(self, xmlFile, xmlNode):
+        lowStopAngle = read_from_xml_node(xmlNode, "LowStop", do_not_warn=True)
+        if lowStopAngle is not None:
+            self.lowStopAngle.value = float(lowStopAngle) * pi / 180  # 0.017453292
+
+        highStopAngle = read_from_xml_node(xmlNode, "HighStop", do_not_warn=True)
+        if highStopAngle is not None:
+            self.highStopAngle.value = float(highStopAngle) * pi / 180  # 0.017453292
+
     def get_etree_prototype(self):
         result = VehiclePartPrototypeInfo.get_etree_prototype(self)
         add_value_to_node(result, self.engineModelName, lambda x: x.value.strip("Gun"))
         add_value_to_node(result, self.turningSpeed, lambda x: str(x.value / (pi / 180)))
         add_value_to_node(result, self.damageType, lambda x: GunPrototypeInfo.DamageType2Str(x.value))
         add_value_to_node(result, self.firingType, lambda x: GunPrototypeInfo.FiringType2Str(x.value))
+        add_value_to_node(result, self.lowStopAngle, lambda x: str(x.value / pi * 180))
+        add_value_to_node(result, self.highStopAngle, lambda x: str(x.value / pi * 180))
         return result
 
 
@@ -985,7 +1009,6 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
         # anim_model_server = self.theServer.theAnimatedModelsServer
         # model_obj = anim_model_server.GetItemByName(self.engineModelName.value)
         # GetCollisionInfoByServerHandle(model_obj, self.collisionInfos, self.collisionTrimeshAllowed)
-        # speed = parse_str_to_vector(read_from_xml_node(xmlNode, "Size", do_not_warn=True))
         # sizeFromDataServer = anim_model_server.GetBoundsSizes(self.engineModelName.value)
         # self.radius.value = sizeFromDataServer.y * 0.5
         size = read_from_xml_node(xmlNode, "Size", do_not_warn=True)
