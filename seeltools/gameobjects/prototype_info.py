@@ -249,6 +249,7 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
         result = PhysicBodyPrototypeInfo.get_etree_prototype(self)
         add_value_to_node(result, self.loadPoints, lambda x: " ".join(map(str, x.value)))
         add_value_to_node(result, self.durabilityCoeffsForDamageTypes, lambda x: " ".join(map(str, x.value)))
+        add_value_to_node(result, self.collision_size, lambda x: vector_to_string(x.value))
 
         def prepare_groupHealth(groupHealth):
             groupHealthElement = etree.Element(groupHealth.name)
@@ -426,8 +427,6 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
                                          saving_type=SavingType.SPECIFIC)
         self.firingRate = AnnotatedValue(1.0, "FiringRate", group_type=GroupType.PRIMARY)
         self.firingRange = AnnotatedValue(1.0, "FiringRange", group_type=GroupType.PRIMARY)
-        self.lowStopAngle = 0.0
-        self.highStopAngle = 0.0
         self.ignoreStopAnglesWhenFire = AnnotatedValue(False, "IgnoreStopAnglesWhenFire", group_type=GroupType.PRIMARY)
         self.decalName = AnnotatedValue("", "Decal", group_type=GroupType.PRIMARY)
         self.decalId = -1
@@ -451,8 +450,10 @@ class GunPrototypeInfo(VehiclePartPrototypeInfo):
         self.engineModelName = AnnotatedValue("", "ModelFile", group_type=GroupType.VISUAL,
                                               saving_type=SavingType.SPECIFIC)
         # Init moved from RefreshFromXml
-        self.lowStopAngle = AnnotatedValue(None, "LowStop", group_type=GroupType.INTERNAL)
-        self.highStopAngle = AnnotatedValue(None, "HighStop", group_type=GroupType.INTERNAL)
+        self.lowStopAngle = AnnotatedValue(None, "LowStop", group_type=GroupType.INTERNAL,
+                                           saving_type=SavingType.SPECIFIC)
+        self.highStopAngle = AnnotatedValue(None, "HighStop", group_type=GroupType.INTERNAL,
+                                            saving_type=SavingType.SPECIFIC)
 
     def LoadFromXML(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
         result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
