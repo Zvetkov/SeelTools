@@ -63,7 +63,7 @@ class ResourceManager(object):
     def _LoadVehiclePartTypeToResourceXmlFile(self, some_other_int, fileName):
         vehiclePartTypesXmlNode = xml_to_objfy(fileName)
         if vehiclePartTypesXmlNode.tag == "VehiclePartTypes":
-            if len(vehiclePartTypesXmlNode.getchildren()) > 1:
+            if len(vehiclePartTypesXmlNode.getchildren()) > 0:
                 check_mono_xml_node(vehiclePartTypesXmlNode, "VehiclePart")
                 for vehicle_part in vehiclePartTypesXmlNode["VehiclePart"]:
                     vehiclePartName = read_from_xml_node(vehicle_part, "PartName")
@@ -104,7 +104,7 @@ class ResourceManager(object):
         resource.id = resourceVectorSize
         self.resourceVector.append(resource)
 
-        if len(xmlNode.getchildren()) > 1:
+        if len(xmlNode.getchildren()) > 0:
             check_mono_xml_node(xmlNode, "Type")
             for child in xmlNode["Type"]:
                 self._ReadResourceFromXml(xmlFile, child, resource)

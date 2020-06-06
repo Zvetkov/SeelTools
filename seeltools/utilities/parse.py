@@ -5,6 +5,7 @@ from urllib.parse import unquote
 
 from seeltools.utilities.game_path import WORKING_DIRECTORY
 from seeltools.utilities.log import logger
+from seeltools.utilities.constants import VehicleGamStruct
 
 ENCODING = 'windows-1251'
 
@@ -17,6 +18,57 @@ def parse_logos_gam(path: str):
     for byte_str in logo_list_raw:
         logo_list.append(byte_str[byte_str.rindex(b'\x00') + 1:].decode('latin-1'))
     return logo_list
+
+
+def parse_model_group_health(relative_path: str):
+    logger.debug(f"Trying to parse ModelGroups from '{relative_path}'")
+    group_health = {}
+    with open(os.path.join(WORKING_DIRECTORY, relative_path), 'rb') as f:
+        str_from_file = f.read()
+    if VehicleGamStruct.GROUP_HEALTH_HEADER.value in str_from_file:
+        main_header = VehicleGamStruct.GROUP_HEALTH_HEADER.value
+    elif VehicleGamStruct.GROUP_HEALTH_HEADER_URAL_CARGO.value in str_from_file:
+        main_header = VehicleGamStruct.GROUP_HEALTH_HEADER_URAL_CARGO.value
+    else:
+        logger.debug(f"Model file '{relative_path}' given doesn't contain known GroupHealth headers!")
+        return None
+    group_health["Main"] = {"id": None,
+                            "variants": None}
+    if VehicleGamStruct.BREAKABLE_BSTR.value in str_from_file:
+        main_breakable_raw = str_from_file.split(main_header)
+        breakables_raw = main_breakable_raw[1][main_breakable_raw[1].index(VehicleGamStruct.BREAKABLE_BSTR.value):]
+        current_index = 0
+        while True:
+            if breakables_raw[current_index:current_index + 3] == b"\x49\x56\x52":  # IVR
+                break
+            # finding amount of variants for groups which dictates chunk length
+            variants = breakables_raw[current_index + 28]
+            if variants == 2:
+                chunk_size = 60
+            elif variants == 3:
+                chunk_size = 72
+            else:
+                logger.error(f"Tried to parse HealthGroups for model containing group with {variants} variants!"
+                             "Only 2 and 3 are supported by toolkit!")
+
+            breakable_string = breakables_raw[current_index:current_index + chunk_size]
+
+            if VehicleGamStruct.BREAKABLE_BSTR.value in breakable_string:
+                breakable_name = breakable_string[:11].decode('latin-1').replace('\x00', '')
+                breakable_id = int(breakable_string[11:][21:22].hex(), 16)
+                group_health[breakable_name] = {"id": breakable_id,
+                                                "variants": variants}
+            current_index += chunk_size
+
+        # for byte_str in breakables_list:
+        #     if VehicleGamStruct.BREAKABLE_BSTR.value in byte_str:
+        #         breakable_name = byte_str[:11].decode('latin-1').replace('\x00', '')
+        #         breakable_id = int(byte_str[11:][21:22].hex(), 16)
+        #         group_health[breakable_name] = breakable_id
+        return group_health
+    else:
+        logger.debug(f"Model file '{relative_path}' doesn't contain any breakable health zones.")
+        return group_health
 
 
 def xml_to_objfy(path_to_file: str):
@@ -77,6 +129,7 @@ def is_xml_node_contains(xml_node: objectify.ObjectifiedElement, attrib_name: st
 
 
 def child_from_xml_node(xml_node: objectify.ObjectifiedElement, child_name: str, do_not_warn: bool = False):
+    '''Get child from ObjectifiedElement by name'''
     try:
         return xml_node[child_name]
     except AttributeError:
@@ -113,33 +166,46 @@ def log_comment(comment_node: objectify.ObjectifiedElement, parent_node: objecti
                  f"in file: {path}.")
 
 
-def parse_str_to_bool(string: str):
+def parse_str_to_bool(original_value, string: str, is_striped=False):
     if string is None:
-        return False
-    if string.lower() == "true" or string == "1":
+        return original_value
+    if string.lower() == "true" or string == "1" or string == "yes":
         return True
-    elif string.lower() == "false" or string == "0":
+    elif string.lower() == "false" or string == "0" or string == "no":
         return False
     else:
-        logger.warning(f"Invalid str passed to parse to bool: '{string}'")
-        return False
+        if not is_striped:
+            logger.warning(f"Invalid str passed to parse to bool: '{string}'")
+            return parse_str_to_bool(original_value, string.strip(), True)
+        else:
+            return False
 
 
-def parse_str_to_vector(string: str):
+def parse_str_to_vector(string: str, size: int = 3):
+    '''Given string will try to parse dict of float x, y, z values'''
     if string is not None:
         split_str = string.split()
     else:
         split_str = []
     # default in case string is not valid
-    dictionary = {"x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0}
-    if len(split_str) == 3:
+    if size == 3:
+        dictionary = {"x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0}
+    elif size == 2:
+        dictionary = {"x": 0.0,
+                      "y": 0.0}
+    else:
+        logger.warn(f"Unsupported vector of size {size} asked! 2 and 3 size supported.")
+    if len(split_str) == 3 and size == 3:
         dictionary = {"x": float(split_str[0]),
                       "y": float(split_str[1]),
                       "z": float(split_str[2])}
+    elif len(split_str) == 2 and size == 2:
+        dictionary = {"x": float(split_str[0]),
+                      "y": float(split_str[1])}
     elif split_str:
-        logger.warn(f"Expected 3 vector attributes: {string} were given")
+        logger.warn(f"Expected {size} vector attributes: {string} were given")
 
     return dictionary
 

@@ -12,6 +12,7 @@ sys.path.append('..')  # temp workaround to allow running application from this 
 from seeltools.qtmodern import styles, windows
 from seeltools.server import server_init
 from seeltools.utilities.log import logger
+from seeltools.utilities.value_classes import AnnotatedValue
 from seeltools.utilities.game_path import WORKING_DIRECTORY
 
 APP_NAME = "SeelTools"
@@ -32,7 +33,6 @@ def main():
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, app):
         super(MainWindow, self).__init__()
-        some = WORKING_DIRECTORY
 
         # setting up application skin and display properties
         self.app = app
@@ -117,7 +117,9 @@ class MainWindow(QtWidgets.QMainWindow):
         pass
 
     def save(self):
-        pass
+        logger.info(f"Save stared")
+        server_init.theServer.save_all()
+        logger.info(f"Saved finished")
 
     def closeApplication(self):
         pass
@@ -155,54 +157,25 @@ class MainWindow(QtWidgets.QMainWindow):
         self.statusBar().showMessage("Ready")
 
     def setupDockWindows(self):
-        self.objectViewDock = QtWidgets.QDockWidget("Object Viewer")
-        self.objectViewDock.setMinimumWidth(150)
-        self.dock_label = QtWidgets.QLabel()
-        # self.objectViewDock.setAllowedAreas(QtCore.Qt.LeftDockWidgetArea | QtCore.Qt.RightDockWidgetArea)
+        self.objectViewDock = QtWidgets.QDockWidget("QuickLook")
+        self.objectViewDock.setMinimumSize(205, 210)
+        self.objectViewDock.setAllowedAreas(QtCore.Qt.LeftDockWidgetArea | QtCore.Qt.RightDockWidgetArea)
+        self.prot_grid = QtWidgets.QVBoxLayout()
 
-        prot_grid = QtWidgets.QGridLayout()
-        prot_grid.setRowStretch
-        self.prototype_name_label = QtWidgets.QLabel("Prototype name:")
-        self.prototype_name = QtWidgets.QLineEdit()
-        self.prototype_name_label.setBuddy(self.prototype_name)
-        prot_grid.addWidget(self.prototype_name_label, 0, 0)
-        prot_grid.addWidget(self.prototype_name, 1, 0)
+        scroll_area = QtWidgets.QScrollArea()
+        scroll_area.setWidgetResizable(True)
 
-        self.prototype_price_label = QtWidgets.QLabel("Price:")
-        self.prototype_price = QtWidgets.QLineEdit()
-        self.prototype_price_label.setBuddy(self.prototype_price)
-        prot_grid.addWidget(self.prototype_price_label, 2, 0)
-        prot_grid.addWidget(self.prototype_price, 3, 0)
+        inner_frame = QtWidgets.QFrame(scroll_area)
+        inner_frame.setLayout(self.prot_grid)
 
-        self.spacer = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        prot_grid.addItem(self.spacer)
+        scroll_area.setWidget(inner_frame)
 
-        # self.another_edit = QtWidgets.QLineEdit("Another text")
-        # self.another_label = QtWidgets.QLabel("Object Description")
-        # self.another_label.setBuddy(self.another_edit)
+        quicklook_promt = QtWidgets.QLabel(get_locale_string("QuickLookPromt"))
+        self.prot_grid.addWidget(quicklook_promt)
+        spacer = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        self.prot_grid.addItem(spacer)
 
-        # self.some_label = QtWidgets.QLabel("Filter &syntax:")
-
-        # flowLayout = FlowLayout()
-        # flowLayout.addChildLayout(prot_grid)
-        # flowLayout.addWidget(self.another_edit)
-        # flowLayout.addWidget(self.another_label)
-        # flowLayout.addWidget(self.some_label)
-        self.dock_label.setLayout(prot_grid)
-        # self.horizontal_group_box = QtWidgets.QGroupBox("Horizontal layout")
-
-        # horiz_layout = QtWidgets.QHBoxLayout()
-        # flowLayout.addWidget(self.prototype_label)
-        # flowLayout.addWidget(self.prototype_name)
-        # self.label.setLayout(horiz_layout)
-
-        self.objectViewDock.setWidget(self.dock_label)
-
-        # dock_windows_layout = QtWidgets.QGridLayout()
-        # dock_windows_layout.addWidget(self.objectLabel, 0, 0)
-        # dock_windows_layout.addWidget(self.prototype_name, 0, 1)
-
-        # self.objectViewDock.setLayout(dock_windows_layout)
+        self.objectViewDock.setWidget(scroll_area)
 
         self.addDockWidget(QtCore.Qt.RightDockWidgetArea, self.objectViewDock)
         self.viewMenu.addAction(self.objectViewDock.toggleViewAction())
@@ -289,8 +262,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.filter_pattern_line_edit.textChanged.connect(self.filter_reg_exp_changed)
         self.filter_syntax_combo_box.currentIndexChanged.connect(self.filter_reg_exp_changed)
         self.filter_column_combo_box.currentIndexChanged.connect(self.filter_column_changed)
-        self.filter_column_combo_box.currentIndexChanged
-        self.tree_prot_explorer.clicked.connect(self.prototype_item_selected)
+
+        selection_model = self.tree_prot_explorer.selectionModel()
+        selection_model.selectionChanged.connect(self.prototype_explorer_item_selected)
 
         proxy_layout = QtWidgets.QGridLayout()
         proxy_layout.addWidget(self.tree_prot_explorer, 0, 0, 1, 3)
@@ -336,17 +310,23 @@ class MainWindow(QtWidgets.QMainWindow):
         source_model = create_prototype_model(self)
         self.proxy_model.setSourceModel(source_model)
 
-    def prototype_item_selected(self, prototypeName):
-        prot_name, prot_class = self.get_selected_prot_name_and_class()
+    def prototype_explorer_item_selected(self, prototypeName):
+        item_name, item_class = self.get_selected_item_name_and_class()
 
-        if prot_class is not None:
-            display_text = prot_name
+        if item_class is None:
+            clear_layout(self.prot_grid)
+            folder_label = QtWidgets.QLabel(item_name)
+            string_folder_descr = get_locale_string("FolderDescription")
+            folder_descr = QtWidgets.QTextEdit()
+            folder_descr.setText(f"{string_folder_descr} {item_name}")
+            # folder_descr.setMinimumHeight()
+            folder_label.setBuddy(folder_descr)
+            self.prot_grid.addWidget(folder_label)
+            self.prot_grid.addWidget(folder_descr)
+            spacer = QtWidgets.QSpacerItem(0, 0, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+            self.prot_grid.addItem(spacer)
         else:
-            display_text = f"Folder {prot_name}"
-        self.prototype_name.setText(display_text)
-
-        prot_price = self.get_prot_price(prot_name)
-        self.prototype_price.setText(str(prot_price))
+            self.load_prot_to_quicklook(item_name)
 
         # font_metrics = self.prototype_name.fontMetrics()
         # text_width = font_metrics.boundingRect(display_text).width()
@@ -357,7 +337,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # else:
         #     self.prototype_name.resize(text_width + 10, 20)
 
-    def get_selected_prot_name_and_class(self):
+    def get_selected_item_name_and_class(self):
         indexes = self.tree_prot_explorer.selectedIndexes()
         logger.debug(f"Indexes: {indexes}")
         prot_name = self.tree_prot_explorer.model().data(indexes[0])
@@ -367,14 +347,53 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             return prot_name, prot_class
 
-    def get_prot_price(self, prot_name):
+    def load_prot_to_quicklook(self, prot_name):
+        clear_layout(self.prot_grid)
+
         server = server_init.theServer
         prototype_manager = server.thePrototypeManager
         prot = prototype_manager.InternalGetPrototypeInfo(prot_name)
-        if hasattr(prot, "price"):
-            return prot.price
-        else:
-            return "-"
+        prot_attribs = vars(prot)
+        for attrib in prot_attribs.values():
+            if isinstance(attrib, AnnotatedValue):
+                attrib_label = QtWidgets.QLabel(get_display_name(prot, attrib))
+                attrib_value = QtWidgets.QLineEdit()
+                attrib_value.setText(str(attrib.value))
+                attrib_value.setFixedHeight(20)
+                if attrib.value == attrib.default_value:
+                    palette = QtGui.QPalette()
+                    palette.setColor(QtGui.QPalette.Text, QtGui.QColor(253, 174, 37))
+                    attrib_value.setPalette(palette)
+                attrib_value.setReadOnly(True)
+                attrib_value.setToolTip(get_description(prot, attrib))
+                attrib_label.setBuddy(attrib_value)
+                attrib_label.setFixedHeight(20)
+                self.prot_grid.addWidget(attrib_label)
+                self.prot_grid.addWidget(attrib_value)
+        spacer = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        self.prot_grid.addItem(spacer)
+
+
+def clear_layout(layout):
+    while layout.count():
+        child = layout.takeAt(0)
+        if child.widget():
+            child.widget().deleteLater()
+
+
+def get_display_name(object, attrib):
+    # placeholder
+    return attrib.name
+
+
+def get_description(object, attrib):
+    # placeholder
+    return f"Dummy description {attrib.name}"
+
+
+def get_locale_string(string):
+    # placeholder
+    return string
 
 
 def create_prototype_model(parent):
@@ -386,10 +405,10 @@ def create_prototype_model(parent):
 
     server = server_init.theServer
     prototypes = server.thePrototypeManager.prototypes
-    prototype_types = set([prototype.className for prototype in prototypes])
+    prototype_types = set([prototype.className.value for prototype in prototypes])
 
     for prototype_type in prototype_types:
-        prots_of_type = [prot for prot in prototypes if prot.className == prototype_type]
+        prots_of_type = [prot for prot in prototypes if prot.className.value == prototype_type]
         add_prototype_folder(parent, model, prototype_type, prots_of_type)
 
     return model
@@ -400,9 +419,9 @@ def add_prototype_folder(window, model, folder_name, child_prototypes):
     folder_item.checkState()
     folder_item.setEditable(False)
     for child in child_prototypes:
-        prot_name = child.prototypeName
+        prot_name = child.prototypeName.value
         if hasattr(child, 'parent'):
-            parent_prot = f"{child.parent.className}: {child.parent.prototypeName}"
+            parent_prot = f"{child.parent.className.value}: {child.parent.prototypeName.value}"
         else:
             parent_prot = ""
         add_prototype(window, folder_item, prot_name, folder_name, parent_prot)

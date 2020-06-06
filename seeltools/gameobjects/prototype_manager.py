@@ -8,6 +8,11 @@ from seeltools.utilities.constants import STATUS_SUCCESS
 from seeltools.gameobjects.prototype_info import PrototypeInfo, thePrototypeInfoClassDict
 
 
+from seeltools.utilities.game_path import WORKING_DIRECTORY
+from seeltools.utilities.file_ops import save_to_file
+from lxml import etree
+
+
 class PrototypeManager(object):
     def __init__(self, server):
         # self.Clear()
@@ -18,13 +23,14 @@ class PrototypeManager(object):
         self.prototypeFullNamesLocalizedForms = {}  # unsgn_int:unsgn_int
         self.prototypeFullNames = {}  # str:str
         self.loadingLock = 0
+        self.prototypeClasses = []
 
     def InternalGetPrototypeInfo(self, prototypeName):
         return self.prototypesMap.get(prototypeName)  # might be best to completely replace method with direct dict get
 
     def IsPrototypeOf(prototype_info: PrototypeInfo, class_name):
-        logger.info(f"Checking if {prototype_info.className} is of {class_name}")
-        return type(prototype_info) == thePrototypeInfoClassDict[class_name]
+        logger.info(f"Checking if {prototype_info.className.value} is of {class_name}")
+        return isinstance(prototype_info, thePrototypeInfoClassDict[class_name])
 
     def GetPrototypeId(self, prototypeName):
         prot_id = -1
@@ -70,7 +76,7 @@ class PrototypeManager(object):
         logger.debug(f"Loading {class_name} prototype from {xmlNode.base}")
         prototype_info = self.theServer.CreatePrototypeInfoByClassName(class_name)(self.theServer)
         if prototype_info:
-            prototype_info.className = class_name
+            prototype_info.className.value = class_name
             parent_prot_name = read_from_xml_node(xmlNode, "ParentPrototype", do_not_warn=True)
             if parent_prot_name is not None:
                 parent_prot_info = self.InternalGetPrototypeInfo(parent_prot_name)
@@ -82,18 +88,65 @@ class PrototypeManager(object):
             prototypes_length = len(self.prototypes)
             prototype_info.prototypeId = prototypes_length
             if prototype_info.LoadFromXML(xmlFile, xmlNode) == STATUS_SUCCESS:
-                if self.prototypeNamesToIds.get(prototype_info.prototypeName) is not None:
-                    logger.critical(f"Duplicate prototype in game objects: {prototype_info.prototypeName}")
+                if self.prototypeNamesToIds.get(prototype_info.prototypeName.value) is not None:
+                    logger.critical(f"Duplicate prototype in game objects: {prototype_info.prototypeName.value}")
                     raise AttributeError("Duplicate prototype, critical error!")
                 else:
-                    self.prototypeNamesToIds[prototype_info.prototypeName] = prototype_info.prototypeId
+                    self.prototypeNamesToIds[prototype_info.prototypeName.value] = prototype_info.prototypeId
                     self.prototypes.append(prototype_info)
-                    self.prototypesMap[prototype_info.prototypeName] = prototype_info
+                    self.prototypesMap[prototype_info.prototypeName.value] = prototype_info
+                    if prototype_info.className.value not in self.prototypeClasses:
+                        self.prototypeClasses.append(prototype_info.className.value)
+
                     return 1
             else:
-                logger.error(f"Prototype {prototype_info.prototypeName} "
-                             f"of class {prototype_info.className} was not loaded!")
+                logger.error(f"Prototype {prototype_info.prototypeName.value} "
+                             f"of class {prototype_info.className.value} was not loaded!")
                 return 0
         else:
             logger.error("Invalid class name: <{class_name}>!")
             return 0
+
+    def save_to_xml(self, gameObjectsFilePath):
+        full_path = path.join(WORKING_DIRECTORY, gameObjectsFilePath)
+        full_path = self.tempFuncRenameFile(full_path)
+        folder_path = path.split(full_path)[0]
+
+        self.generateGameObjectsFile(full_path)
+        for prototype_class in self.prototypeClasses:
+            self.generateSpecificPrototypesFile(prototype_class, folder_path)
+
+    def generateGameObjectsFile(self, fullPath):
+        prototypesTree = etree.Element("Prototypes")
+
+        for prototype_class in self.prototypeClasses:
+            folder = etree.Element("Folder")
+            folder.set("Name", prototype_class)
+            folder.set("File", f'new_{prototype_class.lower()}.xml')
+            prototypesTree.append(folder)
+
+        save_to_file(prototypesTree, fullPath)
+
+    def generateSpecificPrototypesFile(self, className, pathToFolder):
+        filename = f'new_{className.lower()}.xml'
+        fullPath = path.join(pathToFolder, filename)
+
+        prototypesTree = etree.Element("Prototypes")
+        filteredPrototypes = [x for x in self.prototypes if x.className.value == className]
+        if className == "Ware":
+            filteredPrototypes.sort(key=lambda x: x.price.value, reverse=False)
+        elif className == "Vehicle":
+            filteredPrototypes.sort(key=lambda x: x.isAbstract.value, reverse=True)
+        else:
+            filteredPrototypes.sort(key=lambda x: x.prototypeName.value, reverse=False)
+
+        for prototype in filteredPrototypes:
+            prototypesTree.append(prototype.get_etree_prototype())
+        save_to_file(prototypesTree, fullPath)
+
+    def tempFuncRenameFile(self, docfile):
+        pathN, filename = path.split(docfile)
+        filename = path.splitext(filename)[0]
+        newfilename = 'new_%s.xml' % filename
+        newpath = path.join(pathN, newfilename)
+        return newpath

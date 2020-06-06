@@ -1,17 +1,24 @@
 from math import pi, sqrt
 from copy import deepcopy
-from lxml import objectify
+from lxml import objectify, etree
+from enum import Enum
+from math import ceil, log10
 
 from seeltools.utilities.log import logger
 
 from seeltools.utilities.parse import (read_from_xml_node, child_from_xml_node, check_mono_xml_node, safe_check_and_set,
-                                       parse_str_to_bool, parse_str_to_quaternion, parse_str_to_vector)
+                                       parse_str_to_bool, parse_str_to_quaternion, parse_str_to_vector,
+                                       parse_model_group_health)
 
 from seeltools.utilities.constants import (STATUS_SUCCESS, DEFAULT_TURNING_SPEED, FiringTypesStruct, DamageTypeStruct,
                                            DESTROY_EFFECT_NAMES, TEAM_DEFAULT_FORMATION_PROTOTYPE, GEOM_TYPE,
-                                           ZERO_VECTOR, IDENTITY_QUATERNION)
+                                           ZERO_VECTOR, ONE_VECTOR, IDENTITY_QUATERNION)
 
-from seeltools.utilities.global_functions import GetActionByName  # , AIParam
+from seeltools.utilities.global_functions import GetActionByName, GetActionByNum  # , AIParam
+
+from seeltools.utilities.value_classes import AnnotatedValue, DisplayType, GroupType, SavingType
+from seeltools.utilities.helper_functions import (vector_short_to_string, vector_to_string, vector_long_to_string,
+                                                  add_value_to_node, add_value_to_node_as_child, should_be_saved)
 
 from seeltools.gameobjects.object_classes import *
 
@@ -20,373 +27,575 @@ class PrototypeInfo(object):
     '''Base Prototype information class'''
     def __init__(self, server):
         self.theServer = server
-        self.className = ""
-        self.prototypeName = ""
+        self.className = AnnotatedValue("", "Class", group_type=GroupType.GENERAL,
+                                        display_type=DisplayType.CLASS_NAME)
+        self.prototypeName = AnnotatedValue("", "Name", group_type=GroupType.GENERAL)
         self.prototypeId = -1
-        self.resourceId = -1
-        self.isUpdating = 1
-        self.visibleInEncyclopedia = 1
-        self.applyAffixes = 1
-        self.price = 0
-        self.isAbstract = 0
-        self.parentPrototypeName = ""
-        self.parentPrototypeName = -1
+        self.resourceId = AnnotatedValue(-1, "ResourceType", display_type=DisplayType.RESOURCE_ID,
+                                         saving_type=SavingType.RESOURCE)
+        self.isUpdating = AnnotatedValue(True, "IsUpdating", group_type=GroupType.SECONDARY)
+        self.visibleInEncyclopedia = AnnotatedValue(True, "VisibleInEncyclopedia", group_type=GroupType.SECONDARY)
+        self.applyAffixes = AnnotatedValue(True, "ApplyAffixes", group_type=GroupType.SECONDARY)
+        self.price = AnnotatedValue(0, "Price", group_type=GroupType.SECONDARY)
+        self.isAbstract = AnnotatedValue(False, "Abstract", group_type=GroupType.SECONDARY)
+        self.parentPrototypeName = AnnotatedValue("", "ParentPrototype", group_type=GroupType.GENERAL,
+                                                  display_type=DisplayType.PROTOTYPE_NAME)
+        self.parentPrototypeId = -1
         self.protoClassObject = 0
+        # custom logic
+        self.lookupModelFile = False
 
     def LoadFromXML(self, xmlFile, xmlNode):
         if xmlNode.tag == "Prototype":
-            self.prototypeName = read_from_xml_node(xmlNode, "Name")
-            self.className = read_from_xml_node(xmlNode, "Class")
-            self.protoClassObject = globals()[self.className]  # getting class object by name
+            self.prototypeName.value = read_from_xml_node(xmlNode, "Name")
+            self.className.value = read_from_xml_node(xmlNode, "Class")
+            self.protoClassObject = globals()[self.className.value]  # getting class object by name
             strResType = read_from_xml_node(xmlNode, "ResourceType", do_not_warn=True)
-            self.isUpdating = parse_str_to_bool(read_from_xml_node(xmlNode, "IsUpdating", do_not_warn=True))
+            self.isUpdating.value = parse_str_to_bool(self.isUpdating.default_value,
+                                                      read_from_xml_node(xmlNode, "IsUpdating", do_not_warn=True))
             if strResType is not None:
-                self.resourceId = self.theServer.theResourceManager.GetResourceId(strResType)
-            if strResType is not None and self.resourceId == -1:
-                if not self.parentPrototypeName:
-                    logger.info(f"Invalid ResourceType: {strResType} for prototype {self.prototypeName}")
+                self.resourceId.value = self.theServer.theResourceManager.GetResourceId(strResType)
+            if strResType is not None and self.resourceId.value == -1:
+                if not self.parentPrototypeName.value:
+                    logger.info(f"Invalid ResourceType: {strResType} for prototype {self.prototypeName.value}")
                 elif self.parent.resourceId == -1:
-                    logger.info(f"Invalid ResourceType: {strResType} for prototype {self.prototypeName} "
-                                f" and its parent {self.parent.prototypeName}")
+                    logger.info(f"Invalid ResourceType: {strResType} for prototype {self.prototypeName.value} "
+                                f" and its parent {self.parent.prototypeName.value}")
 
-            self.visibleInEncyclopedia = parse_str_to_bool(read_from_xml_node(xmlNode,
-                                                                              "VisibleInEncyclopedia",
-                                                                              do_not_warn=True))
-            self.applyAffixes = parse_str_to_bool(read_from_xml_node(xmlNode, "ApplyAffixes", do_not_warn=True))
+            self.visibleInEncyclopedia.value = parse_str_to_bool(self.visibleInEncyclopedia.default_value,
+                                                                 read_from_xml_node(xmlNode,
+                                                                                    "VisibleInEncyclopedia",
+                                                                                    do_not_warn=True))
+            self.applyAffixes.value = parse_str_to_bool(self.applyAffixes.default_value,
+                                                        read_from_xml_node(xmlNode, "ApplyAffixes", do_not_warn=True))
             price = read_from_xml_node(xmlNode, "Price", do_not_warn=True)
             if price is not None:
-                self.price = int(price)
-            self.isAbstract = parse_str_to_bool(read_from_xml_node(xmlNode, "Abstract", do_not_warn=True))
-            # ??? maybe should fallback to "" instead None
-            self.parentPrototypeName = read_from_xml_node(xmlNode, "ParentPrototype", do_not_warn=True)
+                self.price.value = int(price)
+            self.isAbstract.value = parse_str_to_bool(self.isAbstract.default_value,
+                                                      read_from_xml_node(xmlNode, "Abstract", do_not_warn=True))
+            self.parentPrototypeName.value = read_from_xml_node(xmlNode, "ParentPrototype", do_not_warn=True)
             return STATUS_SUCCESS
         else:
             logger.warning(f"XML Node with unexpected tag {xmlNode.tag} given for PrototypeInfo loading")
 
     def CopyFrom(self, prot_to_copy_from):
-        if self.className == prot_to_copy_from.className:
+        if self.className.value == prot_to_copy_from.className.value:
             self.InternalCopyFrom(prot_to_copy_from)
         else:
-            logger.error(f"Unexpected parent prototype class for {self.prototypeName}: "
-                         f"expected {self.className}, got {prot_to_copy_from.className}")
+            logger.error(f"Unexpected parent prototype class for {self.prototypeName.value}: "
+                         f"expected {self.className.value}, got {prot_to_copy_from.className.value}")
 
     def InternalCopyFrom(self, prot_to_copy_from):
-        logger.error(f"CopyFrom is not implemented for PrototypeInfo {self.prototypeName} of class {self.className}")
+        logger.error(f"CopyFrom is not implemented for PrototypeInfo {self.prototypeName.value}"
+                     f" of class {self.className.value}")
 
     def PostLoad(self, prototype_manager):
-        if self.parentPrototypeName:
-            self.parentPrototypeId = prototype_manager.GetPrototypeId(self.parentPrototypeName)
-            if self.parentPrototypeId == -1:
-                logger.error(f"Invalid parent prototype: '{self.parentPrototypeName}' "
-                             f"for prototype: '{self.prototypeName}'")
+        if self.parentPrototypeName.value:
+            self.parentPrototypeId.value = prototype_manager.GetPrototypeId(self.parentPrototypeName.value)
+            if self.parentPrototypeId.value == -1:
+                logger.error(f"Invalid parent prototype: '{self.parentPrototypeName.value}' "
+                             f"for prototype: '{self.prototypeName.value}'")
+
+    def get_etree_prototype(self):
+        result = etree.Element("Prototype")
+
+        prot_attribs = vars(self)
+        for attrib in prot_attribs.values():
+            if isinstance(attrib, AnnotatedValue):
+                if attrib.saving_type == SavingType.COMMON or attrib.saving_type == SavingType.REQUIRED:
+                    if type(attrib.value) == float and attrib.value < 1:
+                        precision = int(ceil(abs(log10(abs(attrib.value))))) if attrib.value != 0 else 1
+                        add_value_to_node(result, attrib, lambda x: f'{x.value:.{precision}f}')
+                    else:
+                        add_value_to_node(result, attrib, lambda x: str(x.value))
+                elif attrib.saving_type == SavingType.RESOURCE:
+                    add_value_to_node(result, attrib,
+                                      lambda x: self.theServer.theResourceManager.GetResourceName(x.value))
+        return result
 
 
 class PhysicBodyPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.engineModelName = ""
-        self.massValue = 1.0
+        self.engineModelName = AnnotatedValue("", "ModelFile", group_type=GroupType.VISUAL)
+        self.massValue = AnnotatedValue(1.0, "Mass", group_type=GroupType.PRIMARY)
         self.collisionInfos = []
-        self.collisionTrimeshAllowed = False
+        self.collisionTrimeshAllowed = AnnotatedValue(False, "CollisionTrimeshAllowed",
+                                                      group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.engineModelName = safe_check_and_set(self.engineModelName, xmlNode, "ModelFile")
-            if self.engineModelName is None and not issubclass(type(self), CompoundVehiclePartPrototypeInfo):
-                logger.error(f"No model file is provided for prototype {self.prototypeName}")
+            self.engineModelName.value = safe_check_and_set(self.engineModelName.value, xmlNode, "ModelFile")
+            if not self.engineModelName.value and not issubclass(type(self), CompoundVehiclePartPrototypeInfo):
+                logger.error(f"No model file is provided for prototype {self.prototypeName.value}")
             mass = read_from_xml_node(xmlNode, "Mass", do_not_warn=True)
-            self.collisionTrimeshAllowed = parse_str_to_bool(read_from_xml_node(xmlNode, "CollisionTrimeshAllowed",
-                                                                                do_not_warn=True))
+            self.collisionTrimeshAllowed.value = parse_str_to_bool(self.collisionTrimeshAllowed.default_value,
+                                                                   read_from_xml_node(xmlNode,
+                                                                                      "CollisionTrimeshAllowed",
+                                                                                      do_not_warn=True))
             if mass is not None:
-                self.massValue = float(mass)
-            if self.massValue < 0.001:
-                logger.error(f"Mass is too low for prototype {self.prototypeName}")
+                self.massValue.value = float(mass)
+            if self.massValue.value < 0.001:
+                logger.error(f"Mass is too low for prototype {self.prototypeName.value}")
             return STATUS_SUCCESS
 
+    def RefreshFromXml(self, xmlFile, xmlNode):
+        # originaly DataServer.GetItemByName
+        # self.engineModelId = self.server.theAnimatedModelsServer.GetItemByName(self.engineModelName.value)
+        # GetCollisionInfoByServerHandle(self.engineModelId, self.collisionInfos, self.collisionTrimeshAllowed)
+        pass
 
-class SimplePhysicBodyPrototypeInfo(PhysicBodyPrototypeInfo):
-    def __init__(self, server):
-        PhysicBodyPrototypeInfo.__init__(self, server)
+
+# class SimplePhysicBodyPrototypeInfo(PhysicBodyPrototypeInfo):
+#     def __init__(self, server):
+#         PhysicBodyPrototypeInfo.__init__(self, server)
 
 
 class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
     def __init__(self, server):
         PhysicBodyPrototypeInfo.__init__(self, server)
         self.weaponPrototypeId = -1
-        self.durability = 0.0
-        self.loadPoints = []
-        self.blowEffectName = "ET_PS_HARD_BLOW"
-        self.canBeUsedInAutogenerating = True
-        self.repairCoef = 1.0
+        self.durability = AnnotatedValue(0.0, "Durability", group_type=GroupType.PRIMARY)
+        self.loadPoints = AnnotatedValue([], "LoadPoints", group_type=GroupType.SECONDARY,
+                                         saving_type=SavingType.SPECIFIC)
+        self.blowEffectName = AnnotatedValue("ET_PS_HARD_BLOW", "BlowEffect", group_type=GroupType.SECONDARY)
+        self.canBeUsedInAutogenerating = AnnotatedValue(True, "CanBeUsedInAutogenerating", group_type=GroupType.PRIMARY)
+        self.repairCoef = AnnotatedValue(1.0, "RepairCoef", group_type=GroupType.SECONDARY)
         self.modelMeshes = []
         self.boundsForMeshes = []
         self.verts = []
         self.inds = []
         self.numsTris = []
         self.vertsStride = []
-        self.groupHealth = []  # groupHealthes in original
-        self.durabilityCoeffsForDamageTypes = [0, 0, 0]
+        self.groupHealth = AnnotatedValue({}, "GroupsHealth", group_type=GroupType.SECONDARY,
+                                          saving_type=SavingType.SPECIFIC)
+        self.durabilityCoeffsForDamageTypes = AnnotatedValue([0.0, 0.0, 0.0], "DurCoeffsForDamageTypes",
+                                                             group_type=GroupType.SECONDARY,
+                                                             saving_type=SavingType.SPECIFIC)
+        # simplification for ease of display, actually stores in size property of first CollisionInfo for model
+        self.collision_size = AnnotatedValue(None, "Size", group_type=GroupType.INTERNAL,
+                                             saving_type=SavingType.SPECIFIC)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PhysicBodyPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.blowEffectName = safe_check_and_set(self.blowEffectName, xmlNode, "BlowEffect")
+            self.blowEffectName.value = safe_check_and_set(self.blowEffectName.default_value, xmlNode, "BlowEffect")
             durability = read_from_xml_node(xmlNode, "Durability", do_not_warn=True)
             if durability is not None:
-                self.durability = float(durability)
+                self.durability.value = float(durability)
             strDurabilityCoeffs = read_from_xml_node(xmlNode, "DurCoeffsForDamageTypes", do_not_warn=True)
             if strDurabilityCoeffs is not None:
-                self.durabilityCoeffsForDamageTypes = [float(coeff) for coeff in strDurabilityCoeffs.split()]
-                for coeff in self.durabilityCoeffsForDamageTypes:
+                self.durabilityCoeffsForDamageTypes.value = [float(coeff) for coeff in strDurabilityCoeffs.split()]
+                for coeff in self.durabilityCoeffsForDamageTypes.value:
                     if coeff < -25.1 or coeff > 25.0:
-                        logger.error(f"Invalif DurCoeffsForDamageTypes:{coeff} for {self.prototypeName}, "
+                        logger.error(f"Invalif DurCoeffsForDamageTypes:{coeff} for {self.prototypeName.value}, "
                                      "should be between -25.0 and 25.0")
 
             loadPoints = read_from_xml_node(xmlNode, "LoadPoints", do_not_warn=True)
             if loadPoints is not None and loadPoints != "":
-                self.loadPoints = loadPoints.split()
+                self.loadPoints.value = loadPoints.split()
             price = read_from_xml_node(xmlNode, "Price", do_not_warn=True)
             if price is not None:
-                self.price = int(price)
+                self.price.value = int(price)
 
             repairCoef = read_from_xml_node(xmlNode, "RepairCoef", do_not_warn=True)
             if repairCoef is not None:
-                self.repairCoef = float(repairCoef)
+                self.repairCoef.value = float(repairCoef)
 
-            self.canBeUsedInAutogenerating = parse_str_to_bool(read_from_xml_node(xmlNode, "CanBeUsedInAutogenerating",
-                                                                                  do_not_warn=True))
+            self.canBeUsedInAutogenerating.value = parse_str_to_bool(self.canBeUsedInAutogenerating.default_value,
+                                                                     read_from_xml_node(xmlNode,
+                                                                                        "CanBeUsedInAutogenerating",
+                                                                                        do_not_warn=True))
+            # custom implementation. Originally called from PrototypeManager -> RefreshFromXml
+            VehiclePartPrototypeInfo.RefreshFromXml(self, xmlFile, xmlNode)
+            # custom implementation ends
             return STATUS_SUCCESS
+
+    def RefreshFromXml(self, xmlFile, xmlNode):
+        # custom logic
+        # original called from VehiclePartPrototypeInfo::_InitModelMeshes
+        # PhysicBodyPrototypeInfo.RefreshFromXml(self, xmlFile, xmlNode)
+
+        group_health_node = child_from_xml_node(xmlNode, "GroupsHealth", do_not_warn=True)
+        # Cabin, Basket, Chassis will use model file as source of truth
+        # all other classes will look in model only if GroupHealth specified in xml
+        if self.lookupModelFile or group_health_node is not None:
+            # if not self.lookupModelFile and group_health_node is not None:
+            #     if str(group_health_node.keys()) == "['Main']":
+            #         self.groupHealth.value["Main"] = \
+            #             {"value": None,
+            #              "id": None,
+            #              "variants": None}
+            model_path = self.theServer.theAnimatedModelsServer.GetItemByName(self.engineModelName.value).file_name
+            model_group_health = parse_model_group_health(model_path)
+            for group_health in model_group_health:
+                if group_health_node is not None:
+                    read_value = read_from_xml_node(group_health_node, group_health, do_not_warn=True)
+                else:
+                    read_value = None
+                if read_value is None:
+                    model_group_health[group_health]["health"] = 0.0
+                    self.groupHealth.value[group_health] = model_group_health[group_health]
+                else:
+                    model_group_health[group_health]["health"] = float(read_value)
+                    self.groupHealth.value[group_health] = model_group_health[group_health]
+
+            size = read_from_xml_node(xmlNode, "Size", do_not_warn=True)
+            if size is not None:
+                self.collision_size.value = parse_str_to_vector(size)
+
+    def get_etree_prototype(self):
+        result = PhysicBodyPrototypeInfo.get_etree_prototype(self)
+        add_value_to_node(result, self.loadPoints, lambda x: " ".join(map(str, x.value)))
+        add_value_to_node(result, self.durabilityCoeffsForDamageTypes, lambda x: " ".join(map(str, x.value)))
+        add_value_to_node(result, self.collision_size, lambda x: vector_to_string(x.value))
+
+        def prepare_groupHealth(groupHealth):
+            groupHealthElement = etree.Element(groupHealth.name)
+            for prop in groupHealth.value:
+                groupHealthElement.set(prop, str(groupHealth.value[prop]["health"]))
+            return groupHealthElement
+        add_value_to_node_as_child(result, self.groupHealth, lambda x: prepare_groupHealth(x))
+        return result
 
 
 class ChassisPrototypeInfo(VehiclePartPrototypeInfo):
     def __init__(self, server):
         VehiclePartPrototypeInfo.__init__(self, server)
-        self.maxHealth = 1.0
-        self.maxFuel = 1.0
-        self.brakingSoundName = ""
-        self.pneumoSoundName = ""
-        self.gearShiftSoundName = ""
+        self.maxHealth = AnnotatedValue(1.0, "MaxHealth", group_type=GroupType.PRIMARY)
+        self.maxFuel = AnnotatedValue(1.0, "MaxFuel", group_type=GroupType.PRIMARY)
+        self.brakingSoundName = AnnotatedValue("", "BrakingSound", group_type=GroupType.SOUND)
+        self.pneumoSoundName = AnnotatedValue("", "PneumoSound", group_type=GroupType.SOUND)
+        self.gearShiftSoundName = AnnotatedValue("", "GearShiftSound", group_type=GroupType.SOUND)
+        # custom logic
+        self.lookupModelFile = True
 
     def LoadFromXML(self, xmlFile, xmlNode):
-        result = PhysicBodyPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             maxHealth = read_from_xml_node(xmlNode, "MaxHealth", do_not_warn=True)
             if maxHealth is not None:
-                self.maxHealth = float(maxHealth)
+                self.maxHealth.value = float(maxHealth)
 
             maxFuel = read_from_xml_node(xmlNode, "MaxFuel", do_not_warn=True)
             if maxFuel is not None:
-                self.maxFuel = float(maxFuel)
+                self.maxFuel.value = float(maxFuel)
 
-            self.brakingSoundName = read_from_xml_node(xmlNode, "BrakingSound")
-            self.pneumoSoundName = read_from_xml_node(xmlNode, "PneumoSound")
-            self.gearShiftSoundName = read_from_xml_node(xmlNode, "GearShiftSound")
+            self.brakingSoundName.value = read_from_xml_node(xmlNode, "BrakingSound")
+            self.pneumoSoundName.value = read_from_xml_node(xmlNode, "PneumoSound")
+            self.gearShiftSoundName.value = read_from_xml_node(xmlNode, "GearShiftSound")
             return STATUS_SUCCESS
 
 
 class CabinPrototypeInfo(VehiclePartPrototypeInfo):
     def __init__(self, server):
         VehiclePartPrototypeInfo.__init__(self, server)
-        self.maxPower = 1.0
-        self.maxTorque = 1.0
-        self.maxSpeed = 1.0
-        self.fuelConsumption = 1.0
-        self.gadgetSlots = []
-        self.control = 50.0
-        self.engineHighSoundName = ""
-        self.engineLowSoundName = ""
+        self.maxPower = AnnotatedValue(1.0, "MaxPower", group_type=GroupType.PRIMARY)
+        self.maxTorque = AnnotatedValue(1.0, "MaxTorque", group_type=GroupType.PRIMARY)
+        self.maxSpeed = AnnotatedValue(1.0 * 0.27777779, "MaxSpeed", group_type=GroupType.PRIMARY,
+                                       saving_type=SavingType.SPECIFIC)
+        self.fuelConsumption = AnnotatedValue(1.0, "FuelConsumption", group_type=GroupType.PRIMARY)
+        self.gadgetSlots = AnnotatedValue([], "GadgetDescription", group_type=GroupType.PRIMARY,
+                                          saving_type=SavingType.SPECIFIC)
+        self.control = AnnotatedValue(50.0, "Control", group_type=GroupType.PRIMARY)
+        self.engineHighSoundName = AnnotatedValue("", "EngineHighSound", group_type=GroupType.SOUND)
+        self.engineLowSoundName = AnnotatedValue("", "EngineLowSound", group_type=GroupType.SOUND)
+        # custom logic
+        self.lookupModelFile = True
 
     def LoadFromXML(self, xmlFile, xmlNode):
-        result = PhysicBodyPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            maxPower = read_from_xml_node(xmlNode, "MaxPower", do_not_warn=True)
+            maxPower = read_from_xml_node(xmlNode, self.maxPower.name, do_not_warn=True)
             if maxPower is not None:
-                self.maxPower = float(maxPower)
+                self.maxPower.value = float(maxPower)
 
-            maxTorque = read_from_xml_node(xmlNode, "MaxTorque", do_not_warn=True)
+            maxTorque = read_from_xml_node(xmlNode, self.maxTorque.name, do_not_warn=True)
             if maxTorque is not None:
-                self.maxTorque = float(maxTorque)
+                self.maxTorque.value = float(maxTorque)
 
-            maxSpeed = read_from_xml_node(xmlNode, "MaxSpeed", do_not_warn=True)
+            maxSpeed = read_from_xml_node(xmlNode, self.maxSpeed.name, do_not_warn=True)
             if maxSpeed is not None:
-                self.maxSpeed = float(maxSpeed)
+                self.maxSpeed.value = float(maxSpeed)
+                self.maxSpeed.value = self.maxSpeed.value * 0.27777779  # ~5/18 or 50/180
 
-            fuelConsumption = read_from_xml_node(xmlNode, "FuelConsumption", do_not_warn=True)
+            fuelConsumption = read_from_xml_node(xmlNode, self.fuelConsumption.name, do_not_warn=True)
             if fuelConsumption is not None:
-                self.fuelConsumption = float(fuelConsumption)
+                self.fuelConsumption.value = float(fuelConsumption)
 
-            self.engineHighSoundName = safe_check_and_set(self.engineHighSoundName, xmlNode, "EngineHighSound")
-            self.engineLowSoundName = safe_check_and_set(self.engineLowSoundName, xmlNode, "EngineLowSound")
+            self.engineHighSoundName.value = safe_check_and_set(self.engineHighSoundName.default_value,
+                                                                xmlNode,
+                                                                self.engineHighSoundName.name)
+            self.engineLowSoundName.value = safe_check_and_set(self.engineLowSoundName.default_value,
+                                                               xmlNode,
+                                                               self.engineLowSoundName.name)
 
-            control = read_from_xml_node(xmlNode, "Control", do_not_warn=True)
+            control = read_from_xml_node(xmlNode, self.control.name, do_not_warn=True)
             if control is not None:
-                self.control = float(control)
-            if self.control < 0.0 or self.control > 100.0:
-                self.control = 100.0
+                self.control.value = float(control)
+            if self.control.value < 0.0 or self.control.value > 100.0:
+                self.control.value = 100.0
 
-            self.maxSpeed = self.maxSpeed * 0.27777779  # ~5/18 or 50/180
-
-            gadgetDescriptions = child_from_xml_node(xmlNode, "GadgetDescription", do_not_warn=True)
+            gadgetDescriptions = child_from_xml_node(xmlNode, self.gadgetSlots.name, do_not_warn=True)
             if gadgetDescriptions is not None:
                 check_mono_xml_node(gadgetDescriptions, "Slot")
                 for gadget_node in gadgetDescriptions.iterchildren(tag="Slot"):
                     gadget = {"resourceType": read_from_xml_node(gadget_node, "ResourceType"),
                               "maxAmount": int(read_from_xml_node(gadget_node, "MaxAmount"))}
-                    self.gadgetSlots.append(gadget)
+                    self.gadgetSlots.value.append(gadget)
             return STATUS_SUCCESS
+
+    def get_etree_prototype(self):
+        result = VehiclePartPrototypeInfo.get_etree_prototype(self)
+        add_value_to_node(result, self.maxSpeed, lambda x: str(x.value / 0.27777779))
+        # save gadgetSlots
+
+        def render_slot(annotatedValue):
+            gadgetSlotsElement = etree.Element(annotatedValue.name)
+            for slotItem in annotatedValue.value:
+                slotElement = etree.Element("Slot")
+                slotElement.set("ResourceType", slotItem["resourceType"])
+                slotElement.set("MaxAmount", str(slotItem["maxAmount"]))
+                gadgetSlotsElement.append(slotElement)
+            return gadgetSlotsElement
+
+        add_value_to_node_as_child(result, self.gadgetSlots, lambda x: render_slot(x))
+        # save gadgetSlots end
+        return result
 
 
 class BasketPrototypeInfo(VehiclePartPrototypeInfo):
     def __init__(self, server):
         VehiclePartPrototypeInfo.__init__(self, server)
-        self.slots = []
-        self.repositorySize = {"x": 10, "y": 10}
+        self.slots = AnnotatedValue([], "Slot", group_type=GroupType.PRIMARY,
+                                    saving_type=SavingType.SPECIFIC)
+        self.repositorySize = AnnotatedValue({"x": 10, "y": 10}, "RepositorySize",
+                                             group_type=GroupType.PRIMARY,
+                                             saving_type=SavingType.SPECIFIC)
+        # custom logic
+        self.lookupModelFile = True
 
     def LoadFromXML(self, xmlFile, xmlNode):
-        result = PhysicBodyPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             repositoryDescriptions = child_from_xml_node(xmlNode, "RepositoryDescription")
-            repositorySize = read_from_xml_node(repositoryDescriptions, "RepositorySize")
-            self.repositorySize = {"x": repositorySize[0],
-                                   "y": repositorySize[1]}
-            if len(repositoryDescriptions.getchildren()) > 1:
+            repositorySize = read_from_xml_node(repositoryDescriptions, self.repositorySize.name)
+            repositorySize = repositorySize.split()
+            self.repositorySize.value = {"x": repositorySize[0],
+                                         "y": repositorySize[1]}
+            if len(repositoryDescriptions.getchildren()) > 0:
                 check_mono_xml_node(repositoryDescriptions, "Slot")
                 for slot_node in repositoryDescriptions.iterchildren(tag="Slot"):
                     pos = read_from_xml_node(slot_node, "Pos").split()
                     pos = {"x": pos[0], "y": pos[1]}
                     slot = {"name": read_from_xml_node(slot_node, "Name"),
                             "pos": pos}
-                    self.slots.append(slot)
+                    self.slots.value.append(slot)
             return STATUS_SUCCESS
 
     def InternalCopyFrom(self, prot_to_copy_from):
         self.parent = prot_to_copy_from
+
+    def get_etree_prototype(self):
+        result = VehiclePartPrototypeInfo.get_etree_prototype(self)
+        # save RepositoryDescription
+        # too complex to be transformed to lambda
+        if should_be_saved(self.repositorySize) or should_be_saved(self.slots):
+            repositoryDescription = etree.Element("RepositoryDescription")
+            repositoryDescription.set(self.repositorySize.name,
+                                      f'{self.repositorySize.value["x"]} {self.repositorySize.value["y"]}')
+            for slotItem in self.slots.value:
+                slotElement = etree.Element("Slot")
+                slotElement.set("Name", slotItem["name"])
+                slotElement.set("Pos", f'{slotItem["pos"]["x"]} {slotItem["pos"]["y"]}')
+                repositoryDescription.append(slotElement)
+            result.append(repositoryDescription)
+        # save RepositoryDescription end
+        return result
 
 
 class GunPrototypeInfo(VehiclePartPrototypeInfo):
     def __init__(self, server):
         VehiclePartPrototypeInfo.__init__(self, server)
         self.barrelModelName = ""
-        self.withCharging = True
-        self.withShellsPoolLimit = True
+        self.withCharging = AnnotatedValue(True, "WithCharging", group_type=GroupType.PRIMARY)
+        self.withShellsPoolLimit = AnnotatedValue(True, "WithShellsPoolLimit", group_type=GroupType.PRIMARY)
         self.shellPrototypeId = -1
-        self.damage = 1.0
-        self.damageType = 0
-        self.firingRate = 1.0
-        self.firingRange = 1.0
-        self.lowStopAngle = 0.0
-        self.highStopAngle = 0.0
-        self.ignoreStopAnglesWhenFire = False
+        self.damage = AnnotatedValue(1.0, "Damage", group_type=GroupType.PRIMARY)
+        self.damageType = AnnotatedValue(0, "DamageType", group_type=GroupType.PRIMARY,
+                                         saving_type=SavingType.SPECIFIC)
+        self.firingRate = AnnotatedValue(1.0, "FiringRate", group_type=GroupType.PRIMARY)
+        self.firingRange = AnnotatedValue(1.0, "FiringRange", group_type=GroupType.PRIMARY)
+        self.ignoreStopAnglesWhenFire = AnnotatedValue(False, "IgnoreStopAnglesWhenFire", group_type=GroupType.PRIMARY)
+        self.decalName = AnnotatedValue("", "Decal", group_type=GroupType.PRIMARY)
         self.decalId = -1
-        self.recoilForce = 0.0
-        self.turningSpeed = DEFAULT_TURNING_SPEED
-        self.chargeSize = 20
-        self.reChargingTime = 1.0
-        self.reChargingTimePerShell = 0.0
-        self.shellsPoolSize = 12
+        self.recoilForce = AnnotatedValue(0.0, "RecoilForce", group_type=GroupType.PRIMARY)
+        self.turningSpeed = AnnotatedValue(DEFAULT_TURNING_SPEED * (pi / 180),  # convert to rads
+                                           "TurningSpeed",
+                                           group_type=GroupType.PRIMARY,
+                                           saving_type=SavingType.SPECIFIC)
+        self.chargeSize = AnnotatedValue(20, "ChargeSize", group_type=GroupType.PRIMARY)
+        self.reChargingTime = AnnotatedValue(1.0, "RechargingTime", group_type=GroupType.PRIMARY)
+        self.reChargingTimePerShell = AnnotatedValue(0.0, "ReChargingTimePerShell", group_type=GroupType.PRIMARY)
+        self.shellsPoolSize = AnnotatedValue(0, "ShellsPoolSize", group_type=GroupType.PRIMARY) # original default 12
         self.blastWavePrototypeId = -1
-        self.firingType = 0
+        self.firingType = AnnotatedValue(0, "FiringType", group_type=GroupType.PRIMARY,
+                                         saving_type=SavingType.REQUIRED_SPECIFIC)
         self.fireLpMatrices = []
-        self.explosionTypeName = "BIG"
-        self.shellPrototypeName = ""
-        self.blastWavePrototypeName = ""
+        self.explosionTypeName = AnnotatedValue("BIG", "ExplosionType", group_type=GroupType.PRIMARY)
+        self.shellPrototypeName = AnnotatedValue("", "BulletPrototype", group_type=GroupType.PRIMARY)
+        self.blastWavePrototypeName = AnnotatedValue("", "BlastWavePrototype", group_type=GroupType.PRIMARY)
+
+        self.engineModelName = AnnotatedValue("", "ModelFile", group_type=GroupType.VISUAL,
+                                              saving_type=SavingType.SPECIFIC)
+        # Init moved from RefreshFromXml
+        self.lowStopAngle = AnnotatedValue(None, "LowStop", group_type=GroupType.INTERNAL,
+                                           saving_type=SavingType.SPECIFIC)
+        self.highStopAngle = AnnotatedValue(None, "HighStop", group_type=GroupType.INTERNAL,
+                                            saving_type=SavingType.SPECIFIC)
 
     def LoadFromXML(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
         result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.shellPrototypeName = safe_check_and_set(self.shellPrototypeName, xmlNode, "BulletPrototype")
-            self.blastWavePrototypeName = safe_check_and_set(self.blastWavePrototypeName, xmlNode, "BlastWavePrototype")
-            damage = read_from_xml_node(xmlNode, "Damage", do_not_warn=True)
+            self.shellPrototypeName.value = safe_check_and_set(self.shellPrototypeName.default_value,
+                                                               xmlNode, self.shellPrototypeName.name)
+            self.blastWavePrototypeName.value = safe_check_and_set(self.blastWavePrototypeName.default_value,
+                                                                   xmlNode, self.blastWavePrototypeName.name)
+            damage = read_from_xml_node(xmlNode, self.damage.name, do_not_warn=True)
             if damage is not None:
-                self.damage = float(damage)
+                self.damage.value = float(damage)
 
-            firingRate = read_from_xml_node(xmlNode, "FiringRate", do_not_warn=True)
+            firingRate = read_from_xml_node(xmlNode, self.firingRate.name, do_not_warn=True)
             if firingRate is not None:
-                self.firingRate = float(firingRate)
+                self.firingRate.value = float(firingRate)
 
-            firingRange = read_from_xml_node(xmlNode, "FiringRange", do_not_warn=True)
+            firingRange = read_from_xml_node(xmlNode, self.firingRange.name, do_not_warn=True)
             if firingRange is not None:
-                self.firingRange = float(firingRange)
+                self.firingRange.value = float(firingRange)
 
-            self.explosionTypeName = safe_check_and_set(self.explosionTypeName, xmlNode, "ExplosionType")
+            self.explosionTypeName.value = safe_check_and_set(self.explosionTypeName.default_value,
+                                                              xmlNode, self.explosionTypeName.name)
 
-            recoilForce = read_from_xml_node(xmlNode, "RecoilForce", do_not_warn=True)
+            recoilForce = read_from_xml_node(xmlNode, self.recoilForce.name, do_not_warn=True)
             if recoilForce is not None:
-                self.recoilForce = float(recoilForce)
+                self.recoilForce.value = float(recoilForce)
 
-            decalName = safe_check_and_set("", xmlNode, "Decal")
-            self.decalId = f"Placeholder for {decalName}!"  # DynamicScene.AddDecalName(decalName)
+            self.decalName.value = safe_check_and_set(self.decalName.default_value, xmlNode, self.decalName.name)
+            self.decalId = f"Placeholder for {self.decalName.value}!"  # DynamicScene.AddDecalName(decalName)
 
-            firingType = read_from_xml_node(xmlNode, "FiringType")
-            self.firingType = GunPrototypeInfo.Str2FiringType(firingType)
-            if self.firingType is None:
-                logger.warning(f"Unknown firing type: {self.firingType}!")
+            firingType = read_from_xml_node(xmlNode, self.firingType.name)
+            self.firingType.value = GunPrototypeInfo.Str2FiringType(firingType)
+            if self.firingType.value is None:
+                logger.warning(f"Unknown firing type: {self.firingType.value}!")
 
-            damageTypeName = read_from_xml_node(xmlNode, "DamageType", do_not_warn=True)
+            damageTypeName = read_from_xml_node(xmlNode, self.damageType.name, do_not_warn=True)
             if damageTypeName is not None:
-                self.damageType = GunPrototypeInfo.Str2DamageType(damageTypeName)
-            if self.damageType is None:
-                logger.warning(f"Unknown damage type: {self.damageType}")
+                self.damageType.value = GunPrototypeInfo.Str2DamageType(damageTypeName)
+            if self.damageType.value is None:
+                logger.warning(f"Unknown damage type: {self.damageType.value}")
 
-            self.withCharging = parse_str_to_bool(read_from_xml_node(xmlNode, "WithCharging", do_not_warn=True))
+            self.withCharging.value = parse_str_to_bool(self.withCharging.default_value,
+                                                        read_from_xml_node(xmlNode,
+                                                                           self.withCharging.name,
+                                                                           do_not_warn=True))
 
-            chargeSize = read_from_xml_node(xmlNode, "ChargeSize", do_not_warn=True)
+            chargeSize = read_from_xml_node(xmlNode, self.chargeSize.name, do_not_warn=True)
             if chargeSize is not None:
                 chargeSize = int(chargeSize)
                 if chargeSize >= 0:  # ??? whaaat, why should it ever be less than 0?
-                    self.chargeSize = chargeSize
+                    self.chargeSize.value = chargeSize
 
-            reChargingTime = read_from_xml_node(xmlNode, "RechargingTime", do_not_warn=True)
+            reChargingTime = read_from_xml_node(xmlNode, self.reChargingTime.name, do_not_warn=True)
             if reChargingTime is not None:
-                self.reChargingTime = float(reChargingTime)
+                self.reChargingTime.value = float(reChargingTime)
 
-            self.shellsPoolSize = 0
-            shellsPoolSize = read_from_xml_node(xmlNode, "ShellsPoolSize", do_not_warn=True)
+            reChargingTimePerShell = read_from_xml_node(xmlNode, self.reChargingTimePerShell.name, do_not_warn=True)
+            if reChargingTimePerShell is not None:
+                self.reChargingTimePerShell.value = float(reChargingTimePerShell)
+
+            shellsPoolSize = read_from_xml_node(xmlNode, self.shellsPoolSize.name, do_not_warn=True)
             if shellsPoolSize is not None:
                 shellsPoolSize = int(shellsPoolSize)
                 if shellsPoolSize > 0:
-                    self.shellsPoolSize = shellsPoolSize
-                if shellsPoolSize <= 0:
-                    self.withShellsPoolLimit = 0
-                    self.shellsPoolSize = 12
+                    self.shellsPoolSize.value = shellsPoolSize
+                else:
+                    self.withShellsPoolLimit.default_value = False
+                    self.withShellsPoolLimit.value = False
 
-            self.withShellsPoolLimit = parse_str_to_bool(read_from_xml_node(xmlNode, "WithShellsPoolLimit",
-                                                                            do_not_warn=True))
+            self.withShellsPoolLimit.value = parse_str_to_bool(self.withShellsPoolLimit.default_value,
+                                                               read_from_xml_node(xmlNode,
+                                                                                  self.withShellsPoolLimit.name,
+                                                                                  do_not_warn=True))
 
-            turningSpeed = read_from_xml_node(xmlNode, "TurningSpeed", do_not_warn=True)
+            turningSpeed = read_from_xml_node(xmlNode, self.turningSpeed.name, do_not_warn=True)
             if turningSpeed is not None:
-                self.turningSpeed = float(turningSpeed)
-            self.turningSpeed *= pi / 180  # convert to rads
-            self.engineModelName += "Gun"  # ??? is this really what's happening?
-            self.ignoreStopAnglesWhenFire = parse_str_to_bool(read_from_xml_node(xmlNode, "IgnoreStopAnglesWhenFire",
-                                                                                 do_not_warn=True))
+                self.turningSpeed.value = float(turningSpeed)
+                # next row was moved under if to avoid double convertation of default. Default also was changed.
+                self.turningSpeed.value *= pi / 180  # convert to rads
+            # initially in engineModelName we have gun carriage. Here we add Gun suffix to take related model.
+            self.engineModelName.value += "Gun"
+            self.ignoreStopAnglesWhenFire.value = parse_str_to_bool(
+                self.ignoreStopAnglesWhenFire.default_value, read_from_xml_node(xmlNode,
+                                                                                self.ignoreStopAnglesWhenFire.name,
+                                                                                do_not_warn=True))
+            # custom implementation. Originally called from PrototypeManager -> RefreshFromXml
+            self.RefreshFromXml(xmlFile, xmlNode)
+            # custom implementation ends
             return STATUS_SUCCESS
 
     def Str2FiringType(firing_type_name: str):
         return FiringTypesStruct.get(firing_type_name)
 
+    def FiringType2Str(firing_type_value: int):
+        return list(FiringTypesStruct.keys())[list(FiringTypesStruct.values()).index(firing_type_value)]
+
     def Str2DamageType(damage_type_name: str):
         return DamageTypeStruct.get(damage_type_name)
+
+    def DamageType2Str(damage_type_value: int):
+        return list(DamageTypeStruct.keys())[list(DamageTypeStruct.values()).index(damage_type_value)]
 
     def PostLoad(self, prototype_manager):
         self.explosionType = "DUMMY_EXPLOSION_TYPE_NOT_IMPLEMENTED_GET_EXPLOSION_TYPE"
         # self.explosionType = prototype_manager.theServer.theDynamicScene.GetExplosionType(self.explosionTypeName)
-        self.shellPrototypeId = prototype_manager.GetPrototypeId(self.shellPrototypeName)
+        self.shellPrototypeId = prototype_manager.GetPrototypeId(self.shellPrototypeName.value)
         if self.shellPrototypeId == -1:  # ??? there also exist check if sheelPrototypeName is not empty. A valid case?
-            logger.error(f"Shell prototype {self.shellPrototypeId} is invalid for {self.prototypeName}")
-        self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName)
+            logger.error(f"Shell prototype {self.shellPrototypeId} is invalid for {self.prototypeName.value}")
+        self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName.value)
         if self.blastWavePrototypeId == -1:
-            logger.error(f"Unknown blastwave prototype {self.blastWavePrototypeName} for {self.prototypeName}")
+            logger.error(
+                f"Unknown blastwave prototype {self.blastWavePrototypeName.value} for {self.prototypeName.value}")
+
+    def RefreshFromXml(self, xmlFile, xmlNode):
+        lowStopAngle = read_from_xml_node(xmlNode, "LowStop", do_not_warn=True)
+        if lowStopAngle is not None:
+            self.lowStopAngle.value = float(lowStopAngle) * pi / 180  # 0.017453292
+
+        highStopAngle = read_from_xml_node(xmlNode, "HighStop", do_not_warn=True)
+        if highStopAngle is not None:
+            self.highStopAngle.value = float(highStopAngle) * pi / 180  # 0.017453292
+
+    def get_etree_prototype(self):
+        result = VehiclePartPrototypeInfo.get_etree_prototype(self)
+        add_value_to_node(result, self.engineModelName, lambda x: x.value.strip("Gun"))
+        add_value_to_node(result, self.turningSpeed, lambda x: str(x.value / (pi / 180)))
+        add_value_to_node(result, self.damageType, lambda x: GunPrototypeInfo.DamageType2Str(x.value))
+        add_value_to_node(result, self.firingType, lambda x: GunPrototypeInfo.FiringType2Str(x.value))
+        add_value_to_node(result, self.lowStopAngle, lambda x: str(x.value / pi * 180))
+        add_value_to_node(result, self.highStopAngle, lambda x: str(x.value / pi * 180))
+        return result
 
 
 class GadgetPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.modifications = []
-        self.modelName = ""
-        self.skinNum = 0
-        self.isUpdating = False
+        self.modifications = AnnotatedValue([], "Modifications", group_type=GroupType.PRIMARY,
+                                            display_type=DisplayType.MODIFICATION_INFO,
+                                            saving_type=SavingType.SPECIFIC)
+        self.modelName = AnnotatedValue("", "ModelFile", group_type=GroupType.VISUAL)
+        self.skinNum = AnnotatedValue(0, "SkinNum", group_type=GroupType.VISUAL, display_type=DisplayType.SKIN_NUM)
+        self.isUpdating = AnnotatedValue(False, "IsUpdating", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -394,12 +603,24 @@ class GadgetPrototypeInfo(PrototypeInfo):
             modifications = read_from_xml_node(xmlNode, "Modifications").split(";")
             for modification_description in modifications:
                 modification_info = self.ModificationInfo(modification_description, self)
-                self.modifications.append(modification_info)
-            self.modelName = safe_check_and_set(self.modelName, xmlNode, "ModelFile")
-            self.skinNum = safe_check_and_set(self.skinNum, xmlNode, "SkinNum", "int")
+                self.modifications.value.append(modification_info)
+            self.modelName.value = safe_check_and_set(self.modelName.value, xmlNode, "ModelFile")
+            self.skinNum.value = safe_check_and_set(self.skinNum.value, xmlNode, "SkinNum", "int")
             return STATUS_SUCCESS
 
-    class ModificationInfo(object):
+    def get_etree_prototype(self):
+        result = PrototypeInfo.get_etree_prototype(self)
+        # Modifications start
+
+        def get_string_representation(modification):
+            return self.ModificationInfo.get_string_representation(modification, self)
+
+        add_value_to_node(result, self.modifications,
+                          lambda x: ";".join(list(map(get_string_representation, x.value))))
+        # Modifications end
+        return result
+
+    class ModificationInfo(object):  # special save and display needed
         # other ModificationInfo object can be passed to create copy
         def __init__(self, tokens: str, prot_info, other_mod=None):  # tokens=None
             if other_mod is None:
@@ -408,50 +629,51 @@ class GadgetPrototypeInfo(PrototypeInfo):
                                     "targetFiringType": 0}
                 self.propertyName = ""
                 self.value = ""  # is AIParam() necessary ???
-                self.value_type = 0
+                self.value_type = self.value_type_enum.DEFAULT.value
 
-                self.modificationType = 0
+                self.modificationType = self.modification_type_enum.EMPTY.value
                 token_value_part = 2
 
                 token_parts = tokens.split()
                 tokens_size = len(token_parts)
                 if tokens_size == 4:
                     if token_parts[2] == "+=":
-                        self.modificationType = 1
+                        self.modificationType = self.modification_type_enum.PLUS_EQUAL.value
                         token_value_part = 3
                     else:
                         logger.error("Unexpected gadget modification token format. "
                                      "For 4-part token format third part should be '+='. "
-                                     f"Given tokens: '{tokens}' for prototype: {prot_info.prototypeName}")
+                                     f"Given tokens: '{tokens}' for prototype: {prot_info.prototypeName.value}")
                 elif tokens_size != 3:
                     logger.error("Expected tokens list with size equal to 3 or 4. "
-                                 f"Given tokens: '{tokens}' for prototype: {prot_info.prototypeName}")
+                                 f"Given tokens: '{tokens}' for prototype: {prot_info.prototypeName.value}")
 
                 token_resource_id = prot_info.theServer.theResourceManager.GetResourceId(token_parts[0])
                 if token_parts[0] == "VEHICLE":
-                    self.applierInfo["applierType"] = 0
+                    self.applierInfo["applierType"] = self.applier_type_enum.VEHICLE.value
                 elif token_resource_id == -1:
-                    self.applierInfo["applierType"] = 2
+                    self.applierInfo["applierType"] = self.applier_type_enum.GUN.value
                     self.applierInfo["targetFiringType"] = GunPrototypeInfo.Str2FiringType(token_parts[0])
                     if self.applierInfo["targetFiringType"] is None:
                         logger.warning(f"Unknown firing type '{token_parts[0]}' "
-                                       f"for modification token of prototype: {prot_info.prototypeName}")
+                                       f"for modification token of prototype: {prot_info.prototypeName.value}")
                 else:
-                    self.applierInfo["applierType"] = 1
+                    self.applierInfo["applierType"] = self.applier_type_enum.VEHICLE_PART.value
                     self.applierInfo["targetResourceId"] = token_resource_id
                 self.propertyName = token_parts[1]
-                if self.modificationType != 0:
-                    if self.modificationType == 1:
+                if self.modificationType != self.modification_type_enum.EMPTY.value:
+                    if self.modificationType == self.modification_type_enum.PLUS_EQUAL.value:
                         self.value = token_parts[token_value_part]
-                        self.value_type = 5
+                        self.value_type = self.value_type_enum.ABSOLUTE.value
                     else:
                         logger.error(f"Unexpected modificationType for ModificationInfo '{tokens}'' "
-                                     f"of {prot_info.prototypeName}")
+                                     f"of {prot_info.prototypeName.value}")
                 else:
                     value = float(token_parts[token_value_part]) * 0.01
                     self.value = value
-                    self.value_type = 4
+                    self.value_type = self.value_type_enum.PERCENT.value
 
+            # never used? Can be ignored for saving
             elif other_mod is not None:
                 self.applierInfo["applierType"] = other_mod.applierInfo["applierType"]
                 self.applierInfo["targetResourceId"] = other_mod.applierInfo["targetResourceId"]
@@ -460,18 +682,47 @@ class GadgetPrototypeInfo(PrototypeInfo):
                 # self.NumFromName = int(other_mod.modificationType)
                 self.value = other_mod.value  # ??? some AIParam magic in here
 
+        def get_string_representation(self, prot_info):
+            target = ""
+            if self.applierInfo["targetResourceId"] != -1:
+                target = prot_info.theServer.theResourceManager.GetResourceName(self.applierInfo["targetResourceId"])
+            else:
+                target = GunPrototypeInfo.FiringType2Str(self.applierInfo["targetFiringType"])
+            sign = "+= " if self.modificationType == self.modification_type_enum.PLUS_EQUAL.value else ""
+            value = self.value if self.value_type == self.value_type_enum.ABSOLUTE.value else int(self.value / 0.01)
+
+            return f'{target} {self.propertyName} {sign}{value}'
+
+        class applier_type_enum(Enum):
+            VEHICLE = 0
+            VEHICLE_PART = 1
+            GUN = 2
+
+        class modification_type_enum(Enum):
+            EMPTY = 0,
+            PLUS_EQUAL = 1
+
+        class value_type_enum(Enum):
+            DEFAULT = 0,
+            PERCENT = 4,
+            ABSOLUTE = 5
+
 
 class WanderersManagerPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
 
 
-class WanderersGeneratorPrototypeInfo(PrototypeInfo):
+class WanderersGeneratorPrototypeInfo(PrototypeInfo):  # special save and display needed
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.vehicleDescriptions = []
-        self.desiredCountLow = -1
-        self.desiredCountHigh = -1
+        self.vehicleDescriptions = AnnotatedValue([], "VehicleDescription", group_type=GroupType.PRIMARY,
+                                                  display_type=DisplayType.MODIFICATION_INFO,
+                                                  saving_type=SavingType.SPECIFIC)
+        self.desiredCountLow = AnnotatedValue(-1, "DesiredCountLow", group_type=GroupType.PRIMARY,
+                                              saving_type=SavingType.SPECIFIC)
+        self.desiredCountHigh = AnnotatedValue(-1, "DesiredCountHigh", group_type=GroupType.PRIMARY,
+                                               saving_type=SavingType.SPECIFIC)
 
     def LoadFromXML(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -481,32 +732,58 @@ class WanderersGeneratorPrototypeInfo(PrototypeInfo):
                 tokensDesiredCount = desiredCount.split("-")
                 token_length = len(tokensDesiredCount)
                 if token_length == 2:
-                    self.desiredCountLow = int(tokensDesiredCount[0])
-                    self.desiredCountHigh = int(tokensDesiredCount[1])
+                    self.desiredCountLow.value = int(tokensDesiredCount[0])
+                    self.desiredCountHigh.value = int(tokensDesiredCount[1])
                 elif token_length == 1:
-                    self.desiredCountLow = int(tokensDesiredCount[0])
-                    self.desiredCountHigh = self.desiredCountLow
+                    self.desiredCountLow.value = int(tokensDesiredCount[0])
+                    self.desiredCountHigh.value = self.desiredCountLow.value
                 else:
-                    logger.error(f"WanderersGenerator {self.prototypeName} attrib DesiredCount range "
-                                 f"should contain one or two numbers but contains {len(tokensDesiredCount)}")
-                if self.desiredCountLow > self.desiredCountHigh:
-                    logger.error(f"WanderersGenerator {self.prototypeName} attrib DesiredCount range invalid: "
-                                 f"{self.desiredCountLow}-{self.desiredCountHigh}, "
+                    logger.error(f"WanderersGenerator {self.prototypeName.value} attrib DesiredCount range "
+                                 f"should contain one or two numbers but contains {len(tokensDesiredCount.value)}")
+                if self.desiredCountLow.value > self.desiredCountHigh.value:
+                    logger.error(f"WanderersGenerator {self.prototypeName.value} attrib DesiredCount range invalid: "
+                                 f"{self.desiredCountLow.value}-{self.desiredCountHigh.value}, "
                                  "should be from lesser to higher number")
-                if self.desiredCountHigh > 5:
-                    logger.error(f"WanderersGenerator {self.prototypeName} attrib DesiredCount high value: "
-                                 f"{self.desiredCountHigh} is higher than permitted MAX_VEHICLES_IN_TEAM: 5")
+                if self.desiredCountHigh.value > 5:
+                    logger.error(f"WanderersGenerator {self.prototypeName.value} attrib DesiredCount high value: "
+                                 f"{self.desiredCountHigh.value} is higher than permitted MAX_VEHICLES_IN_TEAM: 5")
             vehicles = child_from_xml_node(xmlNode, "Vehicles")
             check_mono_xml_node(vehicles, "Vehicle")
             for vehicle_node in vehicles.iterchildren("Vehicle"):
                 vehicle_description = self.VehicleDescription()
-                vehicle_description.LoadFromXML(xmlFile, xmlNode)
+                vehicle_description.LoadFromXML(xmlFile, vehicle_node)
+                self.vehicleDescriptions.value.append(vehicle_description)
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
         if self.vehicleDescriptions:
-            for vehicle_description in self.vehicleDescriptions:
+            for vehicle_description in self.vehicleDescriptions.value:
                 vehicle_description.PostLoad(prototype_manager)
+
+    def get_etree_prototype(self):
+        result = PrototypeInfo.get_etree_prototype(self)
+
+        # DesiredCount start
+        # Property name different from AnnotatedValue.name
+        desired_count = 0
+        if self.desiredCountLow.value == self.desiredCountHigh.value:
+            desired_count = str(self.desiredCountLow.value)
+        else:
+            desired_count = f'{self.desiredCountLow.value}-{self.desiredCountHigh.value}'
+        result.set("DesiredCount", desired_count)
+        # DesiredCount end
+
+        # VehicleDescription start
+
+        def prepare_vehicles(vehicles_array):
+            vehiclesTree = etree.Element("Vehicles")
+            for vehicle in vehicles_array:
+                vehiclesTree.append(self.VehicleDescription.get_etree_prototype(vehicle))
+            return vehiclesTree
+
+        add_value_to_node_as_child(result, self.vehicleDescriptions, lambda x: prepare_vehicles(x.value))
+        # VehicleDescription end
+        return result
 
     class VehicleDescription(object):
         def __init__(self):
@@ -558,6 +835,37 @@ class WanderersGeneratorPrototypeInfo(PrototypeInfo):
             WanderersGeneratorPrototypeInfo.VehiclePartDescription.PostLoad(self.basketBigGun1, prototype_manager)
             WanderersGeneratorPrototypeInfo.VehiclePartDescription.PostLoad(self.basketSideGun, prototype_manager)
 
+        def get_etree_prototype(self):
+            vehicleTree = etree.Element("Vehicle")
+            vehicleTree.set("Prototype", self.prototype)
+            children = [
+                self.get_etree_node_if_not_default("Cabin", self.cabin),
+                self.get_etree_node_if_not_default("Basket", self.basket),
+                self.get_etree_node_if_not_default("CabinSmallGun", self.cabinSmallGun),
+                self.get_etree_node_if_not_default("CabinBigGun", self.cabinBigGun),
+                self.get_etree_node_if_not_default("CabinSpecialWeapon", self.cabinSpecialWeapon),
+                self.get_etree_node_if_not_default("BasketSmallGun0", self.basketSmallGun0),
+                self.get_etree_node_if_not_default("BasketSmallGun1", self.basketSmallGun1),
+                self.get_etree_node_if_not_default("BasketBigGun0", self.basketBigGun0),
+                self.get_etree_node_if_not_default("BasketBigGun1", self.basketBigGun1),
+                self.get_etree_node_if_not_default("BasketSideGun", self.basketSideGun)
+            ]
+            for child in children:
+                if child is not None:
+                    vehicleTree.append(child)
+            return vehicleTree
+
+        def get_etree_node_if_not_default(self, nodeName, childProp):
+            if childProp.present and childProp.prototypeNames == []:
+                return None
+            else:
+                vehicleTree = etree.Element(nodeName)
+                if not childProp.present:
+                    vehicleTree.set("Present", str(childProp.present))
+                if childProp.prototypeNames != []:
+                    vehicleTree.set("Prototypes", " ".join(childProp.prototypeNames))
+                return vehicleTree
+
     class VehiclePartDescription(object):
         def __init__(self):
             self.present = True
@@ -565,7 +873,7 @@ class WanderersGeneratorPrototypeInfo(PrototypeInfo):
             self.prototypeIds = []
 
         def LoadFromXML(self, xmlFile, xmlNode):
-            self.present = parse_str_to_bool(read_from_xml_node(xmlNode, "Present", do_not_warn=True))
+            self.present = parse_str_to_bool(self.present, read_from_xml_node(xmlNode, "Present", do_not_warn=True))
             strPrototypes = read_from_xml_node(xmlNode, "Prototypes", do_not_warn=True)
             if strPrototypes is not None:
                 self.prototypeNames = strPrototypes.split()
@@ -581,14 +889,16 @@ class WanderersGeneratorPrototypeInfo(PrototypeInfo):
 class AffixGeneratorPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.affixDescriptions = []
+        self.affixDescriptions = AnnotatedValue([], "Affix", group_type=GroupType.PRIMARY,
+                                                display_type=DisplayType.AFFIX_LIST,
+                                                saving_type=SavingType.SPECIFIC)
 
     def LoadFromXML(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             affix_nodes = child_from_xml_node(xmlNode, "Affix")
             for affix in affix_nodes:
-                self.affixDescriptions.append(read_from_xml_node(affix, "AffixName"))
+                self.affixDescriptions.value.append(read_from_xml_node(affix, "AffixName"))
             return STATUS_SUCCESS
 
     def GenerateAffixesForObj(self, obj, desiredNumAffixed):
@@ -596,6 +906,23 @@ class AffixGeneratorPrototypeInfo(PrototypeInfo):
 
     def InternalCopyFrom(self, prot_to_copy_from):
         self.parent = prot_to_copy_from
+
+    def get_etree_prototype(self):
+        result = PrototypeInfo.get_etree_prototype(self)
+
+        # affixDescriptions start
+
+        def prepare_affixe(affix_array):
+            result = []
+            for affixName in affix_array:
+                affix = etree.Element("Affix")
+                affix.set("AffixName", affixName)
+                result.append(affix)
+            return result
+
+        add_value_to_node_as_child(result, self.affixDescriptions, lambda x: prepare_affixe(x.value))
+        # affixDescriptions end
+        return result
 
     # class AffixDescription(object):
     #     def __init__(self):
@@ -611,18 +938,18 @@ class AffixGeneratorPrototypeInfo(PrototypeInfo):
 class PhysicObjPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.intersectionRadius = 0.0
-        self.lookRadius = 0.0
+        self.intersectionRadius = AnnotatedValue(0.0, "IntersectionRadius", group_type=GroupType.PRIMARY)
+        self.lookRadius = AnnotatedValue(0.0, "LookRadius", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             intersectionRadius = read_from_xml_node(xmlNode, "IntersectionRadius", do_not_warn=True)
             if intersectionRadius is not None:
-                self.intersectionRadius = intersectionRadius
+                self.intersectionRadius.value = intersectionRadius
             lookRadius = read_from_xml_node(xmlNode, "LookRadius", do_not_warn=True)
             if lookRadius is not None:
-                self.lookRadius = lookRadius
+                self.lookRadius.value = lookRadius
             return STATUS_SUCCESS
 
 
@@ -630,24 +957,30 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
     def __init__(self, server):
         PhysicObjPrototypeInfo.__init__(self, server)
         self.collisionInfos = []
-        self.collisionTrimeshAllowed = 0
+        self.collisionTrimeshAllowed = AnnotatedValue(False, "CollisionTrimeshAllowed",
+                                                      group_type=GroupType.SECONDARY)
         self.geomType = 0
-        self.engineModelName = ""
-        self.size = deepcopy(ZERO_VECTOR)
-        self.radius = 1.0
-        self.massValue = 1.0
+        self.engineModelName = AnnotatedValue("", "ModelFile", group_type=GroupType.VISUAL)
+        self.size = AnnotatedValue(deepcopy(ZERO_VECTOR), "Size", group_type=GroupType.SECONDARY,
+                                   saving_type=SavingType.SPECIFIC)
+        self.radius = AnnotatedValue(1.0, "Radius", group_type=GroupType.SECONDARY)
+        self.massValue = AnnotatedValue(1.0, "Mass", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             mass = read_from_xml_node(xmlNode, "Mass", do_not_warn=True)
             if mass is not None:
-                self.massValue = float(mass)
+                self.massValue.value = float(mass)
             # ??? maybe should fallback to "" instead None
-            self.engineModelName = read_from_xml_node(xmlNode, "ModelFile", do_not_warn=True)
-            self.collisionTrimeshAllowed = parse_str_to_bool(read_from_xml_node(xmlNode,
-                                                                                "CollisionTrimeshAllowed",
-                                                                                do_not_warn=True))
+            self.engineModelName.value = read_from_xml_node(xmlNode, "ModelFile", do_not_warn=True)
+            self.collisionTrimeshAllowed.value = parse_str_to_bool(self.collisionTrimeshAllowed.default_value,
+                                                                   read_from_xml_node(xmlNode,
+                                                                                      "CollisionTrimeshAllowed",
+                                                                                      do_not_warn=True))
+            # custom implementation. Originally called from PrototypeManager -> RefreshFromXml
+            self.RefreshFromXml(xmlFile, xmlNode)
+            # custom implementation ends
             return STATUS_SUCCESS
 
     def SetGeomType(self, geom_type):
@@ -658,84 +991,80 @@ class SimplePhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
         collision_info.Init()
         if self.geomType == 1:
             collision_info.geomType = 1
-            collision_info.size["x"] = self.size["x"]
-            collision_info.size["y"] = self.size["y"]
-            collision_info.size["z"] = self.size["z"]
+            collision_info.size["x"] = self.size.value["x"]
+            collision_info.size["y"] = self.size.value["y"]
+            collision_info.size["z"] = self.size.value["z"]
         elif self.geomType == 2:
             collision_info.geomType = 2
-            collision_info.radius = self.radius
+            collision_info.radius = self.radius.value
         elif self.geomType == 5:
-            logger.warning(f"Obsolete GeomType: TriMesh! in {self.prototypeName}")
+            logger.warning(f"Obsolete GeomType: TriMesh! in {self.prototypeName.value}")
         self.collisionInfos.append(collision_info)
+
+    def get_etree_prototype(self):
+        result = PhysicObjPrototypeInfo.get_etree_prototype(self)
+        add_value_to_node(result, self.size, lambda x: vector_to_string(x.value))
+        return result
+
+    def RefreshFromXml(self, xmlFile, xmlNode):
+        # anim_model_server = self.theServer.theAnimatedModelsServer
+        # model_obj = anim_model_server.GetItemByName(self.engineModelName.value)
+        # GetCollisionInfoByServerHandle(model_obj, self.collisionInfos, self.collisionTrimeshAllowed)
+        # sizeFromDataServer = anim_model_server.GetBoundsSizes(self.engineModelName.value)
+        # self.radius.value = sizeFromDataServer.y * 0.5
+        size = read_from_xml_node(xmlNode, "Size", do_not_warn=True)
+        if size is not None:
+            self.size.value = parse_str_to_vector(size)
+        self.radius.value = safe_check_and_set(self.radius.default_value, xmlNode, "Radius", "float")
+        # self.SetGeomType(self.geom_type)
 
 
 class ChestPrototypeInfo(SimplePhysicObjPrototypeInfo):
     def __init__(self, server):
         SimplePhysicObjPrototypeInfo.__init__(self, server)
+        self.lifeTime = AnnotatedValue(-1.0, "LifeTime", group_type=GroupType.SECONDARY)
+        self.withLifeTime = False
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             self.SetGeomType("BOX")
-            self.lifeTime = safe_check_and_set(-1, xmlNode, "LifeTime", "float")
-            if self.lifeTime <= 0.0:
+            self.lifeTime.value = safe_check_and_set(self.lifeTime.default_value, xmlNode, self.lifeTime.name, "float")
+            if self.lifeTime.value <= 0.0:
                 self.withLifeTime = False
             else:
                 self.withLifeTime = True
             return STATUS_SUCCESS
 
 
-class ComplexPhysicObjPartDescription(Object):
-    def __init__(self, prototype_info_object=None):
-        Object.__init__(self, prototype_info_object)
-        self.partResourceId = -1
-        self.lpNames = []
-        self.child_descriptions = []  # ??? temporary placeholder for original logic
-
-    def LoadFromXML(self, xmlFile, xmlNode, server):
-        self.name = read_from_xml_node(xmlNode, "id")
-        if self.parent is not None:
-            parent_lookup = self.parent.GetChildByName(self.name)
-            if parent_lookup is not None and self is parent_lookup:  # ??? can this ever be true?
-                logger.warning(f"When loading PartDescription: name = {self.name} conflicts with another child")
-
-        partResourceType = read_from_xml_node(xmlNode, "partResourceType")
-        self.partResourceId = server.theResourceManager.GetResourceId(partResourceType)
-        lpNames = read_from_xml_node(xmlNode, "lpName", do_not_warn=True)
-        if lpNames is not None:
-            self.lpNames = lpNames.split()
-        if len(xmlNode.getchildren()) >= 1:
-            check_mono_xml_node(xmlNode, "PartDescription")
-            for description_node in xmlNode.iterchildren(tag="PartDescription"):
-                part_description = ComplexPhysicObjPartDescription()
-                part_description.LoadFromXML(xmlFile, description_node, server)
-                self.child_descriptions.append(part_description)  # ??? temporary placeholder for original logic
-
-
 class ComplexPhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
     def __init__(self, server):
         PhysicObjPrototypeInfo.__init__(self, server)
         self.partPrototypeIds = []
-        self.partPrototypeNames = []
-        self.massSize = {"x": 1.0,
-                         "y": 1.0,
-                         "z": 1.0}
-        self.massTranslation = deepcopy(ZERO_VECTOR)
+        self.partPrototypeNames = AnnotatedValue([], "Parts", group_type=GroupType.PRIMARY,
+                                                 saving_type=SavingType.SPECIFIC)
+        self.massSize = AnnotatedValue(deepcopy(ONE_VECTOR), "MassSize", group_type=GroupType.SECONDARY,
+                                       saving_type=SavingType.SPECIFIC)
+        self.massTranslation = AnnotatedValue(deepcopy(ZERO_VECTOR), "MassTranslation", group_type=GroupType.SECONDARY,
+                                              saving_type=SavingType.SPECIFIC)
         self.partDescription = []
+        # custom init for partPrototypeDescription
+        self.partPrototypeDescriptions = AnnotatedValue([], "PartsDescription", group_type=GroupType.PRIMARY,
+                                                        saving_type=SavingType.SPECIFIC)
         self.allPartNames = []
-        self.massShape = 0
+        self.massShape = AnnotatedValue(0, "MassShape", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             main_part_description_node = child_from_xml_node(xmlNode, "MainPartDescription", do_not_warn=True)
             if main_part_description_node is not None:
-                partPrototypeDescriptions = ComplexPhysicObjPartDescription()
+                partPrototypeDescriptions = self.ComplexPhysicObjPartDescription()
                 partPrototypeDescriptions.LoadFromXML(xmlFile, main_part_description_node, self.theServer)
-                self.partPrototypeDescriptions = partPrototypeDescriptions
+                self.partPrototypeDescriptions.value = partPrototypeDescriptions
             else:
-                if self.parent.partPrototypeDescriptions is None:
-                    logger.warning(f"Parts description is missing for prototype {self.prototypeName}")
+                if self.parent.partPrototypeDescriptions.value is None:
+                    logger.warning(f"Parts description is missing for prototype {self.prototypeName.value}")
             parts_node = child_from_xml_node(xmlNode, "Parts")
             if parts_node is not None:
                 check_mono_xml_node(parts_node, "Part")
@@ -744,119 +1073,220 @@ class ComplexPhysicObjPrototypeInfo(PhysicObjPrototypeInfo):
                     prototypeName = read_from_xml_node(part_node, "Prototype")
                     protName = {"name": prototypeName,
                                 "id": prototypeId}
-                    self.partPrototypeNames.append(protName)
+                    self.partPrototypeNames.value.append(protName)
             massSize = read_from_xml_node(xmlNode, "MassSize", do_not_warn=True)
             if massSize is not None:
-                self.massSize = parse_str_to_vector(massSize)
+                self.massSize.value = parse_str_to_vector(massSize)
             massTranslation = read_from_xml_node(xmlNode, "MassTranslation", do_not_warn=True)
             if massTranslation is not None:
-                self.massTranslation = parse_str_to_vector(massTranslation)
-            self.massShape = safe_check_and_set(self.massShape, xmlNode, "MassShape", "int")
+                self.massTranslation.value = parse_str_to_vector(massTranslation)
+            self.massShape.value = safe_check_and_set(self.massShape.value, xmlNode, "MassShape", "int")
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
-        for prot_name in self.partPrototypeNames:
+        for prot_name in self.partPrototypeNames.value:
             self.partPrototypeIds.append(prototype_manager.GetPrototypeId(prot_name["name"]))
-        # can this replace ComplexPhysicObjPartDescription::GetPartNames?
+        # unused for the moment
         self.allPartNames = [part.name for part in self.partDescription]
+
+    def get_etree_prototype(self):
+        result = PhysicObjPrototypeInfo.get_etree_prototype(self)
+        add_value_to_node(result, self.massSize, lambda x: vector_to_string(x.value))
+        add_value_to_node(result, self.massTranslation, lambda x: vector_to_string(x.value))
+        # start partPrototypeDescriptions
+        propName = "MainPartDescription"
+        add_value_to_node_as_child(result, self.partPrototypeDescriptions,
+                                   lambda x: self.ComplexPhysicObjPartDescription.get_etree_prototype(x.value,
+                                                                                                      propName,
+                                                                                                      self.theServer))
+        # Ends partPrototypeDescriptions
+        # Start partPrototypeNames
+
+        def get_parts_elem(partPrototypeNames):
+            partsContainerElement = etree.Element(partPrototypeNames.name)
+            for part in partPrototypeNames.value:
+                partElement = etree.Element("Part")
+                partElement.set("id", part["id"])
+                partElement.set("Prototype", part["name"])
+                partsContainerElement.append(partElement)
+            return partsContainerElement
+
+        add_value_to_node_as_child(result, self.partPrototypeNames, lambda x: get_parts_elem(x))
+        # Ends partPrototypeNames
+        return result
+
+    class ComplexPhysicObjPartDescription(Object):
+        def __init__(self, prototype_info_object=None):
+            Object.__init__(self, prototype_info_object)
+            self.partResourceId = -1
+            self.lpNames = []
+            self.child_descriptions = []  # ??? temporary placeholder for original logic
+            self.name = ""
+
+        def LoadFromXML(self, xmlFile, xmlNode, server):
+            self.name = read_from_xml_node(xmlNode, "id")
+            if self.parent is not None:
+                parent_lookup = self.parent.GetChildByName(self.name)
+                if parent_lookup is not None and self is parent_lookup:  # ??? can this ever be true?
+                    logger.warning(f"When loading PartDescription: name = {self.name} conflicts with another child")
+
+            partResourceType = read_from_xml_node(xmlNode, "partResourceType")
+            self.partResourceId = server.theResourceManager.GetResourceId(partResourceType)
+            lpNames = read_from_xml_node(xmlNode, "lpName", do_not_warn=True)
+            if lpNames is not None:
+                self.lpNames = lpNames.split()
+            if len(xmlNode.getchildren()) > 0:
+                check_mono_xml_node(xmlNode, "PartDescription")
+                for description_node in xmlNode.iterchildren(tag="PartDescription"):
+                    part_description = ComplexPhysicObjPrototypeInfo.ComplexPhysicObjPartDescription()
+                    part_description.LoadFromXML(xmlFile, description_node, server)
+                    self.child_descriptions.append(part_description)  # ??? temporary placeholder for original logic
+
+        def get_etree_prototype(self, elementName, server):
+            partDescriptionElement = etree.Element(elementName)
+            partDescriptionElement.set("id", self.name)
+            partDescriptionElement.set("partResourceType",
+                                       server.theResourceManager.GetResourceName(self.partResourceId))
+            if self.lpNames != []:
+                partDescriptionElement.set("lpName", ",".join(self.lpNames))
+            for child in self.child_descriptions:
+                partDescriptionElement.append(child.get_etree_prototype("PartDescription", server))
+            return partDescriptionElement
 
 
 class StaticAutoGunPrototypeInfo(ComplexPhysicObjPrototypeInfo):
     def __init__(self, server):
         ComplexPhysicObjPrototypeInfo.__init__(self, server)
-        self.maxHealth = 1.0
-        self.destroyedModelName = ""
+        self.maxHealth = AnnotatedValue(1.0, "MaxHealth", group_type=GroupType.SECONDARY)
+        self.destroyedModelName = AnnotatedValue("", "DestroyedModel", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = ComplexPhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            if self.parentPrototypeName is None:
-                self.maxHealth = safe_check_and_set(self.maxHealth, xmlNode, "MaxHealth", "float")
-                self.destroyedModelName = safe_check_and_set(self.destroyedModelName, xmlNode, "DestroyedModel")
+            if self.parentPrototypeName.value is None:
+                self.maxHealth.value = safe_check_and_set(self.maxHealth.default_value, xmlNode,
+                                                          self.maxHealth.name, "float")
+                self.destroyedModelName.value = safe_check_and_set(self.destroyedModelName.default_value, xmlNode,
+                                                                   self.destroyedModelName.name)
             return STATUS_SUCCESS
 
 
 class VehiclePrototypeInfo(ComplexPhysicObjPrototypeInfo):
     def __init__(self, server):
         ComplexPhysicObjPrototypeInfo.__init__(self, server)
-        self.wheelInfos = []
-        self.selfbrakingCoeff = 0.0060000001
-        self.diffRatio = 1.0
-        self.maxEngineRpm = 1.0
-        self.lowGearShiftLimit = 1.0
-        self.highGearShiftLimit = 1.0
-        self.steeringSpeed = 1.0
-        self.takingRadius = 1.0
-        self.priority = -56
+        self.diffRatio = AnnotatedValue(1.0, "DiffRatio", group_type=GroupType.SECONDARY)
+        self.maxEngineRpm = AnnotatedValue(1.0, "MaxEngineRpm", group_type=GroupType.SECONDARY)
+        self.lowGearShiftLimit = AnnotatedValue(1.0, "LowGearShiftLimit", group_type=GroupType.SECONDARY)
+        self.highGearShiftLimit = AnnotatedValue(1.0, "HighGearShiftLimit", group_type=GroupType.SECONDARY)
+        self.selfbrakingCoeff = AnnotatedValue(0.0060000001, "SelfBrakingCoeff", group_type=GroupType.SECONDARY)
+        self.steeringSpeed = AnnotatedValue(1.0, "SteeringSpeed", group_type=GroupType.SECONDARY)
+        self.takingRadius = AnnotatedValue(1.0, "TakingRadius", group_type=GroupType.SECONDARY)
+        self.priority = AnnotatedValue(-56, "Priority", group_type=GroupType.SECONDARY)
+        self.hornSoundName = AnnotatedValue("", "HornSound", group_type=GroupType.SECONDARY)
+        self.cameraHeight = AnnotatedValue(-1.0, "CameraHeight", group_type=GroupType.SECONDARY)
+        self.cameraMaxDist = AnnotatedValue(25.0, "CameraMaxDist", group_type=GroupType.SECONDARY)
+        self.destroyEffectNames = AnnotatedValue(["ET_PS_VEH_EXP" for i in range(4)], "DestroyEffectNames",
+                                                 group_type=GroupType.SECONDARY, saving_type=SavingType.SPECIFIC)
+        self.wheelInfos = AnnotatedValue([], "Wheels", group_type=GroupType.PRIMARY,
+                                         saving_type=SavingType.SPECIFIC)
+        self.blastWavePrototypeName = AnnotatedValue("", "BlastWave", group_type=GroupType.SECONDARY)
+        self.additionalWheelsHover = AnnotatedValue(0.0, "AdditionalWheelsHover", group_type=GroupType.SECONDARY)
+        self.driftCoeff = AnnotatedValue(1.0, "DriftCoeff", group_type=GroupType.SECONDARY)
+        self.pressingForce = AnnotatedValue(1.0, "PressingForce", group_type=GroupType.SECONDARY)
+        self.healthRegeneration = AnnotatedValue(0.0, "HealthRegeneration", group_type=GroupType.SECONDARY)
+        self.durabilityRegeneration = AnnotatedValue(0.0, "DurabilityRegeneration", group_type=GroupType.SECONDARY)
+        self.visibleInEncyclopedia = AnnotatedValue(False, "VisibleInEncyclopedia", group_type=GroupType.SECONDARY)
         self.decisionMatrixNum = -1
-        self.hornSoundName = ""
-        self.cameraHeight = -1.0
-        self.cameraMaxDist = 25.0
-        self.destroyEffectNames = ["ET_PS_VEH_EXP" for i in range(4)]
         self.blastWavePrototypeId = -1
-        self.additionalWheelsHover = 0.0
-        self.driftCoeff = 1.0
-        self.pressingForce = 1.0
-        self.healthRegeneration = 0.0
-        self.durabilityRegeneration = 0.0
-        self.blastWavePrototypeName = ""
-        self.visibleInEncyclopedia = False
+        self.decisionMatrixName = AnnotatedValue("", "DecisionMatrix", group_type=GroupType.SECONDARY)  # new logic
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = ComplexPhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.diffRatio = safe_check_and_set(self.diffRatio, xmlNode, "DiffRatio", "float")
-            self.maxEngineRpm = safe_check_and_set(self.maxEngineRpm, xmlNode, "MaxEngineRpm", "float")
-            self.lowGearShiftLimit = safe_check_and_set(self.lowGearShiftLimit, xmlNode, "LowGearShiftLimit", "float")
-            self.highGearShiftLimit = safe_check_and_set(self.highGearShiftLimit, xmlNode,
-                                                         "HighGearShiftLimit", "float")
-            self.selfbrakingCoeff = safe_check_and_set(self.selfbrakingCoeff, xmlNode, "SelfBrakingCoeff", "float")
-            self.steeringSpeed = safe_check_and_set(self.steeringSpeed, xmlNode, "SteeringSpeed", "float")
-            decisionMatrixName = read_from_xml_node(xmlNode, "DecisionMatrix", do_not_warn=True)
+            self.diffRatio.value = safe_check_and_set(self.diffRatio.default_value, xmlNode,
+                                                      self.diffRatio.name, "float")
+            self.maxEngineRpm.value = safe_check_and_set(self.maxEngineRpm.default_value, xmlNode,
+                                                         self.maxEngineRpm.name, "float")
+            self.lowGearShiftLimit.value = safe_check_and_set(self.lowGearShiftLimit.default_value, xmlNode,
+                                                              self.lowGearShiftLimit.name, "float")
+            self.highGearShiftLimit.value = safe_check_and_set(self.highGearShiftLimit.default_value, xmlNode,
+                                                               self.highGearShiftLimit.name, "float")
+            self.selfbrakingCoeff.value = safe_check_and_set(self.selfbrakingCoeff.default_value, xmlNode,
+                                                             self.selfbrakingCoeff.name, "float")
+            self.steeringSpeed.value = safe_check_and_set(self.steeringSpeed.default_value, xmlNode,
+                                                          self.steeringSpeed.name, "float")
+            decisionMatrixName = read_from_xml_node(xmlNode, self.decisionMatrixName.name, do_not_warn=True)
+            self.decisionMatrixName.value = decisionMatrixName  # new logic
             # theAIManager.LoadMatrix(decisionMatrixName)
             # self.decisionMatrixNum = theAIManager.GetMatrixNum(decisionMatrixName)
             self.decisionMatrixNum = f"DummyMatrixNum_{decisionMatrixName}"  # ??? replace when AIManager is implemented
-            self.takingRadius = safe_check_and_set(self.takingRadius, xmlNode, "TakingRadius", "float")
-            self.priority = safe_check_and_set(self.priority, xmlNode, "Priority", "int")
-            self.hornSoundName = safe_check_and_set(self.hornSoundName, xmlNode, "HornSound")
-            self.cameraHeight = safe_check_and_set(self.cameraHeight, xmlNode, "CameraHeight", "float")
-            self.cameraMaxDist = safe_check_and_set(self.cameraMaxDist, xmlNode, "CameraMaxDist", "float")
+            self.takingRadius.value = safe_check_and_set(self.takingRadius.default_value, xmlNode,
+                                                         self.takingRadius.name, "float")
+            self.priority.value = safe_check_and_set(self.priority.default_value, xmlNode,
+                                                     self.priority.name, "int")
+            self.hornSoundName.value = safe_check_and_set(self.hornSoundName.default_value, xmlNode,
+                                                          self.hornSoundName.name)
+            self.cameraHeight.value = safe_check_and_set(self.cameraHeight.default_value, xmlNode,
+                                                         self.cameraHeight.name, "float")
+            self.cameraMaxDist.value = safe_check_and_set(self.cameraMaxDist.default_value, xmlNode,
+                                                          self.cameraMaxDist.name, "float")
             destroyEffectNames = [read_from_xml_node(xmlNode, name, do_not_warn=True) for name in DESTROY_EFFECT_NAMES]
-            for i in range(len(self.destroyEffectNames)):
+            for i in range(len(self.destroyEffectNames.value)):
                 if destroyEffectNames[i] is not None:
-                    self.destroyEffectNames[i] = destroyEffectNames[i]
-            wheels_info = child_from_xml_node(xmlNode, "Wheels", do_not_warn=True)
-            if self.parentPrototypeName is not None and wheels_info is not None:
-                logger.error(f"Wheels info is present for inherited vehicle {self.prototypeName}")
-            elif self.parentPrototypeName is None and wheels_info is None:
-                logger.error(f"Wheels info is not present for parent vehicle {self.prototypeName}")
-            elif self.parentPrototypeName is None and wheels_info is not None:
+                    self.destroyEffectNames.value[i] = destroyEffectNames[i]
+            wheels_info = child_from_xml_node(xmlNode, self.wheelInfos.name, do_not_warn=True)
+            if self.parentPrototypeName.value is not None and wheels_info is not None:
+                logger.error(f"Wheels info is present for inherited vehicle {self.prototypeName.value}")
+            elif self.parentPrototypeName.value is None and wheels_info is None:
+                logger.error(f"Wheels info is not present for parent vehicle {self.prototypeName.value}")
+            elif self.parentPrototypeName.value is None and wheels_info is not None:
                 check_mono_xml_node(wheels_info, "Wheel")
                 for wheel_node in wheels_info.iterchildren(tag="Wheel"):
                     steering = read_from_xml_node(wheel_node, "steering", do_not_warn=True)
                     wheel_prototype_name = read_from_xml_node(wheel_node, "Prototype")
                     wheel = self.WheelInfo(wheel_prototype_name, steering)
-                    self.wheelInfos.append(wheel)
-            self.blastWavePrototypeName = safe_check_and_set(self.blastWavePrototypeName, xmlNode, "BlastWave")
-            self.additionalWheelsHover = safe_check_and_set(self.additionalWheelsHover, xmlNode,
-                                                            "AdditionalWheelsHover", "float")
-            self.blastWavePrototypeName = safe_check_and_set(self.blastWavePrototypeName, xmlNode, "BlastWave")
-            self.driftCoeff = safe_check_and_set(self.driftCoeff, xmlNode, "DriftCoeff", "float")
-            self.pressingForce = safe_check_and_set(self.pressingForce, xmlNode, "PressingForce", "float")
-            self.healthRegeneration = safe_check_and_set(self.healthRegeneration, xmlNode,
-                                                         "HealthRegeneration", "float")
-            self.durabilityRegeneration = safe_check_and_set(self.durabilityRegeneration, xmlNode,
-                                                             "DurabilityRegeneration", "float")
+                    self.wheelInfos.value.append(wheel)
+            self.blastWavePrototypeName.value = safe_check_and_set(self.blastWavePrototypeName.default_value, xmlNode,
+                                                                   self.blastWavePrototypeName.name)
+            self.additionalWheelsHover.value = safe_check_and_set(self.additionalWheelsHover.default_value, xmlNode,
+                                                                  self.additionalWheelsHover.name, "float")
+            self.driftCoeff.value = safe_check_and_set(self.driftCoeff.default_value, xmlNode,
+                                                       self.driftCoeff.name, "float")
+            self.pressingForce.value = safe_check_and_set(self.pressingForce.default_value, xmlNode,
+                                                          self.pressingForce.name, "float")
+            self.healthRegeneration.value = safe_check_and_set(self.healthRegeneration.default_value, xmlNode,
+                                                               self.healthRegeneration.name, "float")
+            self.durabilityRegeneration.value = safe_check_and_set(self.durabilityRegeneration.default_value, xmlNode,
+                                                                   self.durabilityRegeneration.name, "float")
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
         ComplexPhysicObjPrototypeInfo.PostLoad(self, prototype_manager)
-        for wheel_info in self.wheelInfos:
+        for wheel_info in self.wheelInfos.value:
             wheel_info.wheelPrototypeId = prototype_manager.GetPrototypeId(wheel_info.wheelPrototypeName)
-        self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName)
+        self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName.value)
 
     def InternalCopyFrom(self, prot_to_copy_from):
         self.parent = prot_to_copy_from
+
+    def get_etree_prototype(self):
+        result = ComplexPhysicObjPrototypeInfo.get_etree_prototype(self)
+        # destroyEffectNames start
+        for i in range(len(DESTROY_EFFECT_NAMES)):
+            if self.destroyEffectNames.value[i] != self.destroyEffectNames.default_value[i]:
+                result.set(DESTROY_EFFECT_NAMES[i], self.destroyEffectNames.value[i])
+        # destroyEffectNames ends
+        # wheelInfos start
+
+        def add_wheel_info(wheelInfos):
+            wheelElement = etree.Element(wheelInfos.name)
+            for wheelInfo in wheelInfos.value:
+                wheelElement.append(self.WheelInfo.get_etree_prototype(wheelInfo))
+            return wheelElement
+
+        add_value_to_node_as_child(result, self.wheelInfos, lambda x: add_wheel_info(x))
+        # wheelInfos ends
+        return result
 
     class WheelInfo(object):
         def __init__(self, wheelPrototypeName, steering):
@@ -867,16 +1297,24 @@ class VehiclePrototypeInfo(ComplexPhysicObjPrototypeInfo):
         def PostLoad(self, prototype_manager):
             self.wheelPrototypeId = prototype_manager.GetPrototypeId(self.wheelPrototypeName)
 
+        def get_etree_prototype(self):
+            result = etree.Element("Wheel")
+            result.set("Prototype", self.wheelPrototypeName)
+            if self.steering is not None:
+                result.set("steering", self.steering)
+            return result
+
 
 class ArticulatedVehiclePrototypeInfo(VehiclePrototypeInfo):
     def __init__(self, server):
         VehiclePrototypeInfo.__init__(self, server)
-        self.trailerPrototypeName = ""
+        self.trailerPrototypeName = AnnotatedValue("", "TrailerPrototype", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = VehiclePrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.trailerPrototypeName = safe_check_and_set(self.trailerPrototypeName, xmlNode, "TrailerPrototype")
+            self.trailerPrototypeName.value = safe_check_and_set(self.trailerPrototypeName.default_value, xmlNode,
+                                                                 "TrailerPrototype")
             return STATUS_SUCCESS
 
     def InternalCopyFrom(self, prot_to_copy_from):
@@ -884,18 +1322,30 @@ class ArticulatedVehiclePrototypeInfo(VehiclePrototypeInfo):
 
     def PostLoad(self, prototype_manager):
         VehiclePrototypeInfo.PostLoad(self, prototype_manager)
-        self.trailerPrototypeId = prototype_manager.GetPrototypeId(self.trailerPrototypeName)
+        self.trailerPrototypeId = prototype_manager.GetPrototypeId(self.trailerPrototypeName.value)
 
 
 class DummyObjectPrototypeInfo(SimplePhysicObjPrototypeInfo):
     def __init__(self, server):
         SimplePhysicObjPrototypeInfo.__init__(self, server)
-        pass
+        self.isUpdating.value = False
+        self.isUpdating.default_value = False
+        self.disablePhysics = AnnotatedValue(False, "DisablePhysics",
+                                             group_type=GroupType.SECONDARY)
+        self.disableGeometry = AnnotatedValue(False, "DisableGeometry",
+                                              group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            pass  # skipping magic related to DisablePhysics and DisableGeometry
+            self.disablePhysics.value = parse_str_to_bool(self.disablePhysics.default_value,
+                                                          read_from_xml_node(xmlNode,
+                                                                             self.disablePhysics.name,
+                                                                             do_not_warn=True))
+            self.disableGeometry.value = parse_str_to_bool(self.disableGeometry.default_value,
+                                                           read_from_xml_node(xmlNode,
+                                                                              self.disableGeometry.name,
+                                                                              do_not_warn=True))
             return STATUS_SUCCESS
 
 
@@ -913,37 +1363,39 @@ class LocationPrototypeInfo(SimplePhysicObjPrototypeInfo):
 class WheelPrototypeInfo(SimplePhysicObjPrototypeInfo):
     def __init__(self, server):
         SimplePhysicObjPrototypeInfo.__init__(self, server)
-        self.suspensionModelName = ""
-        self.suspensionRange = 0.5
-        self.suspensionCFM = 0.1
-        self.suspensionERP = 0.80000001
-        self.mU = 1.0
-        self.typeName = "BIG"
-        self.blowEffectName = "ET_PS_HARD_BLOW"
+        self.suspensionRange = AnnotatedValue(0.5, "SuspensionRange", group_type=GroupType.SECONDARY)
+        self.suspensionModelName = AnnotatedValue("", "SuspensionModelFile", group_type=GroupType.SECONDARY)
+        self.suspensionCFM = AnnotatedValue(0.1, "SuspensionCFM", group_type=GroupType.SECONDARY)
+        self.suspensionERP = AnnotatedValue(0.80000001, "SuspensionERP", group_type=GroupType.SECONDARY)
+        self.mU = AnnotatedValue(1.0, "mU", group_type=GroupType.SECONDARY)
+        self.typeName = AnnotatedValue("BIG", "EffectType", group_type=GroupType.SECONDARY)
+        self.blowEffectName = AnnotatedValue("ET_PS_HARD_BLOW", "BlowEffect", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            suspensionRange = read_from_xml_node(xmlNode, "SuspensionRange", do_not_warn=True)
+            suspensionRange = read_from_xml_node(xmlNode, self.suspensionRange.name, do_not_warn=True)
             if suspensionRange is not None:
-                self.suspensionRange = float(suspensionRange)
+                self.suspensionRange.value = float(suspensionRange)
 
-            self.suspensionModelName = read_from_xml_node(xmlNode, "SuspensionModelFile")
+            self.suspensionModelName.value = read_from_xml_node(xmlNode, self.suspensionModelName.name)
 
-            suspensionCFM = read_from_xml_node(xmlNode, "SuspensionCFM", do_not_warn=True)
+            suspensionCFM = read_from_xml_node(xmlNode, self.suspensionCFM.name, do_not_warn=True)
             if suspensionCFM is not None:
-                self.suspensionCFM = float(suspensionCFM)
+                self.suspensionCFM.value = float(suspensionCFM)
 
-            suspensionERP = read_from_xml_node(xmlNode, "SuspensionERP", do_not_warn=True)
+            suspensionERP = read_from_xml_node(xmlNode, self.suspensionERP.name, do_not_warn=True)
             if suspensionERP is not None:
-                self.suspensionERP = float(suspensionERP)
+                self.suspensionERP.value = float(suspensionERP)
 
-            mU = read_from_xml_node(xmlNode, "mU", do_not_warn=True)
+            mU = read_from_xml_node(xmlNode, self.mU.name, do_not_warn=True)
             if mU is not None:
-                self.mU = float(mU)
+                self.mU.value = float(mU)
 
-            self.typeName = safe_check_and_set(self.typeName, xmlNode, "EffectType")
-            self.blowEffectName = safe_check_and_set(self.blowEffectName, xmlNode, "BlowEffect")
+            self.typeName.value = safe_check_and_set(self.typeName.default_value, xmlNode, self.typeName.name)
+            self.blowEffectName.value = safe_check_and_set(self.blowEffectName.default_value,
+                                                           xmlNode,
+                                                           self.blowEffectName.name)
             return STATUS_SUCCESS
 
 
@@ -964,14 +1416,14 @@ class VehicleRecollectionPrototypeInfo(PrototypeInfo):
 class VehicleRolePrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.vehicleFiringRangeCoeff = 1.0
+        self.vehicleFiringRangeCoeff = AnnotatedValue(1.0, "FiringRangeCoeff", display_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            vehicleFiringRangeCoeff = read_from_xml_node(xmlNode, "FiringRangeCoeff", do_not_warn=True)
+            vehicleFiringRangeCoeff = read_from_xml_node(xmlNode, self.vehicleFiringRangeCoeff.name, do_not_warn=True)
             if vehicleFiringRangeCoeff is not None:
-                self.vehicleFiringRangeCoeff = vehicleFiringRangeCoeff
+                self.vehicleFiringRangeCoeff.value = vehicleFiringRangeCoeff
             return STATUS_SUCCESS
 
 
@@ -988,43 +1440,61 @@ class VehicleRoleCheaterPrototypeInfo(VehicleRolePrototypeInfo):
 class VehicleRoleCowardPrototypeInfo(VehicleRolePrototypeInfo):
     def __init__(self, server):
         VehicleRolePrototypeInfo.__init__(self, server)
-        self.vehicleFiringRangeCoeff = 0.30000001
+        self.vehicleFiringRangeCoeff.value = 0.30000001
+        self.vehicleFiringRangeCoeff.default_value = 0.30000001
 
 
 class VehicleRoleMeatPrototypeInfo(VehicleRolePrototypeInfo):
     def __init__(self, server):
         VehicleRolePrototypeInfo.__init__(self, server)
-        self.vehicleFiringRangeCoeff = 0.30000001
+        self.vehicleFiringRangeCoeff.value = 0.30000001
+        self.vehicleFiringRangeCoeff.default_value = 0.30000001
 
 
 class VehicleRoleOppressorPrototypeInfo(VehicleRolePrototypeInfo):
     def __init__(self, server):
         VehicleRolePrototypeInfo.__init__(self, server)
+        self.oppressionShift = AnnotatedValue([], "OppressionShift", group_type=GroupType.PRIMARY,
+                                              saving_type=SavingType.SPECIFIC)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = VehicleRolePrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            oppressionShift = read_from_xml_node(xmlNode, "OppressionShift")
-            self.oppressionShift = oppressionShift.split()
+            oppressionShift = read_from_xml_node(xmlNode, self.oppressionShift.name)
+            self.oppressionShift.value = oppressionShift.split()
             return STATUS_SUCCESS
+
+    def get_etree_prototype(self):
+        result = VehicleRolePrototypeInfo.get_etree_prototype(self)
+        add_value_to_node(result, self.oppressionShift, lambda x: " ".join(x.value))
+        return result
 
 
 class VehicleRolePendulumPrototypeInfo(VehicleRolePrototypeInfo):
     def __init__(self, server):
         VehicleRolePrototypeInfo.__init__(self, server)
+        self.oppressionShift = AnnotatedValue([], "OppressionShift", group_type=GroupType.PRIMARY,
+                                              saving_type=SavingType.SPECIFIC)
+        self.a = AnnotatedValue(0.0, "A", group_type=GroupType.PRIMARY)
+        self.b = AnnotatedValue(0.0, "B", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = VehicleRolePrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            oppressionShift = read_from_xml_node(xmlNode, "OppressionShift")
-            self.oppressionShift = oppressionShift.split()
-            a_param = read_from_xml_node(xmlNode, "A")
-            b_param = read_from_xml_node(xmlNode, "B")
+            oppressionShift = read_from_xml_node(xmlNode, self.oppressionShift.name)
+            self.oppressionShift.value = oppressionShift.split()
+            a_param = read_from_xml_node(xmlNode, self.a.name)
+            b_param = read_from_xml_node(xmlNode, self.b.name)
             if a_param is not None:
-                self.a = float(a_param)
+                self.a.value = float(a_param)
             if b_param is not None:
-                self.b = float(b_param)
+                self.b.value = float(b_param)
             return STATUS_SUCCESS
+
+    def get_etree_prototype(self):
+        result = VehicleRolePrototypeInfo.get_etree_prototype(self)
+        add_value_to_node(result, self.oppressionShift, lambda x: " ".join(x.value))
+        return result
 
 
 class VehicleRoleSniperPrototypeInfo(VehicleRolePrototypeInfo):
@@ -1035,7 +1505,8 @@ class VehicleRoleSniperPrototypeInfo(VehicleRolePrototypeInfo):
 class TeamTacticWithRolesPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.rolePrototypeNames = []
+        self.rolePrototypeNames = AnnotatedValue([], "RolePrototypeNames", group_type=GroupType.PRIMARY,
+                                                 display_type=DisplayType.AFFIX_LIST, saving_type=SavingType.SPECIFIC)
         self.rolePrototypeIds = []
 
     def LoadFromXML(self, xmlFile, xmlNode):
@@ -1043,25 +1514,30 @@ class TeamTacticWithRolesPrototypeInfo(PrototypeInfo):
         if result == STATUS_SUCCESS:
             check_mono_xml_node(xmlNode, "Role")
             for role in xmlNode.iterchildren(tag="Role"):
-                self.rolePrototypeNames.append(read_from_xml_node(role, "Prototype"))
+                self.rolePrototypeNames.value.append(read_from_xml_node(role, "Prototype"))
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
-        if self.rolePrototypeNames:
-            for role_name in self.rolePrototypeNames:
+        if self.rolePrototypeNames.value:
+            for role_name in self.rolePrototypeNames.value:
                 role_prot_id = prototype_manager.GetPrototypeId(role_name)
                 if role_prot_id == -1:  # ??? there also exist check if sheelPrototypeName is not empty. A valid case?
-                    logger.error(f"Unknown role prototype: '{self.shellPrototypeId}' for prot: '{self.prototypeName}'")
+                    logger.error(f"Unknown role prototype: '{self.shellPrototypeId}' for prot: "
+                                 f"'{self.prototypeName.value}'")
                 else:
                     self.rolePrototypeIds.append(role_prot_id)
 
+    def get_etree_prototype(self):
+        result = PrototypeInfo.get_etree_prototype(self)
+        if should_be_saved(self.rolePrototypeNames):
+            for role in self.rolePrototypeNames.value:
+                roleElement = etree.Element("Role")
+                roleElement.set("Prototype", str(role))
+                result.append(roleElement)
+        return result
+
 
 class NPCMotionControllerPrototypeInfo(PrototypeInfo):
-    def __init__(self, server):
-        PrototypeInfo.__init__(self, server)
-
-
-class InfectionLairPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
 
@@ -1070,220 +1546,304 @@ class TeamPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
         self.decisionMatrixNum = -1
-        self.decisionMatrixName = ""  # placeholder for AIManager functionality ???
-        self.removeWhenChildrenDead = True
-        self.formationPrototypeName = TEAM_DEFAULT_FORMATION_PROTOTYPE
+        # placeholder for AIManager functionality ???
+        self.decisionMatrixName = AnnotatedValue("", "DecisionMatrix", group_type=GroupType.PRIMARY)
+        self.removeWhenChildrenDead = AnnotatedValue(True, "RemoveWhenChildrenDead", group_type=GroupType.SECONDARY)
+        self.formationPrototypeName = AnnotatedValue(TEAM_DEFAULT_FORMATION_PROTOTYPE, "Prototype",
+                                                     group_type=GroupType.PRIMARY, saving_type=SavingType.SPECIFIC)
         self.formationPrototypeId = -1
-        self.overridesDistBetweenVehicles = False
-        self.isUpdating = False
-        self.formationDistBetweenVehicles = 30.0
+        self.overridesDistBetweenVehicles = AnnotatedValue(False, "OverridesDistBetweenVehicles",
+                                                           group_type=GroupType.SECONDARY, read_only=True,
+                                                           saving_type=SavingType.IGNORE)
+        self.isUpdating = AnnotatedValue(False, "IsUpdating", group_type=GroupType.SECONDARY)
+        self.formationDistBetweenVehicles = AnnotatedValue(30.0, "DistBetweenVehicles", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.decisionMatrixName = read_from_xml_node(xmlNode, "DecisionMatrix")
-            self.removeWhenChildrenDead = parse_str_to_bool(read_from_xml_node(xmlNode, "RemoveWhenChildrenDead",
-                                                                               do_not_warn=True))
+            self.decisionMatrixName.value = read_from_xml_node(xmlNode, "DecisionMatrix")
+            self.removeWhenChildrenDead.value = parse_str_to_bool(self.removeWhenChildrenDead.default_value,
+                                                                  read_from_xml_node(xmlNode, "RemoveWhenChildrenDead",
+                                                                                     do_not_warn=True))
             formation = child_from_xml_node(xmlNode, "Formation", do_not_warn=True)
             if formation is not None:
-                self.formationPrototypeName = read_from_xml_node(formation, "Prototype")
+                self.formationPrototypeName.value = read_from_xml_node(formation, "Prototype")
                 distBetweenVehicles = read_from_xml_node(formation, "DistBetweenVehicles", do_not_warn=True)
                 if distBetweenVehicles is not None:
-                    self.overridesDistBetweenVehicles = True
-                    self.formationDistBetweenVehicles = float(distBetweenVehicles)
+                    self.overridesDistBetweenVehicles.value = True
+                    self.formationDistBetweenVehicles.value = float(distBetweenVehicles)
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
-        self.formationPrototypeId = prototype_manager.GetPrototypeId(self.formationPrototypeName)
+        self.formationPrototypeId = prototype_manager.GetPrototypeId(self.formationPrototypeName.value)
+
+    def get_etree_prototype(self):
+        result = PrototypeInfo.get_etree_prototype(self)
+        # formation starts
+        if should_be_saved(self.formationPrototypeName) or should_be_saved(self.formationDistBetweenVehicles):
+            formation = etree.Element("Formation")
+            formation.set("Prototype", str(self.formationPrototypeName.value))
+            if should_be_saved(self.formationDistBetweenVehicles):
+                formation.set("DistBetweenVehicles", str(self.formationDistBetweenVehicles.value))
+            result.append(formation)
+        # formation ends
+        return result
 
 
 class CaravanTeamPrototypeInfo(TeamPrototypeInfo):
     def __init__(self, server):
         TeamPrototypeInfo.__init__(self, server)
-        self.tradersGeneratorPrototypeName = ""
-        self.guardsGeneratorPrototypeName = ""
+        self.tradersGeneratorPrototypeName = AnnotatedValue("", "TradersVehiclesGeneratorName",
+                                                            group_type=GroupType.PRIMARY)
+        self.guardsGeneratorPrototypeName = AnnotatedValue("", "GuardVehiclesGeneratorName",
+                                                           group_type=GroupType.PRIMARY)
         self.tradersGeneratorPrototypeId = -1
         self.guardsGeneratorPrototypeId = -1
-        self.waresPrototypes = []
-        self.formationPrototypeName = TEAM_DEFAULT_FORMATION_PROTOTYPE
+        self.waresPrototypes = AnnotatedValue([], "WaresPrototypes", group_type=GroupType.PRIMARY,
+                                              display_type=DisplayType.WARES_LIST, saving_type=SavingType.SPECIFIC)
+        self.formationPrototypeName.value = TEAM_DEFAULT_FORMATION_PROTOTYPE
+        self.formationPrototypeName.default_value = TEAM_DEFAULT_FORMATION_PROTOTYPE
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = TeamPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.tradersGeneratorPrototypeName = safe_check_and_set(self.tradersGeneratorPrototypeName, xmlNode,
-                                                                    "TradersVehiclesGeneratorName")
-            self.guardsGeneratorPrototypeName = safe_check_and_set(self.guardsGeneratorPrototypeName, xmlNode,
-                                                                   "GuardVehiclesGeneratorName")
+            self.tradersGeneratorPrototypeName.value = safe_check_and_set(self.tradersGeneratorPrototypeName.value,
+                                                                          xmlNode, "TradersVehiclesGeneratorName")
+            self.guardsGeneratorPrototypeName.value = safe_check_and_set(self.guardsGeneratorPrototypeName.value,
+                                                                         xmlNode, "GuardVehiclesGeneratorName")
             waresPrototypes = read_from_xml_node(xmlNode, "WaresPrototypes", do_not_warn=True)
             if waresPrototypes is not None:
-                self.waresPrototypes = waresPrototypes.split()
-            if self.tradersGeneratorPrototypeName is not None:
-                if self.waresPrototypes is None:
-                    logger.error(f"No wares for caravan with traders: {self.prototypeName}")
+                self.waresPrototypes.value = waresPrototypes.split()
+            if self.tradersGeneratorPrototypeName.value is not None:
+                if self.waresPrototypes.value is None:
+                    logger.error(f"No wares for caravan with traders: {self.prototypeName.value}")
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
         TeamPrototypeInfo.PostLoad(self, prototype_manager)
-        self.tradersGeneratorPrototypeId = prototype_manager.GetPrototypeId(self.tradersGeneratorPrototypeName)
+        self.tradersGeneratorPrototypeId = prototype_manager.GetPrototypeId(self.tradersGeneratorPrototypeName.value)
         if self.tradersGeneratorPrototypeId == -1:
-            logger.error(f"Unknown VehiclesGenerator '{self.tradersGeneratorPrototypeName}' "
-                         f"for traders of CaravanTeam {self.prototypeName}")
+            logger.error(f"Unknown VehiclesGenerator '{self.tradersGeneratorPrototypeName.value}' "
+                         f"for traders of CaravanTeam {self.prototypeName.value}")
 
-        self.guardsGeneratorPrototypeId = prototype_manager.GetPrototypeId(self.guardsGeneratorPrototypeName)
+        self.guardsGeneratorPrototypeId = prototype_manager.GetPrototypeId(self.guardsGeneratorPrototypeName.value)
         if self.guardsGeneratorPrototypeId == -1:
-            logger.error(f"Unknown VehiclesGenerator '{self.guardsGeneratorPrototypeName}' "
-                         f"for guards of CaravanTeam {self.prototypeName}")
+            logger.error(f"Unknown VehiclesGenerator '{self.guardsGeneratorPrototypeName.value}' "
+                         f"for guards of CaravanTeam {self.prototypeName.value}")
+
+    def get_etree_prototype(self):
+        result = TeamPrototypeInfo.get_etree_prototype(self)
+        add_value_to_node(result, self.waresPrototypes, lambda x: " ".join(x.value))
+        return result
 
 
 class VagabondTeamPrototypeInfo(TeamPrototypeInfo):
     def __init__(self, server):
         TeamPrototypeInfo.__init__(self, server)
-        self.vehiclesGeneratorPrototype = ""
-        self.waresPrototypes = []
-        self.removeWhenChildrenDead = True
+        self.vehiclesGeneratorPrototype = AnnotatedValue("", "VehicleGeneratorPrototype",
+                                                         group_type=GroupType.SECONDARY)
+        self.waresPrototypes = AnnotatedValue([], "WaresPrototypes", group_type=GroupType.SECONDARY,
+                                              saving_type=SavingType.SPECIFIC)
+        self.removeWhenChildrenDead = AnnotatedValue(True, "RemoveWhenChildrenDead", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = TeamPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.vehiclesGeneratorPrototype = read_from_xml_node(xmlNode, "VehicleGeneratorPrototype")
-            self.waresPrototypes = read_from_xml_node(xmlNode, "WaresPrototypes").split()
+            self.vehiclesGeneratorPrototype.value = read_from_xml_node(xmlNode, self.vehiclesGeneratorPrototype.name)
+            self.waresPrototypes.value = read_from_xml_node(xmlNode, self.waresPrototypes.name).split()
             return STATUS_SUCCESS
+
+    def get_etree_prototype(self):
+        result = TeamPrototypeInfo.get_etree_prototype(self)
+        add_value_to_node(result, self.waresPrototypes, lambda x: " ".join(x.value))
+        return result
 
 
 class InfectionTeamPrototypeInfo(TeamPrototypeInfo):
     def __init__(self, server):
         TeamPrototypeInfo.__init__(self, server)
-        self.items = []
-        self.vehiclesGeneratorProtoName = ""
+        self.items = AnnotatedValue([], "Vehicles", group_type=GroupType.PRIMARY,
+                                    saving_type=SavingType.REQUIRED_SPECIFIC)
+        self.vehiclesGeneratorProtoName = AnnotatedValue("", "VehiclesGenerator", group_type=GroupType.PRIMARY)
         self.vehiclesGeneratorProtoId = -1
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = TeamPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.vehiclesGeneratorProtoName = safe_check_and_set(self.vehiclesGeneratorProtoName, xmlNode,
-                                                                 "VehiclesGenerator")
+            self.vehiclesGeneratorProtoName.value = safe_check_and_set(self.vehiclesGeneratorProtoName.default_value,
+                                                                       xmlNode,
+                                                                       self.vehiclesGeneratorProtoName.name)
             vehicles = child_from_xml_node(xmlNode, "Vehicles", do_not_warn=True)
-            if vehicles is not None and len(vehicles.getchildren()) >= 1:
+            if vehicles is not None and len(vehicles.getchildren()) > 0:
                 check_mono_xml_node(vehicles, "Vehicle")
                 for vehicle in vehicles.iterchildren(tag="Vehicle"):
                     item = {"protoName": read_from_xml_node(vehicle, "PrototypeName"),
                             "count": int(read_from_xml_node(vehicle, "Count"))}
-                    self.items.append(item)
+                    self.items.value.append(item)
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
         TeamPrototypeInfo.PostLoad(self, prototype_manager)
-        self.vehiclesGeneratorProtoId = prototype_manager.GetPrototypeId(self.vehiclesGeneratorProtoName)
+        self.vehiclesGeneratorProtoId = prototype_manager.GetPrototypeId(self.vehiclesGeneratorProtoName.value)
         if self.vehiclesGeneratorProtoId == -1:
-            if not self.items:
-                if self.vehiclesGeneratorProtoName:
-                    logger.error(f"Unknown '{self.vehiclesGeneratorProtoName}' VehiclesGenerator "
-                                 f"for infection team '{self.prototypeName}'")
+            if not self.items.value:
+                if self.vehiclesGeneratorProtoName.value:
+                    logger.error(f"Unknown '{self.vehiclesGeneratorProtoName.value}' VehiclesGenerator "
+                                 f"for infection team '{self.prototypeName.value}'")
                 else:
-                    logger.error(f"No vehicle generator and no vehicles for InfectionTeam '{self.prototypeName}'")
+                    logger.error(f"No vehicle generator and no vehicles for InfectionTeam '{self.prototypeName.value}'")
+
+    def get_etree_prototype(self):
+        result = TeamPrototypeInfo.get_etree_prototype(self)
+        # Vehicles start
+
+        def prepare_vehicles(vehicles_array):
+            vehiclesTree = etree.Element("Vehicles")
+            for vehicle in self.items.value:
+                vehicle_node = etree.Element("Vehicle")
+                vehicle_node.set("PrototypeName", str(vehicle["protoName"]))
+                vehicle_node.set("Count", str(vehicle["count"]))
+                vehiclesTree.append(vehicle_node)
+            return vehiclesTree
+
+        add_value_to_node_as_child(result, self.items, lambda x: prepare_vehicles(x.value))
+        # Vehicles end
+        return result
 
 
 class InfectionZonePrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.minDistToPlayer = 100.0
-        self.criticalTeamDist = 1000000.0
-        self.criticalTeamTime = 0.0
-        self.blindTeamDist = 1000000.0
-        self.blindTeamTime = 0.0
-        self.dropOutSegmentAngle = 180
+        self.minDistToPlayer = AnnotatedValue(100.0, "MinDistToPlayer", group_type=GroupType.PRIMARY)
+        self.criticalTeamDist = AnnotatedValue(1000000.0, "CriticalTeamDist", group_type=GroupType.PRIMARY)
+        self.criticalTeamTime = AnnotatedValue(0.0, "CriticalTeamTime", group_type=GroupType.PRIMARY)
+        self.blindTeamDist = AnnotatedValue(1000000.0, "BlindTeamDist", group_type=GroupType.PRIMARY)
+        self.blindTeamTime = AnnotatedValue(0.0, "BlindTeamTime", group_type=GroupType.PRIMARY)
+        self.dropOutSegmentAngle = AnnotatedValue(180, "DropOutSegmentAngle", group_type=GroupType.PRIMARY)
+
+        # DropOutTimeOut  # used in ai::InfectionZone::Registration()
+        self.dropOutTimeOut = AnnotatedValue(0, "DropOutTimeOut", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            minDistToPlayer = read_from_xml_node(xmlNode, "MinDistToPlayer", do_not_warn=True)
+            minDistToPlayer = read_from_xml_node(xmlNode, self.minDistToPlayer.name, do_not_warn=True)
             if minDistToPlayer is not None:
-                self.minDistToPlayer = float(minDistToPlayer)
+                self.minDistToPlayer.value = float(minDistToPlayer)
 
-            criticalTeamDist = read_from_xml_node(xmlNode, "CriticalTeamDist", do_not_warn=True)
+            criticalTeamDist = read_from_xml_node(xmlNode, self.criticalTeamDist.name, do_not_warn=True)
             if criticalTeamDist is not None:
-                self.criticalTeamDist = float(criticalTeamDist)
+                self.criticalTeamDist.value = float(criticalTeamDist)
 
-            criticalTeamTime = read_from_xml_node(xmlNode, "CriticalTeamTime", do_not_warn=True)
+            criticalTeamTime = read_from_xml_node(xmlNode, self.criticalTeamTime.name, do_not_warn=True)
             if criticalTeamTime is not None:
-                self.criticalTeamTime = float(criticalTeamTime)
+                self.criticalTeamTime.value = float(criticalTeamTime)
 
-            blindTeamDist = read_from_xml_node(xmlNode, "BlindTeamDist", do_not_warn=True)
+            blindTeamDist = read_from_xml_node(xmlNode, self.blindTeamDist.name, do_not_warn=True)
             if blindTeamDist is not None:
-                self.blindTeamDist = float(blindTeamDist)
+                self.blindTeamDist.value = float(blindTeamDist)
 
-            blindTeamTime = read_from_xml_node(xmlNode, "BlindTeamTime", do_not_warn=True)
+            blindTeamTime = read_from_xml_node(xmlNode, self.blindTeamTime.name, do_not_warn=True)
             if blindTeamTime is not None:
-                self.blindTeamTime = float(blindTeamTime)
+                self.blindTeamTime.value = float(blindTeamTime)
 
-            dropOutSegmentAngle = read_from_xml_node(xmlNode, "DropOutSegmentAngle", do_not_warn=True)
+            dropOutSegmentAngle = read_from_xml_node(xmlNode, self.dropOutSegmentAngle.name, do_not_warn=True)
             if dropOutSegmentAngle is not None:
-                self.dropOutSegmentAngle = int(dropOutSegmentAngle)
+                self.dropOutSegmentAngle.value = int(dropOutSegmentAngle)
+
+            dropOutTimeOut = read_from_xml_node(xmlNode, self.dropOutTimeOut.name, do_not_warn=True)
+            if dropOutTimeOut is not None:
+                self.dropOutTimeOut.value = float(dropOutTimeOut)
             return STATUS_SUCCESS
 
 
 class VehiclesGeneratorPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.vehicleDescriptions = []
+        self.vehicleDescriptions = AnnotatedValue([], "VehicleDescription", group_type=GroupType.PRIMARY,
+                                                  display_type=DisplayType.MODIFICATION_INFO,
+                                                  saving_type=SavingType.SPECIFIC)
+
+        # moved init of desiredCount values and partOfSchwartz`s from LoadFromXML
+        self.desiredCountLow = AnnotatedValue(-1, "DesiredCountLow", group_type=GroupType.PRIMARY,
+                                              saving_type=SavingType.SPECIFIC)
+        self.desiredCountHigh = AnnotatedValue(-1, "DesiredCountHigh", group_type=GroupType.PRIMARY,
+                                               saving_type=SavingType.SPECIFIC)
+
+        self.partOfSchwartzForCabin = AnnotatedValue(0.25, "partOfSchwartzForCabin", group_type=GroupType.PRIMARY)
+        self.partOfSchwartzForBasket = AnnotatedValue(0.25, "partOfSchwartzForBasket", group_type=GroupType.PRIMARY)
+        self.partOfSchwartzForGuns = AnnotatedValue(0.5, "partOfSchwartzForGuns", group_type=GroupType.PRIMARY)
+        self.partOfSchwartzForWares = AnnotatedValue(0.0, "partOfSchwartzForWares", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.desiredCountLow = -1
-            self.desiredCountHigh = -1
             desiredCount = read_from_xml_node(xmlNode, "DesiredCount")
             if desiredCount is not None:
                 tokensDesiredCount = desiredCount.split("-")
                 token_length = len(tokensDesiredCount)
+
                 if token_length == 2:
-                    self.desiredCountLow = int(tokensDesiredCount[0])
-                    self.desiredCountHigh = int(tokensDesiredCount[1])
+                    self.desiredCountLow.value = int(tokensDesiredCount[0])
+                    self.desiredCountHigh.value = int(tokensDesiredCount[1])
                 elif token_length == 1:
-                    self.desiredCountLow = int(tokensDesiredCount[0])
-                    self.desiredCountHigh = self.desiredCountLow
+                    self.desiredCountLow.value = int(tokensDesiredCount[0])
+                    self.desiredCountHigh.value = self.desiredCountLow.value
                 else:
-                    logger.error(f"VehicleGenerator {self.prototypeName} attrib DesiredCount range "
-                                 f"should contain one or two numbers but contains {len(tokensDesiredCount)}")
-                if self.desiredCountLow > self.desiredCountHigh:
-                    logger.error(f"VehicleGenerator {self.prototypeName} attrib DesiredCount range invalid: "
-                                 f"{self.desiredCountLow}-{self.desiredCountHigh}, "
+                    logger.error(f"VehicleGenerator {self.prototypeName.value} attrib DesiredCount range "
+                                 f"should contain one or two numbers but contains {len(tokensDesiredCount.value)}")
+                if self.desiredCountLow.value > self.desiredCountHigh.value:
+                    logger.error(f"VehicleGenerator {self.prototypeName.value} attrib DesiredCount range invalid: "
+                                 f"{self.desiredCountLow.value}-{self.desiredCountHigh.value}, "
                                  "should be from lesser to higher number")
-                if self.desiredCountHigh > 5:
-                    logger.error(f"VehicleGenerator {self.prototypeName} attrib DesiredCount high value: "
-                                 f"{self.desiredCountHigh} is higher than permitted MAX_VEHICLES_IN_TEAM: 5")
+                if self.desiredCountHigh.value > 5:
+                    logger.error(f"VehicleGenerator {self.prototypeName.value} attrib DesiredCount high value: "
+                                 f"{self.desiredCountHigh.value} is higher than permitted MAX_VEHICLES_IN_TEAM: 5")
 
-                if len(xmlNode.getchildren()) > 1:
-                    check_mono_xml_node(xmlNode, "Description")
-                    for description_entry in xmlNode.iterchildren(tag="Description"):
-                        veh_description = self.VehicleDescription(xmlFile, description_entry)
-                        self.vehicleDescriptions.append(veh_description)
-                self.partOfSchwartzForCabin = 0.25
-                self.partOfSchwartzForBasket = 0.25
-                self.partOfSchwartzForGuns = 0.5
-                self.partOfSchwartzForWares = 0.0
+            if len(xmlNode.getchildren()) > 0:
+                check_mono_xml_node(xmlNode, "Description")
+                for description_entry in xmlNode.iterchildren(tag="Description"):
+                    veh_description = self.VehicleDescription(xmlFile, description_entry)
+                    self.vehicleDescriptions.value.append(veh_description)
 
-                partOfSchwartzForCabin = read_from_xml_node(xmlNode, "partOfSchwartzForCabin", do_not_warn=True)
-                if partOfSchwartzForCabin is not None:
-                    self.partOfSchwartzForCabin = float(partOfSchwartzForCabin)
+            partOfSchwartzForCabin = read_from_xml_node(xmlNode, "partOfSchwartzForCabin", do_not_warn=True)
+            if partOfSchwartzForCabin is not None:
+                self.partOfSchwartzForCabin.value = float(partOfSchwartzForCabin)
 
-                partOfSchwartzForBasket = read_from_xml_node(xmlNode, "partOfSchwartzForBasket", do_not_warn=True)
-                if partOfSchwartzForBasket is not None:
-                    self.partOfSchwartzForBasket = float(partOfSchwartzForBasket)
+            partOfSchwartzForBasket = read_from_xml_node(xmlNode, "partOfSchwartzForBasket", do_not_warn=True)
+            if partOfSchwartzForBasket is not None:
+                self.partOfSchwartzForBasket.value = float(partOfSchwartzForBasket)
 
-                partOfSchwartzForGuns = read_from_xml_node(xmlNode, "partOfSchwartzForGuns", do_not_warn=True)
-                if partOfSchwartzForGuns is not None:
-                    self.partOfSchwartzForGuns = float(partOfSchwartzForGuns)
+            partOfSchwartzForGuns = read_from_xml_node(xmlNode, "partOfSchwartzForGuns", do_not_warn=True)
+            if partOfSchwartzForGuns is not None:
+                self.partOfSchwartzForGuns.value = float(partOfSchwartzForGuns)
 
-                partOfSchwartzForWares = read_from_xml_node(xmlNode, "partOfSchwartzForWares", do_not_warn=True)
-                if partOfSchwartzForWares is not None:
-                    self.partOfSchwartzForWares = float(partOfSchwartzForWares)
+            partOfSchwartzForWares = read_from_xml_node(xmlNode, "partOfSchwartzForWares", do_not_warn=True)
+            if partOfSchwartzForWares is not None:
+                self.partOfSchwartzForWares.value = float(partOfSchwartzForWares)
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
         if self.vehicleDescriptions:
-            for vehicle_description in self.vehicleDescriptions:
+            for vehicle_description in self.vehicleDescriptions.value:
                 vehicle_description.PostLoad(prototype_manager)
+
+    def get_etree_prototype(self):
+        result = PrototypeInfo.get_etree_prototype(self)
+
+        # DesiredCount start
+        # Property name not equel to annotatedValue.Name
+        desired_count = 0
+        if self.desiredCountLow.value == self.desiredCountHigh.value:
+            desired_count = str(self.desiredCountLow.value)
+        else:
+            desired_count = f'{self.desiredCountLow.value}-{self.desiredCountHigh.value}'
+        result.set("DesiredCount", desired_count)
+        # DesiredCount end
+
+        add_value_to_node_as_child(result, self.vehicleDescriptions,
+                                   lambda x: list(map(self.VehicleDescription.get_etree_prototype, x.value)))
+        return result
 
     class VehicleDescription(object):
         def __init__(self, xmlFile, xmlNode):
@@ -1295,10 +1855,11 @@ class VehiclesGeneratorPrototypeInfo(PrototypeInfo):
 
             self.gunAffixGeneratorPrototypeName = ""
             self.gunAffixGeneratorPrototypeId = -1
+            # mode partOfSchwartz from LoadFromXMK
+            self.partOfSchwartz = -1.0
             self.LoadFromXML(xmlFile, xmlNode)
 
         def LoadFromXML(self, xmlFile, xmlNode):
-            self.partOfSchwartz = -1.0
             partOfSchwartz = read_from_xml_node(xmlNode, "PartOfSchwartz", do_not_warn=True)
             if partOfSchwartz is not None:
                 self.partOfSchwartz = float(partOfSchwartz)
@@ -1320,10 +1881,10 @@ class VehiclesGeneratorPrototypeInfo(PrototypeInfo):
                 vehicle_prot_id = prototype_manager.GetPrototypeId(vehicle_prot_name)
                 if vehicle_prot_id == -1:
                     logger.error(f"Unknown vehicle prototype: '{vehicle_prot_name}' found"
-                                 f" for VehiclesGenerator: '{self.prototypeName}'")
+                                 f" for VehiclesGenerator: '{self.prototypeName.value}'")
                 prot = prototype_manager.InternalGetPrototypeInfo(vehicle_prot_name)
-                if prot.className != "Vehicle":
-                    logger.error(f"Unexpected prototype with class '{prot.className}' found "
+                if prot.className.value != "Vehicle":
+                    logger.error(f"Unexpected prototype with class '{prot.className.value}' found "
                                  "for VehiclesGenerator's VehiclePrototypes, expected 'Vehicle'!")
                 self.vehiclePrototypeIds.append(vehicle_prot_id)
 
@@ -1331,10 +1892,10 @@ class VehiclesGeneratorPrototypeInfo(PrototypeInfo):
                 ware_prot_id = prototype_manager.GetPrototypeId(ware_prot_name)
                 if ware_prot_id == -1:
                     logger.error(f"Unknown ware prototype: '{ware_prot_id}' found"
-                                 f" for VehiclesGenerator: '{self.prototypeName}'")
+                                 f" for VehiclesGenerator: '{self.prototypeName.value}'")
                 prot = prototype_manager.InternalGetPrototypeInfo(ware_prot_name)
-                if prot.className != "Ware":
-                    logger.error(f"Unexpected prototype with class '{prot.className}' found "
+                if prot.className.value != "Ware":
+                    logger.error(f"Unexpected prototype with class '{prot.className.value}' found "
                                  "for VehiclesGenerator's WaresPrototypes, expected 'Ware'!")
                 self.waresPrototypesIds.append(ware_prot_id)
 
@@ -1343,31 +1904,40 @@ class VehiclesGeneratorPrototypeInfo(PrototypeInfo):
                     prototype_manager.GetPrototypeId(self.gunAffixGeneratorPrototypeName)
                 if self.gunAffixGeneratorPrototypeId == -1:
                     logger.error(f"Unknown GunAffix prototype: '{self.gunAffixGeneratorPrototypeName}' found"
-                                 f" for VehiclesGenerator: '{self.prototypeName}'")
+                                 f" for VehiclesGenerator: '{self.prototypeName.value}'")
+
+        def get_etree_prototype(self):
+            description_node = etree.Element("Description")
+            description_node.set("VehiclesPrototypes", " ".join(self.vehiclePrototypeNames))
+            description_node.set("WaresPrototypes", " ".join(self.waresPrototypesNames))
+            description_node.set("GunAffixGeneratorPrototype", self.gunAffixGeneratorPrototypeName)
+            description_node.set("PartOfSchwartz", str(self.partOfSchwartz))
+            return description_node
 
 
 class FormationPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
         self.maxVehicles = 5
-        self.polylinePoints = []
+        self.polylinePoints = AnnotatedValue([], "Polyline", group_type=GroupType.SECONDARY,
+                                             saving_type=SavingType.SPECIFIC)
         self.polylineLength = 0.0
         self.headOffset = 0.0
-        self.linearVelocity = 100.0
+        self.linearVelocity = AnnotatedValue(100.0, "LinearVelocity", group_type=GroupType.SECONDARY)
         self.headPosition = 0
-        self.isUpdating = False
-        self.angularVelocity = 0.5
+        self.isUpdating = AnnotatedValue(False, "IsUpdating", group_type=GroupType.SECONDARY)
+        self.angularVelocity = AnnotatedValue(0.5, "AngularVelocity", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            linearVelocity = read_from_xml_node(xmlNode, "LinearVelocity", do_not_warn=True)
+            linearVelocity = read_from_xml_node(xmlNode, self.linearVelocity.name, do_not_warn=True)
             if linearVelocity is not None:
-                self.linearVelocity = float(linearVelocity)
+                self.linearVelocity.value = float(linearVelocity)
 
-            angularVelocity = read_from_xml_node(xmlNode, "AngularVelocity", do_not_warn=True)
+            angularVelocity = read_from_xml_node(xmlNode, self.angularVelocity.name, do_not_warn=True)
             if angularVelocity is not None:
-                self.angularVelocity = float(angularVelocity)
+                self.angularVelocity.value = float(angularVelocity)
 
             self.LoadPolylinePoints(xmlFile, xmlNode)
             return STATUS_SUCCESS
@@ -1378,10 +1948,10 @@ class FormationPrototypeInfo(PrototypeInfo):
     def CalcPolylineLengths(self):
         self.polylineLength = 0.0
         self.headOffset = 0.0
-        if self.polylinePoints:
-            for i in range(len(self.polylinePoints) - 1):
-                first_point = self.polylinePoints[i]
-                second_point = self.polylinePoints[i + 1]
+        if self.polylinePoints.value:
+            for i in range(len(self.polylinePoints.value) - 1):
+                first_point = self.polylinePoints.value[i]
+                second_point = self.polylinePoints.value[i + 1]
                 x_change = first_point['x'] - second_point['x']
                 y_change = first_point['y'] - second_point['y']
                 segmentLength = sqrt(x_change**2 + y_change**2)
@@ -1399,21 +1969,35 @@ class FormationPrototypeInfo(PrototypeInfo):
                     point = {"x": float(point[0]),
                              "y": float(point[1])}
                     if point["x"] == 0.0 or point["y"] == 0.0:
-                        if self.polylinePoints:
-                            self.headPosition = len(self.polylinePoints)
+                        if self.polylinePoints.value:
+                            self.headPosition = len(self.polylinePoints.value)
                         else:
                             self.headPosition = 0
-                        self.polylinePoints.append(point)
+                    self.polylinePoints.value.append(point)
                 else:
-                    logger.error(f"Unexpected coordinate format for Formation {self.prototypeName}, expect two numbers")
+                    logger.error(f"Unexpected coordinate format for Formation {self.prototypeName.value}, "
+                                 "expected two numbers")
+
+    def get_etree_prototype(self):
+        result = PrototypeInfo.get_etree_prototype(self)
+
+        def prepare_polylines(polylinePoints):
+            polyline_element = etree.Element(polylinePoints.name)
+            for item in polylinePoints.value:
+                point_element = etree.Element("Point")
+                point_element.set("Coord", vector_short_to_string(item))
+                polyline_element.append(point_element)
+            return polyline_element
+        add_value_to_node_as_child(result, self.polylinePoints, lambda x: prepare_polylines(x))
+        return result
 
 
 class SettlementPrototypeInfo(SimplePhysicObjPrototypeInfo):
     def __init__(self, server):
         SimplePhysicObjPrototypeInfo.__init__(self, server)
-        self.zoneInfos = []
+        self.zoneInfos = []  # newer used
         self.vehiclesPrototypeId = -1
-        self.vehiclesPrototypeName = ""
+        self.vehiclesPrototypeName = AnnotatedValue("", "Vehicles", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -1431,15 +2015,16 @@ class SettlementPrototypeInfo(SimplePhysicObjPrototypeInfo):
                 radius = read_from_xml_node(xmlNode["zone"], "radius", do_not_warn=True)
                 zone_info.radius = float(radius)
                 self.zoneInfos.append(zone_info)
-            self.vehiclesPrototypeName = read_from_xml_node(xmlNode, "Vehicles")
+            self.vehiclesPrototypeName.value = safe_check_and_set(self.vehiclesPrototypeName.default_value, xmlNode,
+                                                                  self.vehiclesPrototypeName.name)
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
-        if self.vehiclesPrototypeName:
-            self.vehiclesPrototypeId = prototype_manager.GetPrototypeId(self.vehiclesPrototypeName)
+        if self.vehiclesPrototypeName.value:
+            self.vehiclesPrototypeId = prototype_manager.GetPrototypeId(self.vehiclesPrototypeName.value)
             if self.vehiclesPrototypeId == -1:
-                logger.error(f"Invalid vehicles prototype '{self.vehiclesPrototypeName}' "
-                             f"for settlement prototype '{self.prototypeName}'")
+                logger.error(f"Invalid vehicles prototype '{self.vehiclesPrototypeName.value}' "
+                             f"for settlement prototype '{self.prototypeName.value}'")
 
     class AuxZoneInfo(object):
         def __init__(self):
@@ -1448,64 +2033,80 @@ class SettlementPrototypeInfo(SimplePhysicObjPrototypeInfo):
             self.radius = 10.0
 
 
+class InfectionLairPrototypeInfo(SettlementPrototypeInfo):
+    def __init__(self, server):
+        SettlementPrototypeInfo.__init__(self, server)
+
+
 class TownPrototypeInfo(SettlementPrototypeInfo):
     def __init__(self, server):
         SettlementPrototypeInfo.__init__(self, server)
-        self.musicName = ""
-        self.gateModelName = ""
-        self.maxDefenders = 1
-        self.desiredGunsInWorkshop = 0
-        self.gunAffixesCount = 0
-        self.cabinsAndBasketsAffixesCount = 0
-        self.numCollisionLayersBelowVehicle = 2
-        self.articles = []
-        self.resourceIdToRandomCoeffMap = []
-        self.gunGeneratorPrototypeName = ""
+        self.musicName = AnnotatedValue("", "MusicName", group_type=GroupType.SECONDARY)
+        self.gateModelName = AnnotatedValue("", "GateModelFile", group_type=GroupType.SECONDARY)
+        self.maxDefenders = AnnotatedValue(1, "MaxDefenders", group_type=GroupType.SECONDARY)
+        self.gunGeneratorPrototypeName = AnnotatedValue("", "GunGenerator", group_type=GroupType.SECONDARY)
+        self.desiredGunsInWorkshop = AnnotatedValue(0, "DesiredGunsInWorkshop", group_type=GroupType.SECONDARY)
+        self.gunAffixGeneratorPrototypeName = AnnotatedValue("", "GunAffixGenerator", group_type=GroupType.SECONDARY)
+        self.gunAffixesCount = AnnotatedValue(0, "GunAffixesCount", group_type=GroupType.SECONDARY)
+        self.cabinsAndBasketsAffixGeneratorPrototypeName = AnnotatedValue("", "CabinsAndBasketsAffixGenerator",
+                                                                          group_type=GroupType.SECONDARY)
+        self.cabinsAndBasketsAffixesCount = AnnotatedValue(0, "CabinsAndBasketsAffixesCount",
+                                                           group_type=GroupType.SECONDARY)
+        self.numCollisionLayersBelowVehicle = AnnotatedValue(2, "NumCollisionLayersBelowVehicle",
+                                                             group_type=GroupType.SECONDARY)
+        self.articles = AnnotatedValue([], "Articles", group_type=GroupType.SECONDARY, saving_type=SavingType.SPECIFIC)
+        self.collisionTrimeshAllowed = AnnotatedValue(True, "CollisionTrimeshAllowed", group_type=GroupType.SECONDARY)
+
+        self.resourceIdToRandomCoeffMap = AnnotatedValue([], "ResourceCoeff", group_type=GroupType.SECONDARY,
+                                                         saving_type=SavingType.SPECIFIC)
         self.gunGeneratorPrototypeId = -1
-        self.gunAffixGeneratorPrototypeName = ""
         self.gunAffixGeneratorPrototypeId = -1
-        self.cabinsAndBasketsAffixGeneratorPrototypeName = ""
         self.cabinsAndBasketsAffixGeneratorPrototypeId = -1
-        self.collisionTrimeshAllowed = True
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SettlementPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             self.SetGeomType("FROM_MODEL")
-            self.musicName = safe_check_and_set(self.musicName, xmlNode, "MusicName")
-            self.gateModelName = safe_check_and_set(self.gateModelName, xmlNode, "GateModelFile")
-            self.maxDefenders = safe_check_and_set(self.maxDefenders, xmlNode, "MaxDefenders", "int")
-            if self.maxDefenders > 5:
-                logger.error(f"For Town prototype '{self.prototypeName}' maxDefenders > MAX_VEHICLES_IN_TEAM (5)!")
-            self.gunGeneratorPrototypeName = safe_check_and_set(self.gunGeneratorPrototypeName, xmlNode, "GunGenerator")
-            desiredGunsInWorkshop = safe_check_and_set(self.desiredGunsInWorkshop, xmlNode,
-                                                       "DesiredGunsInWorkshop", "int")
+            self.musicName.value = safe_check_and_set(self.musicName.default_value, xmlNode, self.musicName.name)
+            self.gateModelName.value = safe_check_and_set(self.gateModelName.default_value, xmlNode,
+                                                          self.gateModelName.name)
+            self.maxDefenders.value = safe_check_and_set(self.maxDefenders.default_value, xmlNode,
+                                                         self.maxDefenders.name, "int")
+            if self.maxDefenders.value > 5:
+                logger.error(f"For Town prototype '{self.prototypeName.value}' maxDefenders > MAX_VEHICLES_IN_TEAM (5)")
+            self.gunGeneratorPrototypeName.value = safe_check_and_set(self.gunGeneratorPrototypeName.default_value,
+                                                                      xmlNode, self.gunGeneratorPrototypeName.name)
+            desiredGunsInWorkshop = safe_check_and_set(self.desiredGunsInWorkshop.default_value, xmlNode,
+                                                       self.desiredGunsInWorkshop.name, "int")
             if desiredGunsInWorkshop >= 0:
-                self.desiredGunsInWorkshop = desiredGunsInWorkshop
-            self.gunAffixGeneratorPrototypeName = safe_check_and_set(self.gunAffixGeneratorPrototypeName, xmlNode,
-                                                                     "GunAffixGenerator")
-            gunAffixesCount = safe_check_and_set(self.gunAffixesCount, xmlNode, "GunAffixesCount", "int")
+                self.desiredGunsInWorkshop.value = desiredGunsInWorkshop
+            self.gunAffixGeneratorPrototypeName.value = safe_check_and_set(
+                self.gunAffixGeneratorPrototypeName.default_value, xmlNode,
+                self.gunAffixGeneratorPrototypeName.name)
+            gunAffixesCount = safe_check_and_set(self.gunAffixesCount.default_value, xmlNode,
+                                                 self.gunAffixesCount.name, "int")
             if gunAffixesCount >= 0:
-                self.gunAffixesCount = gunAffixesCount
-            self.cabinsAndBasketsAffixGeneratorPrototypeName = safe_check_and_set(
-                self.cabinsAndBasketsAffixGeneratorPrototypeName,
+                self.gunAffixesCount.value = gunAffixesCount
+            self.cabinsAndBasketsAffixGeneratorPrototypeName.value = safe_check_and_set(
+                self.cabinsAndBasketsAffixGeneratorPrototypeName.default_value,
                 xmlNode,
-                "CabinsAndBasketsAffixGenerator")
-            cabinsAndBasketsAffixesCount = safe_check_and_set(self.cabinsAndBasketsAffixesCount, xmlNode,
-                                                              "CabinsAndBasketsAffixesCount", "int")
+                self.cabinsAndBasketsAffixGeneratorPrototypeName.name)
+            cabinsAndBasketsAffixesCount = safe_check_and_set(self.cabinsAndBasketsAffixesCount.default_value, xmlNode,
+                                                              self.cabinsAndBasketsAffixesCount.name, "int")
             if cabinsAndBasketsAffixesCount >= 0:
-                self.cabinsAndBasketsAffixesCount = cabinsAndBasketsAffixesCount
+                self.cabinsAndBasketsAffixesCount.value = cabinsAndBasketsAffixesCount
 
-            numCollisionLayersBelowVehicle = safe_check_and_set(self.numCollisionLayersBelowVehicle, xmlNode,
-                                                                "NumCollisionLayersBelowVehicle", "int")
+            numCollisionLayersBelowVehicle = safe_check_and_set(self.numCollisionLayersBelowVehicle.default_value,
+                                                                xmlNode,
+                                                                self.numCollisionLayersBelowVehicle.name, "int")
             if numCollisionLayersBelowVehicle >= 0:
-                self.numCollisionLayersBelowVehicle = numCollisionLayersBelowVehicle
-            Article.LoadArticlesFromNode(self.articles, xmlFile, xmlNode, self.theServer.thePrototypeManager)
+                self.numCollisionLayersBelowVehicle.value = numCollisionLayersBelowVehicle
+            Article.LoadArticlesFromNode(self.articles.value, xmlFile, xmlNode, self.theServer.thePrototypeManager)
             self.LoadFromXmlResourceIdToRandomCoeffMap(xmlFile, xmlNode)
             return STATUS_SUCCESS
 
     def LoadFromXmlResourceIdToRandomCoeffMap(self, xmlFile, xmlNode):
-        self.resourceIdToRandomCoeffMap = []
+        # self.resourceIdToRandomCoeffMap = []
         resource_coeffs = child_from_xml_node(xmlNode, "ResourceCoeff", do_not_warn=True)
         if resource_coeffs is not None:
             for resource_coeff_node in resource_coeffs:
@@ -1516,23 +2117,40 @@ class TownPrototypeInfo(SettlementPrototypeInfo):
                 resourceName = safe_check_and_set("", resource_coeff_node, "Resource")
                 resourceId = self.theServer.theResourceManager.GetResourceId(resourceName)
                 if resourceId == -1:
-                    logger.error(f"Unknown resource name: {resourceName} for prot: {self.prototypeName}")
+                    logger.error(f"Unknown resource name: {resourceName} for prot: {self.prototypeName.value}")
                 else:
                     coeff = {"first": resourceId,
                              "second": self.RandomCoeffWithDispersion()}
                     coeff["second"].baseCoeff = newRandomCoeff
                     coeff["second"].baseDispersion = newRandomCoeff_4
-                    self.resourceIdToRandomCoeffMap.append(coeff)
+                    self.resourceIdToRandomCoeffMap.value.append(coeff)
 
     def PostLoad(self, prototype_manager):
         SettlementPrototypeInfo.PostLoad(self, prototype_manager)
-        self.gunGeneratorPrototypeId = prototype_manager.GetPrototypeId(self.gunGeneratorPrototypeName)
-        self.gunAffixGeneratorPrototypeId = prototype_manager.GetPrototypeId(self.gunAffixGeneratorPrototypeName)
+        self.gunGeneratorPrototypeId = prototype_manager.GetPrototypeId(self.gunGeneratorPrototypeName.value)
+        self.gunAffixGeneratorPrototypeId = prototype_manager.GetPrototypeId(self.gunAffixGeneratorPrototypeName.value)
         self.cabinsAndBasketsAffixGeneratorPrototypeId = \
-            prototype_manager.GetPrototypeId(self.cabinsAndBasketsAffixGeneratorPrototypeName)
-        if self.articles:
-            for article in self.articles:
+            prototype_manager.GetPrototypeId(self.cabinsAndBasketsAffixGeneratorPrototypeName.value)
+        if self.articles.value:
+            for article in self.articles.value:
                 article.PostLoad(prototype_manager)
+
+    def get_etree_prototype(self):
+        result = SettlementPrototypeInfo.get_etree_prototype(self)
+        if should_be_saved(self.articles):
+            for articleItem in self.articles.value:
+                result.append(Article.get_etree_prototype(articleItem))
+
+        if should_be_saved(self.resourceIdToRandomCoeffMap):
+            for resourceCoeffItem in self.resourceIdToRandomCoeffMap.value:
+                resourceCoeffElement = etree.Element("ResourceCoeff")
+                resourceCoeffElement.set("Coeff", str(resourceCoeffItem["second"].baseCoeff))
+                resourceCoeffElement.set("Dispersion", str(resourceCoeffItem["second"].baseDispersion))
+                resourceCoeffElement.set("Resource",
+                                         self.theServer.theResourceManager.GetResourceName(resourceCoeffItem["first"]))
+                result.append(resourceCoeffElement)
+
+        return result
 
     class RandomCoeffWithDispersion(object):
         def __init__(self):
@@ -1543,48 +2161,50 @@ class TownPrototypeInfo(SettlementPrototypeInfo):
 class LairPrototypeInfo(SettlementPrototypeInfo):
     def __init__(self, server):
         SettlementPrototypeInfo.__init__(self, server)
-        self.maxAttackers = 1
-        self.maxDefenders = 1
+        self.maxAttackers = AnnotatedValue(1, "MaxAttackers", group_type=GroupType.SECONDARY)
+        self.maxDefenders = AnnotatedValue(1, "MaxDefenders", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SettlementPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             self.SetGeomType("BOX")
-            self.maxAttackers = safe_check_and_set(self.maxAttackers, xmlNode, "MaxAttackers", "int")
-            if self.maxAttackers > 5:
-                logger.error(f"Lair {self.prototypeName} attrib MaxAttackers: "
-                             f"{self.maxAttackers} is higher than permitted MAX_VEHICLES_IN_TEAM: 5")
+            self.maxAttackers.value = safe_check_and_set(self.maxAttackers.default_value, xmlNode,
+                                                         self.maxAttackers.name, "int")
+            if self.maxAttackers.value > 5:
+                logger.error(f"Lair {self.prototypeName.value} attrib MaxAttackers: "
+                             f"{self.maxAttackers.value} is higher than permitted MAX_VEHICLES_IN_TEAM: 5")
 
-            self.maxDefenders = safe_check_and_set(self.maxDefenders, xmlNode, "MaxDefenders", "int")
-            if self.maxDefenders > 5:
-                logger.error(f"Lair {self.prototypeName} attrib MaxDefenders: "
-                             f"{self.maxDefenders} is higher than permitted MAX_VEHICLES_IN_TEAM: 5")
+            self.maxDefenders.value = safe_check_and_set(self.maxDefenders.default_value, xmlNode,
+                                                         self.maxDefenders.name, "int")
+            if self.maxDefenders.value > 5:
+                logger.error(f"Lair {self.prototypeName.value} attrib MaxDefenders: "
+                             f"{self.maxDefenders.value} is higher than permitted MAX_VEHICLES_IN_TEAM: 5")
             return STATUS_SUCCESS
 
 
 class PlayerPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.modelName = ""
-        self.skinNumber = 0
-        self.cfgNumber = 0
+        self.modelName = AnnotatedValue("", "ModelFile", group_type=GroupType.SECONDARY)
+        self.skinNumber = AnnotatedValue(0, "SkinNum", group_type=GroupType.SECONDARY)
+        self.cfgNumber = AnnotatedValue(0, "CfgNum", group_type=GroupType.SECONDARY)
         # ??? some magic with World SceneGraph
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.modelName = read_from_xml_node(xmlNode, "ModelFile")
-            skinNum = read_from_xml_node(xmlNode, "SkinNum", do_not_warn=True)
+            self.modelName.value = read_from_xml_node(xmlNode, self.modelName.name)
+            skinNum = read_from_xml_node(xmlNode, self.skinNumber.name, do_not_warn=True)
             if skinNum is not None:
                 skinNum = int(skinNum)
                 if skinNum > 0:
-                    self.skinNumber = skinNum
+                    self.skinNumber.value = skinNum
 
-            cfgNum = read_from_xml_node(xmlNode, "CfgNum", do_not_warn=True)
+            cfgNum = read_from_xml_node(xmlNode, self.cfgNumber.name, do_not_warn=True)
             if cfgNum is not None:
                 cfgNum = int(cfgNum)
                 if cfgNum > 0:
-                    self.cfgNumber = cfgNum
+                    self.cfgNumber.value = cfgNum
             return STATUS_SUCCESS
 
 
@@ -1601,38 +2221,38 @@ class CinematicMoverPrototypeInfo(PrototypeInfo):
 class DynamicQuestPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.minReward = 0
+        self.minReward = AnnotatedValue(0, "MinReward", group_type=GroupType.PRIMARY, saving_type=SavingType.REQUIRED)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             minReward = read_from_xml_node(xmlNode, "MinReward")
             if minReward is not None:
-                self.minReward = int(minReward)
+                self.minReward.value = int(minReward)
             return STATUS_SUCCESS
 
 
 class DynamicQuestConvoyPrototypeInfo(DynamicQuestPrototypeInfo):
     def __init__(self, server):
         DynamicQuestPrototypeInfo.__init__(self, server)
-        self.playerSchwarzPart = 0.0
-        self.criticalDistFromPlayer = 100.0
-        self.criticalTime = 20.0
+        self.playerSchwarzPart = AnnotatedValue(0.0, "PlayerSchwarzPart", group_type=GroupType.SECONDARY)
+        self.criticalDistFromPlayer = AnnotatedValue(100.0, "CriticalDistFromPlayer", group_type=GroupType.SECONDARY)
+        self.criticalTime = AnnotatedValue(20.0, "CriticalTime", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = DynamicQuestPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            playerSchwarzPart = read_from_xml_node(xmlNode, "PlayerSchwarzPart")
+            playerSchwarzPart = read_from_xml_node(xmlNode, self.playerSchwarzPart.name)
             if playerSchwarzPart is not None:
-                self.playerSchwarzPart = float(playerSchwarzPart)
+                self.playerSchwarzPart.value = float(playerSchwarzPart)
 
-            criticalDistFromPlayer = read_from_xml_node(xmlNode, "CriticalDistFromPlayer")
+            criticalDistFromPlayer = read_from_xml_node(xmlNode, self.criticalDistFromPlayer.name)
             if criticalDistFromPlayer is not None:
-                self.criticalDistFromPlayer = float(criticalDistFromPlayer)
+                self.criticalDistFromPlayer.value = float(criticalDistFromPlayer)
 
-            criticalTime = read_from_xml_node(xmlNode, "CriticalTime")
+            criticalTime = read_from_xml_node(xmlNode, self.criticalTime.name)
             if criticalTime is not None:
-                self.criticalTime = float(criticalTime)
+                self.criticalTime.value = float(criticalTime)
 
             return STATUS_SUCCESS
 
@@ -1640,112 +2260,139 @@ class DynamicQuestConvoyPrototypeInfo(DynamicQuestPrototypeInfo):
 class DynamicQuestDestroyPrototypeInfo(DynamicQuestPrototypeInfo):
     def __init__(self, server):
         DynamicQuestPrototypeInfo.__init__(self, server)
-        self.targetSchwarzPart = 0.0
+        self.targetSchwarzPart = AnnotatedValue(0.0, "TargetSchwarzPart", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = DynamicQuestPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            targetSchwarzPart = read_from_xml_node(xmlNode, "TargetSchwarzPart")
+            targetSchwarzPart = read_from_xml_node(xmlNode, self.targetSchwarzPart.name)
             if targetSchwarzPart is not None:
-                self.targetSchwarzPart = float(targetSchwarzPart)
+                self.targetSchwarzPart.value = float(targetSchwarzPart)
             return STATUS_SUCCESS
 
 
 class DynamicQuestHuntPrototypeInfo(DynamicQuestPrototypeInfo):
     def __init__(self, server):
         DynamicQuestPrototypeInfo.__init__(self, server)
-        self.playerSchwarzPart = 0.0
+        self.playerSchwarzPart = AnnotatedValue(0.0, "PlayerSchwarzPart", group_type=GroupType.SECONDARY)
+        self.huntSeasonLength = AnnotatedValue(0.0, "HuntSeasonLength", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = DynamicQuestPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            playerSchwarzPart = read_from_xml_node(xmlNode, "PlayerSchwarzPart")
+            playerSchwarzPart = read_from_xml_node(xmlNode, self.playerSchwarzPart.name)
             if playerSchwarzPart is not None:
-                self.playerSchwarzPart = float(playerSchwarzPart)
+                self.playerSchwarzPart.value = float(playerSchwarzPart)
 
-            huntSeasonLength = read_from_xml_node(xmlNode, "HuntSeasonLength")
+            huntSeasonLength = read_from_xml_node(xmlNode, self.huntSeasonLength.name)
             if huntSeasonLength is not None:
-                self.huntSeasonLength = float(huntSeasonLength)
+                self.huntSeasonLength.value = float(huntSeasonLength)
             return STATUS_SUCCESS
 
 
 class DynamicQuestPeacePrototypeInfo(DynamicQuestPrototypeInfo):
     def __init__(self, server):
         DynamicQuestPrototypeInfo.__init__(self, server)
-        self.playerMoneyPart = 0.0
+        self.playerMoneyPart = AnnotatedValue(0.0, "PlayerMoneyPart", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = DynamicQuestPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            playerMoneyPart = read_from_xml_node(xmlNode, "PlayerMoneyPart")
+            playerMoneyPart = read_from_xml_node(xmlNode, self.playerMoneyPart.name)
             if playerMoneyPart is not None:
-                self.playerMoneyPart = float(playerMoneyPart)
+                self.playerMoneyPart.value = float(playerMoneyPart)
             return STATUS_SUCCESS
 
 
 class DynamicQuestReachPrototypeInfo(DynamicQuestPrototypeInfo):
     def __init__(self, server):
         DynamicQuestPrototypeInfo.__init__(self, server)
-        self.playerSchwarzPart = 0.0
+        self.playerSchwarzPart = AnnotatedValue(0.0, "PlayerSchwarzPart", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = DynamicQuestPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            playerSchwarzPart = read_from_xml_node(xmlNode, "PlayerSchwarzPart")
+            playerSchwarzPart = read_from_xml_node(xmlNode, self.playerSchwarzPart.name)
             if playerSchwarzPart is not None:
-                self.playerSchwarzPart = float(playerSchwarzPart)
+                self.playerSchwarzPart.value = float(playerSchwarzPart)
             return STATUS_SUCCESS
 
 
 class SgNodeObjPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.engineModelName = ""
+        self.engineModelName = AnnotatedValue("", "ModelFile", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.engineModelName = safe_check_and_set(self.engineModelName, xmlNode, "ModelFile")
+            self.engineModelName.value = safe_check_and_set(self.engineModelName.default_value, xmlNode,
+                                                            self.engineModelName.name)
             return STATUS_SUCCESS
 
 
 class LightObjPrototypeInfo(SgNodeObjPrototypeInfo):
     def __init__(self, server):
         SgNodeObjPrototypeInfo.__init__(self, server)
-        self.isUpdating = False
+        self.isUpdating = AnnotatedValue(False, "IsUpdating", group_type=GroupType.SECONDARY)
 
 
 class BossArmPrototypeInfo(VehiclePartPrototypeInfo):
     def __init__(self, server):
         VehiclePartPrototypeInfo.__init__(self, server)
-        self.frameToPickUpLoad = 0
-        self.turningSpeed = 0.5
+        self.frameToPickUpLoad = AnnotatedValue(0, "FrameToPickUpLoad", group_type=GroupType.SECONDARY)
+        self.turningSpeed = AnnotatedValue(0.5, "TurningSpeed", group_type=GroupType.PRIMARY)
         self.lpIdForLoad = -1
-        self.cruticalNumExplodedLoads = 1
-        self.attacks = []
+        # custom display load value
+        self.strLoadPoint = AnnotatedValue("", "LoadPointForLoad", group_type=GroupType.SECONDARY)
+        # end
+        self.cruticalNumExplodedLoads = AnnotatedValue(1, "CriticalNumExplodedLoads", group_type=GroupType.PRIMARY)
+        self.attacks = AnnotatedValue([], "AttackActions", group_type=GroupType.SECONDARY,
+                                      saving_type=SavingType.SPECIFIC)
 
     def LoadFromXML(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
         result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             turningSpeed = read_from_xml_node(xmlNode, "TurningSpeed", do_not_warn=True)
             if turningSpeed is not None:
-                self.turningSpeed = float(turningSpeed)
+                self.turningSpeed.value = float(turningSpeed)
 
             frameToPickUpLoad = read_from_xml_node(xmlNode, "FrameToPickUpLoad", do_not_warn=True)
             if frameToPickUpLoad is not None:
-                self.frameToPickUpLoad = int(frameToPickUpLoad)
+                self.frameToPickUpLoad.value = int(frameToPickUpLoad)
 
-            attack_actions = child_from_xml_node(xmlNode, "AttackActions")
+            attack_actions = child_from_xml_node(xmlNode, self.attacks.name)
             check_mono_xml_node(attack_actions, "Attack")
             for attack_node in attack_actions.iterchildren(tag="Attack"):
                 action = self.AttackActionInfo()
                 action.LoadFromXML(attack_node)
-                self.attacks.append(action)
+                self.attacks.value.append(action)
 
             cruticalNumExplodedLoads = read_from_xml_node(xmlNode, "CriticalNumExplodedLoads", do_not_warn=True)
             if cruticalNumExplodedLoads is not None:
-                self.cruticalNumExplodedLoads = int(cruticalNumExplodedLoads)
+                self.cruticalNumExplodedLoads.value = int(cruticalNumExplodedLoads)
+            # custom implementation. Originally called from PrototypeManager -> RefreshFromXml
+            self.RefreshFromXml(xmlFile, xmlNode)
+            # custom implementation ends
             return STATUS_SUCCESS
+
+    def RefreshFromXml(self, xmlFile, xmlNode):
+        # VehiclePartPrototypeInfo.RefreshFromXml(self, xmlFile, xmlNode)
+        # model_obj = anim_model_server.GetItemByName(self.engineModelName.value)
+        # if model_obj != -1:
+        self.strLoadPoint.value = safe_check_and_set(self.strLoadPoint.default_value, xmlNode, "LoadPointForLoad")
+        # m3d::AnimatedModel::GetLoadPointIdByName used to get actual 'lpIdForLoad'
+
+    def get_etree_prototype(self):
+        result = VehiclePartPrototypeInfo.get_etree_prototype(self)
+
+        def prepare_attacsElement(attacks):
+            attacksElement = etree.Element(attacks.name)
+            for attackItem in attacks.value:
+                attacksElement.append(self.AttackActionInfo.get_etree_prototype(attackItem))
+            return attacksElement
+        add_value_to_node_as_child(result, self.attacks, lambda x: prepare_attacsElement(x))
+        return result
 
     class AttackActionInfo(object):
         def __init__(self):
@@ -1759,18 +2406,30 @@ class BossArmPrototypeInfo(VehiclePartPrototypeInfo):
             action = read_from_xml_node(xmlNode, "Action")
             self.action = GetActionByName(action)
 
+        def get_etree_prototype(self):
+            attack_node = etree.Element("Attack")
+            attack_node.set("Action", GetActionByNum(self.action))
+            attack_node.set("FrameToReleaseLoad", str(self.frameToReleaseLoad))
+            return attack_node
+
 
 class Boss02ArmPrototypeInfo(BossArmPrototypeInfo):
     def __init__(self, server):
         BossArmPrototypeInfo.__init__(self, server)
-        self.frameToPickUpContainerForBlock = 0
-        self.frameToReleaseContainerForBlock = 0
-        self.frameToPickUpContainerForDie = 0
-        self.frameToReleaseContainerForDie = 0
-        self.actionForBlock = 0
-        self.actionForDie = 0
+        self.frameToPickUpContainerForBlock = AnnotatedValue(0, "FrameToPickUpContainerForBlock",
+                                                             group_type=GroupType.SECONDARY)
+        self.frameToReleaseContainerForBlock = AnnotatedValue(0, "FrameToReleaseContainerForBlock",
+                                                              group_type=GroupType.SECONDARY)
+        self.frameToPickUpContainerForDie = AnnotatedValue(0, "FrameToPickUpContainerForDie",
+                                                           group_type=GroupType.SECONDARY)
+        self.frameToReleaseContainerForDie = AnnotatedValue(0, "FrameToReleaseContainerForDie",
+                                                            group_type=GroupType.SECONDARY)
+        self.actionForBlock = AnnotatedValue(0, "ActionForBlock", group_type=GroupType.PRIMARY,
+                                             saving_type=SavingType.REQUIRED_SPECIFIC)
+        self.actionForDie = AnnotatedValue(0, "ActionForDie", group_type=GroupType.PRIMARY,
+                                           saving_type=SavingType.REQUIRED_SPECIFIC)
         self.blockingContainerPrototypeId = -1
-        self.blockingContainerPrototypeName = ""
+        self.blockingContainerPrototypeName = AnnotatedValue("", "ContainerPrototype", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode: objectify.ObjectifiedElement):
         result = BossArmPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -1778,91 +2437,123 @@ class Boss02ArmPrototypeInfo(BossArmPrototypeInfo):
             frameToPickUpContainerForBlock = read_from_xml_node(xmlNode, "FrameToPickUpContainerForBlock",
                                                                 do_not_warn=True)
             if frameToPickUpContainerForBlock is not None:
-                self.frameToPickUpContainerForBlock = int(frameToPickUpContainerForBlock)
+                self.frameToPickUpContainerForBlock.value = int(frameToPickUpContainerForBlock)
 
             frameToReleaseContainerForBlock = read_from_xml_node(xmlNode, "FrameToReleaseContainerForBlock",
                                                                  do_not_warn=True)
             if frameToReleaseContainerForBlock is not None:
-                self.frameToReleaseContainerForBlock = int(frameToReleaseContainerForBlock)
+                self.frameToReleaseContainerForBlock.value = int(frameToReleaseContainerForBlock)
 
             frameToPickUpContainerForDie = read_from_xml_node(xmlNode, "FrameToPickUpContainerForDie",
                                                               do_not_warn=True)
             if frameToPickUpContainerForDie is not None:
-                self.frameToPickUpContainerForDie = int(frameToPickUpContainerForDie)
+                self.frameToPickUpContainerForDie.value = int(frameToPickUpContainerForDie)
 
             frameToReleaseContainerForDie = read_from_xml_node(xmlNode, "FrameToReleaseContainerForDie",
                                                                do_not_warn=True)
             if frameToReleaseContainerForDie is not None:
-                self.frameToReleaseContainerForDie = int(frameToReleaseContainerForDie)
+                self.frameToReleaseContainerForDie.value = int(frameToReleaseContainerForDie)
 
             actionForBlock = read_from_xml_node(xmlNode, "ActionForBlock")
-            self.actionForBlock = GetActionByName(actionForBlock)
+            self.actionForBlock.value = GetActionByName(actionForBlock)
 
             actionForDie = read_from_xml_node(xmlNode, "ActionForDie")
-            self.actionForDie = GetActionByName(actionForDie)
+            self.actionForDie.value = GetActionByName(actionForDie)
 
-            self.blockingContainerPrototypeName = safe_check_and_set(self.blockingContainerPrototypeName, xmlNode,
-                                                                     "ContainerPrototype")
+            self.blockingContainerPrototypeName.value = \
+                safe_check_and_set(self.blockingContainerPrototypeName.default_value,
+                                   xmlNode, "ContainerPrototype")
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
-        self.blockingContainerPrototypeId = prototype_manager.GetPrototypeId(self.blockingContainerPrototypeName)
+        self.blockingContainerPrototypeId = prototype_manager.GetPrototypeId(self.blockingContainerPrototypeName.value)
+
+    def get_etree_prototype(self):
+        result = BossArmPrototypeInfo.get_etree_prototype(self)
+        add_value_to_node(result, self.actionForBlock, lambda x: GetActionByNum(x.value))
+        add_value_to_node(result, self.actionForDie, lambda x: GetActionByNum(x.value))
+        return result
 
 
 class BossMetalArmPrototypeInfo(SimplePhysicObjPrototypeInfo):
     def __init__(self, server):
         SimplePhysicObjPrototypeInfo.__init__(self, server)
-        self.explosionEffectName = ""
-        self.turningSpeed = 0.5
+        self.explosionEffectName = AnnotatedValue("", "ExplosionEffect", group_type=GroupType.SECONDARY)
+        # isn't initialised here for this class in original but is loaded in LoadFromXML
+        self.frameToPickUpLoad = AnnotatedValue(0, "FrameToPickUpLoad", group_type=GroupType.SECONDARY)
+        # end
+        self.turningSpeed = AnnotatedValue(0.5, "TurningSpeed", group_type=GroupType.SECONDARY)
         self.lpIdForLoad = -1
         self.loadProrotypeIds = []
-        self.attacks = []
-        self.numExplodedLoadsToDie = 1
-        self.loadPrototypeNames = []
+        self.attacks = AnnotatedValue([], "AttackActions", group_type=GroupType.PRIMARY,
+                                      saving_type=SavingType.SPECIFIC)
+        self.numExplodedLoadsToDie = AnnotatedValue(1, "NumExplodedLoadsToDie", group_type=GroupType.PRIMARY)
+        self.loadPrototypeNames = AnnotatedValue([], "LoadPrototypes", group_type=GroupType.PRIMARY,
+                                                 saving_type=SavingType.SPECIFIC)
+        # custom display load value
+        self.strLoadPoint = AnnotatedValue("", "LoadPointForLoad", group_type=GroupType.SECONDARY)
+        # end
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             self.SetGeomType("FROM_MODEL")
-            self.explosionEffectName = read_from_xml_node(xmlNode, "ExplosionEffect")
+            self.explosionEffectName.value = read_from_xml_node(xmlNode, "ExplosionEffect")
             turningSpeed = read_from_xml_node(xmlNode, "TurningSpeed", do_not_warn=True)
             if turningSpeed is not None:
-                self.turningSpeed = float(turningSpeed)
+                self.turningSpeed.value = float(turningSpeed)
 
             frameToPickUpLoad = read_from_xml_node(xmlNode, "FrameToPickUpLoad", do_not_warn=True)
             if frameToPickUpLoad is not None:
-                self.frameToPickUpLoad = float(frameToPickUpLoad)
+                self.frameToPickUpLoad.value = float(frameToPickUpLoad)
 
             attack_actions = child_from_xml_node(xmlNode, "AttackActions")
             check_mono_xml_node(attack_actions, "Attack")
             for attack_node in attack_actions.iterchildren(tag="Attack"):
                 action = self.AttackActionInfo()
                 action.LoadFromXML(attack_node)
-                self.attacks.append(action)
+                self.attacks.value.append(action)
 
             loadPrototypeNames = read_from_xml_node(xmlNode, "LoadPrototypes", do_not_warn=True)
             if loadPrototypeNames is not None:
-                self.loadPrototypeNames = loadPrototypeNames.split()
+                self.loadPrototypeNames.value = loadPrototypeNames.split()
 
             numExplodedLoadsToDie = read_from_xml_node(xmlNode, "NumExplodedLoadsToDie", do_not_warn=True)
             if numExplodedLoadsToDie is not None:
-                self.numExplodedLoadsToDie = int(numExplodedLoadsToDie)
+                self.numExplodedLoadsToDie.value = int(numExplodedLoadsToDie)
+            self.RefreshFromXml(xmlFile, xmlNode)
             return STATUS_SUCCESS
 
+    def RefreshFromXml(self, xmlFile, xmlNode):
+        self.strLoadPoint.value = safe_check_and_set(self.strLoadPoint.default_value, xmlNode, "LoadPointForLoad")
+
     def PostLoad(self, prototype_manager):
-        if self.loadPrototypeNames:
-            for prot_name in self.loadPrototypeNames:
+        if self.loadPrototypeNames.value:
+            for prot_name in self.loadPrototypeNames.value:
                 prot_id = prototype_manager.GetPrototypeId(prot_name)
                 if prot_id == -1:
                     logger.error("Invalid loadPrototypes/IDs for BossMetalArm prototype")
                 else:
                     prot = prototype_manager.InternalGetPrototypeInfo(prot_name)
-                    if prot.className != "BossMetalArmLoad":
+                    if prot.className.value != "BossMetalArmLoad":
                         logger.error("Invalid class for BossMetalArm LoadPrototype, expected 'BossMetalArmLoad', but "
-                                     f"'{prot.className}' given for {self.prototypeName}!")
+                                     f"'{prot.className.value}' given for {self.prototypeName.value}!")
                     self.loadProrotypeIds.append(prot_id)
         else:
-            logger.error(f"Empty loadPrototypes for BossMetalArm prototype {self.prototypeName}!")
+            logger.error(f"Empty loadPrototypes for BossMetalArm prototype {self.prototypeName.value}!")
+
+    def get_etree_prototype(self):
+        result = SimplePhysicObjPrototypeInfo.get_etree_prototype(self)
+        add_value_to_node(result, self.loadPrototypeNames, lambda x: " ".join(x.value))
+
+        def prepare_attack_actions(attacks):
+            attacksElement = etree.Element(attacks.name)
+            for attack in attacks.value:
+                attacksElement.append(self.AttackActionInfo.get_etree_prototype(attack))
+            return attacksElement
+
+        add_value_to_node_as_child(result, self.attacks, lambda x: prepare_attack_actions(x))
+        return result
 
     class AttackActionInfo(object):
         def __init__(self):
@@ -1876,29 +2567,37 @@ class BossMetalArmPrototypeInfo(SimplePhysicObjPrototypeInfo):
             action = read_from_xml_node(xmlNode, "Action")
             self.action = GetActionByName(action)
 
+        def get_etree_prototype(self):
+            attackElement = etree.Element("Attack")
+            attackElement.set("Action", GetActionByNum(self.action))
+            attackElement.set("FrameToReleaseLoad", str(self.frameToReleaseLoad))
+            return attackElement
+
 
 class BossMetalArmLoadPrototypeInfo(DummyObjectPrototypeInfo):
     def __init__(self, server):
         DummyObjectPrototypeInfo.__init__(self, server)
         self.blastWavePrototypeId = -1
-        self.explosionEffectName = ""
-        self.maxHealth = 1.0
-        self.blastWavePrototypeName = ""
-        self.isUpdating = True
+        self.explosionEffectName = AnnotatedValue("", "ExplosionEffect", group_type=GroupType.SECONDARY)
+        self.maxHealth = AnnotatedValue(1.0, "MaxHealth", group_type=GroupType.PRIMARY)
+        self.blastWavePrototypeName = AnnotatedValue("", "BlastWavePrototype", group_type=GroupType.SECONDARY)
+        self.isUpdating = AnnotatedValue(True, "IsUpdating", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = DummyObjectPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.blastWavePrototypeName = safe_check_and_set(self.blastWavePrototypeName, xmlNode, "BlastWavePrototype")
-            self.explosionEffectName = safe_check_and_set(self.explosionEffectName, xmlNode, "ExplosionEffect")
+            self.blastWavePrototypeName.value = safe_check_and_set(self.blastWavePrototypeName.default_value, xmlNode,
+                                                                   "BlastWavePrototype")
+            self.explosionEffectName.value = safe_check_and_set(self.explosionEffectName.default_value, xmlNode,
+                                                                "ExplosionEffect")
 
             maxHealth = read_from_xml_node(xmlNode, "MaxHealth")
             if maxHealth is not None:
-                self.maxHealth = float(maxHealth)
+                self.maxHealth.value = float(maxHealth)
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
-        self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName)
+        self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName.value)
 
 
 class Boss03PartPrototypeInfo(VehiclePartPrototypeInfo):
@@ -1914,14 +2613,14 @@ class Boss04PartPrototypeInfo(VehiclePartPrototypeInfo):
 class Boss04DronePrototypeInfo(ComplexPhysicObjPrototypeInfo):
     def __init__(self, server):
         ComplexPhysicObjPrototypeInfo.__init__(self, server)
-        self.maxLinearVelocity = 0.0
+        self.maxLinearVelocity = AnnotatedValue(0.0, "MaxLinearVelocity", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = ComplexPhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             maxLinearVelocity = read_from_xml_node(xmlNode, "MaxLinearVelocity")
             if maxLinearVelocity is not None:
-                self.maxLinearVelocity = float(maxLinearVelocity)
+                self.maxLinearVelocity.value = float(maxLinearVelocity)
             return STATUS_SUCCESS
 
 
@@ -1929,8 +2628,29 @@ class Boss04StationPartPrototypeInfo(VehiclePartPrototypeInfo):
     def __init__(self, server):
         VehiclePartPrototypeInfo.__init__(self, server)
         self.criticalMeshGroupIds = []
-        self.collisionTrimeshAllowed = True
+        self.collisionTrimeshAllowed = AnnotatedValue(False, "CollisionTrimeshAllowed",
+                                                      group_type=GroupType.SECONDARY)
         self.maxHealth = 0.0
+        # custom value, only created and used in RefreshFromXml in original
+        self.strCriticalMeshGroups = AnnotatedValue("", "CriticalMeshGroups", group_type=GroupType.SECONDARY,
+                                                    saving_type=SavingType.SPECIFIC)
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        # custom implementation. Originally called from PrototypeManager -> RefreshFromXml
+        result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            self.RefreshFromXml(xmlFile, xmlNode)
+            return STATUS_SUCCESS
+
+    def RefreshFromXml(self, xmlFile, xmlNode):
+        strCriticalMeshGroups = read_from_xml_node(xmlNode, "CriticalMeshGroups", do_not_warn=True)
+        if strCriticalMeshGroups is not None:
+            self.strCriticalMeshGroups.value = strCriticalMeshGroups.split()
+
+    def get_etree_prototype(self):
+        result = VehiclePartPrototypeInfo.get_etree_prototype(self)
+        add_value_to_node(result, self.strCriticalMeshGroups, lambda x: " ".join(x.value))
+        return result
 
 
 class Boss04StationPrototypeInfo(ComplexPhysicObjPrototypeInfo):
@@ -1941,13 +2661,13 @@ class Boss04StationPrototypeInfo(ComplexPhysicObjPrototypeInfo):
 class Boss02PrototypeInfo(ComplexPhysicObjPrototypeInfo):
     def __init__(self, server):
         ComplexPhysicObjPrototypeInfo.__init__(self, server)
-        self.stateInfos = []
-        self.speed = 1.0
+        self.stateInfos = AnnotatedValue([], "States", group_type=GroupType.SECONDARY, saving_type=SavingType.SPECIFIC)
+        self.speed = AnnotatedValue(1.0, "Speed", group_type=GroupType.SECONDARY)
         self.containerPrototypeId = -1
         self.relPosForContainerPickUp = {}
         self.relRotForContainerPickUp = {}
         self.relPosForContainerPutDown = {}
-        self.containerPrototypeName = ""
+        self.containerPrototypeName = AnnotatedValue("", "ContainerPrototype", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = ComplexPhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -1957,17 +2677,30 @@ class Boss02PrototypeInfo(ComplexPhysicObjPrototypeInfo):
             for state_node in states_node.iterchildren(tag="State"):
                 state = self.StateInfo()
                 state.LoadFromXML(xmlFile, state_node)
+                self.stateInfos.value.append(state)
             speed = read_from_xml_node(xmlNode, "Speed")
             if speed is not None:
-                self.speed = float(speed)
-            self.containerPrototypeName = read_from_xml_node(xmlNode, "ContainerPrototype")
+                self.speed.value = float(speed)
+            self.containerPrototypeName.value = read_from_xml_node(xmlNode, "ContainerPrototype")
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
         ComplexPhysicObjPrototypeInfo.PostLoad(self, prototype_manager)
-        for state_info in self.stateInfos:
+        for state_info in self.stateInfos.value:
             state_info.PostLoad(prototype_manager)
-        self.containerPrototypeId = prototype_manager.GetPrototypeId(self.containerPrototypeName)
+        self.containerPrototypeId = prototype_manager.GetPrototypeId(self.containerPrototypeName.value)
+
+    def get_etree_prototype(self):
+        result = ComplexPhysicObjPrototypeInfo.get_etree_prototype(self)
+
+        def get_states(stateInfos):
+            states_element = etree.Element("States")
+            for state in stateInfos:
+                states_element.append(self.StateInfo.get_etree_prototype(state))
+            return states_element
+        add_value_to_node_as_child(result, self.stateInfos, lambda x: get_states(x.value))
+
+        return result
 
     class StateInfo(object):
         def __init__(self):
@@ -1978,6 +2711,7 @@ class Boss02PrototypeInfo(ComplexPhysicObjPrototypeInfo):
         def LoadFromXML(self, xmlFile, xmlNode):
             self.loadPrototypeNames = read_from_xml_node(xmlNode, "LoadPrototypes").split()
             position = read_from_xml_node(xmlNode, "RelPos")
+            position = position.split()
             self.position = {"x": position[0],
                              "y": position[1],
                              "z": position[2]}
@@ -1985,6 +2719,12 @@ class Boss02PrototypeInfo(ComplexPhysicObjPrototypeInfo):
         def PostLoad(self, prototype_manager):
             for prot_name in self.loadPrototypeNames:
                 self.loadPrototypeIds.append(prototype_manager.GetPrototypeId(prot_name))
+
+        def get_etree_prototype(self):
+            state_element = etree.Element("State")
+            state_element.set("LoadPrototypes", " ".join(map(str, self.loadPrototypeNames)))
+            state_element.set("RelPos", vector_to_string(self.position))
+            return state_element
 
 
 class AnimatedComplexPhysicObjPrototypeInfo(ComplexPhysicObjPrototypeInfo):
@@ -1995,142 +2735,182 @@ class AnimatedComplexPhysicObjPrototypeInfo(ComplexPhysicObjPrototypeInfo):
 class Boss03PrototypeInfo(ComplexPhysicObjPrototypeInfo):
     def __init__(self, server):
         AnimatedComplexPhysicObjPrototypeInfo.__init__(self, server)
+        self.dronePrototypeNames = AnnotatedValue([], "DronePrototypes", group_type=GroupType.PRIMARY,
+                                                  saving_type=SavingType.SPECIFIC)
         self.dronePrototypeIds = []
-        self.maxDrones = 1
+        self.maxDrones = AnnotatedValue(1, "MaxDrones", group_type=GroupType.PRIMARY)
+        self.maxHealth = AnnotatedValue(1.0, "MaxHealth", group_type=GroupType.PRIMARY)
         self.droneRelPosition = deepcopy(ZERO_VECTOR)
         self.droneRelRotation = deepcopy(IDENTITY_QUATERNION)
-        self.maxHorizAngularVelocity = 0.0
-        self.horizAngularAcceleration = 0.0
-        self.maxVertAngularVelocity = 0.0
-        self.vertAngularAcceleration = 0.0
-        self.maxLinearVelocity = 0.0
-        self.linearAcceleration = 0.0
-        self.pathTrackTiltAngle = 0.0
-        self.maxHealth = 1.0
-        self.maxShootingTime = 1.0
-        self.defaultHover = 10.0
-        self.hoverForPlacingDrones = 10.0
-        self.dronePrototypeNames = []
+        self.maxHorizAngularVelocity = AnnotatedValue(0.0, "MaxHorizAngularVelocity", group_type=GroupType.SECONDARY)
+        self.horizAngularAcceleration = AnnotatedValue(0.0, "HorizAngularAcceleration", group_type=GroupType.SECONDARY)
+        self.maxVertAngularVelocity = AnnotatedValue(0.0, "MaxVertAngularVelocity", group_type=GroupType.SECONDARY)
+        self.vertAngularAcceleration = AnnotatedValue(0.0, "VertAngularAcceleration", group_type=GroupType.SECONDARY)
+        self.maxLinearVelocity = AnnotatedValue(0.0, "MaxLinearVelocity", group_type=GroupType.SECONDARY)
+        self.linearAcceleration = AnnotatedValue(0.0, "LinearAcceleration", group_type=GroupType.SECONDARY)
+        self.pathTrackTiltAngle = AnnotatedValue(0.0, "PathTrackTiltAngle", group_type=GroupType.SECONDARY,
+                                                 saving_type=SavingType.SPECIFIC)
+        self.maxShootingTime = AnnotatedValue(1.0, "MaxShootingTime", group_type=GroupType.PRIMARY)
+        self.defaultHover = AnnotatedValue(10.0, "DefaultHover", group_type=GroupType.SECONDARY)
+        self.hoverForPlacingDrones = AnnotatedValue(10.0, "HoverForPlacingDrones", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = ComplexPhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.dronePrototypeNames = read_from_xml_node(xmlNode, "DronePrototypes").split()
-            maxDrones = read_from_xml_node(xmlNode, "MaxDrones")
+            self.dronePrototypeNames.value = read_from_xml_node(xmlNode, "DronePrototypes").split()
+            # experimental do_not_warn
+            maxDrones = read_from_xml_node(xmlNode, "MaxDrones", do_not_warn=True)
             if maxDrones is not None:
-                self.maxDrones = int(maxDrones)
+                self.maxDrones.value = int(maxDrones)
 
-            maxHealth = read_from_xml_node(xmlNode, "MaxHealth")
+            # experimental do_not_warn
+            maxHealth = read_from_xml_node(xmlNode, "MaxHealth", do_not_warn=True)
             if maxHealth is not None:
-                self.maxHealth = float(maxHealth)
+                self.maxHealth.value = float(maxHealth)
 
-            maxHorizAngularVelocity = read_from_xml_node(xmlNode, "MaxHorizAngularVelocity")
+            # experimental do_not_warn
+            maxHorizAngularVelocity = read_from_xml_node(xmlNode, "MaxHorizAngularVelocity", do_not_warn=True)
             if maxHorizAngularVelocity is not None:
-                self.maxHorizAngularVelocity = float(maxHorizAngularVelocity)
+                self.maxHorizAngularVelocity.value = float(maxHorizAngularVelocity)
 
-            horizAngularAcceleration = read_from_xml_node(xmlNode, "HorizAngularAcceleration")
+            # experimental do_not_warn
+            horizAngularAcceleration = read_from_xml_node(xmlNode, "HorizAngularAcceleration", do_not_warn=True)
             if horizAngularAcceleration is not None:
-                self.horizAngularAcceleration = float(horizAngularAcceleration)
+                self.horizAngularAcceleration.value = float(horizAngularAcceleration)
 
-            vertAngularAcceleration = read_from_xml_node(xmlNode, "VertAngularAcceleration")
+            # experimental do_not_warn
+            maxVertAngularVelocity = read_from_xml_node(xmlNode, "MaxVertAngularVelocity", do_not_warn=True)
+            if maxVertAngularVelocity is not None:
+                self.maxVertAngularVelocity.value = float(maxVertAngularVelocity)
+
+            # experimental do_not_warn
+            vertAngularAcceleration = read_from_xml_node(xmlNode, "VertAngularAcceleration", do_not_warn=True)
             if vertAngularAcceleration is not None:
-                self.vertAngularAcceleration = float(vertAngularAcceleration)
+                self.vertAngularAcceleration.value = float(vertAngularAcceleration)
 
-            maxLinearVelocity = read_from_xml_node(xmlNode, "MaxLinearVelocity")
+            # experimental do_not_warn
+            maxLinearVelocity = read_from_xml_node(xmlNode, "MaxLinearVelocity", do_not_warn=True)
             if maxLinearVelocity is not None:
-                self.maxLinearVelocity = float(maxLinearVelocity)
+                self.maxLinearVelocity.value = float(maxLinearVelocity)
 
-            linearAcceleration = read_from_xml_node(xmlNode, "LinearAcceleration")
+            # experimental do_not_warn
+            linearAcceleration = read_from_xml_node(xmlNode, "LinearAcceleration", do_not_warn=True)
             if linearAcceleration is not None:
-                self.linearAcceleration = float(linearAcceleration)
+                self.linearAcceleration.value = float(linearAcceleration)
 
             pathTrackTiltAngle = read_from_xml_node(xmlNode, "PathTrackTiltAngle")
             if pathTrackTiltAngle is not None:
-                self.pathTrackTiltAngle = float(pathTrackTiltAngle) * pi / 180  # 0.017453292
+                self.pathTrackTiltAngle.value = float(pathTrackTiltAngle) * pi / 180  # 0.017453292
 
             maxShootingTime = read_from_xml_node(xmlNode, "MaxShootingTime")
             if maxShootingTime is not None:
-                self.maxShootingTime = float(maxShootingTime)
+                self.maxShootingTime.value = float(maxShootingTime)
 
             defaultHover = read_from_xml_node(xmlNode, "DefaultHover")
             if defaultHover is not None:
-                self.defaultHover = float(defaultHover)
+                self.defaultHover.value = float(defaultHover)
 
             hoverForPlacingDrones = read_from_xml_node(xmlNode, "HoverForPlacingDrones")
             if hoverForPlacingDrones is not None:
-                self.hoverForPlacingDrones = float(hoverForPlacingDrones)
+                self.hoverForPlacingDrones.value = float(hoverForPlacingDrones)
 
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
         ComplexPhysicObjPrototypeInfo.PostLoad(self, prototype_manager)
-        for prot_name in self.dronePrototypeNames:
+        for prot_name in self.dronePrototypeNames.value:
             dronePrototypeId = prototype_manager.GetPrototypeId(prot_name)
             if dronePrototypeId == -1:
                 logger.error("Invalid drone prototype/prototype ID for Boss03")
             self.dronePrototypeIds.append(dronePrototypeId)
 
+    def get_etree_prototype(self):
+        result = ComplexPhysicObjPrototypeInfo.get_etree_prototype(self)
+        add_value_to_node(result, self.dronePrototypeNames, lambda x: " ".join(x.value))
+        add_value_to_node(result, self.pathTrackTiltAngle, lambda x: str(x.value / pi * 180))
+        return result
+
 
 class Boss04PrototypeInfo(ComplexPhysicObjPrototypeInfo):
     def __init__(self, server):
         ComplexPhysicObjPrototypeInfo.__init__(self, server)
+        self.stationPrototypeName = AnnotatedValue("", "StationPrototype", group_type=GroupType.PRIMARY)
+        self.dronePrototypeName = AnnotatedValue("", "DronePrototype", group_type=GroupType.PRIMARY)
+        defaultTime = {"x": 10.0, "y": 20.0}
+        self.timeBetweenDrones = AnnotatedValue(defaultTime, "TimeBetweenDrones", group_type=GroupType.PRIMARY,
+                                                saving_type=SavingType.SPECIFIC)
         self.stationPrototypeId = -1
         self.dronePrototypeId = -1
-        self.timeBetweenDrones = {"x": 10.0, "y": 20.0}
-        self.maxDrones = 0
-        self.stationToPartBindings = []
+        self.maxDrones = AnnotatedValue(0, "MaxDrones", group_type=GroupType.PRIMARY)
+        self.stationToPartBindings = AnnotatedValue([], "StationToPartBindings", group_type=GroupType.SECONDARY,
+                                                    saving_type=SavingType.SPECIFIC)
         self.droneSpawningLpIds = []
-        self.stationPrototypeName = ""
-        self.dronePrototypeName = ""
-        self.droneSpawningLpNames = []
+        self.droneSpawningLpNames = AnnotatedValue([], "DroneSpawningLps", group_type=GroupType.SECONDARY,
+                                                   saving_type=SavingType.SPECIFIC)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = ComplexPhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.stationPrototypeName = read_from_xml_node(xmlNode, "StationPrototype")
-            self.dronePrototypeName = read_from_xml_node(xmlNode, "DronePrototype")
-            self.timeBetweenDrones = read_from_xml_node(xmlNode, "TimeBetweenDrones").split()
+            self.stationPrototypeName.value = read_from_xml_node(xmlNode, "StationPrototype")
+            self.dronePrototypeName.value = read_from_xml_node(xmlNode, "DronePrototype")
+            self.timeBetweenDrones.value = parse_str_to_vector(read_from_xml_node(xmlNode, "TimeBetweenDrones"), size=2)
             maxDrones = read_from_xml_node(xmlNode, "MaxDrones")
             if maxDrones is not None:
                 maxDrones = int(maxDrones)
                 if maxDrones > 0:
-                    self.maxDrones = maxDrones
-            self.droneSpawningLpNames = read_from_xml_node(xmlNode, "DroneSpawningLps").split()
+                    self.maxDrones.value = maxDrones
+            self.droneSpawningLpNames.value = read_from_xml_node(xmlNode, "DroneSpawningLps").split()
             stationToPartBindings = child_from_xml_node(xmlNode, "StationToPartBindings")
             check_mono_xml_node(stationToPartBindings, "Station")
             for station_node in stationToPartBindings.iterchildren(tag="Station"):
                 station = {"id": read_from_xml_node(station_node, "id"),
                            "parts": read_from_xml_node(station_node, "Parts").split()}
-                self.stationToPartBindings.append(station)
+                self.stationToPartBindings.value.append(station)
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
         ComplexPhysicObjPrototypeInfo.PostLoad(self, prototype_manager)
-        self.stationPrototypeId = prototype_manager.GetPrototypeId(self.stationPrototypeName)
-        self.dronePrototypeId = prototype_manager.GetPrototypeId(self.dronePrototypeName)
+        self.stationPrototypeId = prototype_manager.GetPrototypeId(self.stationPrototypeName.value)
+        self.dronePrototypeId = prototype_manager.GetPrototypeId(self.dronePrototypeName.value)
+
+    def get_etree_prototype(self):
+        result = ComplexPhysicObjPrototypeInfo.get_etree_prototype(self)
+
+        def prepare_station_parts(stationToPartBindings):
+            stationToPartBindingsElement = etree.Element(stationToPartBindings.name)
+            for part in stationToPartBindings.value:
+                partElement = etree.Element("Station")
+                partElement.set("id", part["id"])
+                partElement.set("Parts", " ".join(part["parts"]))
+                stationToPartBindingsElement.append(partElement)
+            return stationToPartBindingsElement
+        add_value_to_node(result, self.timeBetweenDrones, lambda x: vector_short_to_string(x.value))
+        add_value_to_node(result, self.droneSpawningLpNames, lambda x: " ".join(x.value))
+        add_value_to_node_as_child(result, self.stationToPartBindings, lambda x: prepare_station_parts(x))
+        return result
 
 
 class BlastWavePrototypeInfo(SimplePhysicObjPrototypeInfo):
     def __init__(self, server):
         SimplePhysicObjPrototypeInfo.__init__(self, server)
-        self.waveForceIntensity = 0.0
-        self.waveDamageIntensity = 0.0
-        self.effectName = ""
+        self.waveForceIntensity = AnnotatedValue(0.0, "WaveForceIntensity", group_type=GroupType.PRIMARY)
+        self.waveDamageIntensity = AnnotatedValue(0.0, "WaveDamageIntensity", group_type=GroupType.PRIMARY)
+        self.effectName = AnnotatedValue("", "Effect", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             self.SetGeomType("SPHERE")
-        waveForceIntensity = read_from_xml_node(xmlNode, "WaveForceIntensity")
-        if waveForceIntensity is not None:
-            self.waveForceIntensity = float(waveForceIntensity)
+            waveForceIntensity = read_from_xml_node(xmlNode, "WaveForceIntensity")
+            if waveForceIntensity is not None:
+                self.waveForceIntensity.value = float(waveForceIntensity)
 
-        waveDamageIntensity = read_from_xml_node(xmlNode, "WaveDamageIntensity")
-        if waveDamageIntensity is not None:
-            self.waveDamageIntensity = float(waveDamageIntensity)
+            waveDamageIntensity = read_from_xml_node(xmlNode, "WaveDamageIntensity")
+            if waveDamageIntensity is not None:
+                self.waveDamageIntensity.value = float(waveDamageIntensity)
 
-        self.effectName = read_from_xml_node(xmlNode, "Effect")
-        return STATUS_SUCCESS
+            self.effectName.value = safe_check_and_set(self.effectName.default_value, xmlNode, "Effect")
+            return STATUS_SUCCESS
 
     def InternalCopyFrom(self, prot_to_copy_from):
         self.parent = prot_to_copy_from
@@ -2139,18 +2919,48 @@ class BlastWavePrototypeInfo(SimplePhysicObjPrototypeInfo):
 class BulletLauncherPrototypeInfo(GunPrototypeInfo):
     def __init__(self, server):
         GunPrototypeInfo.__init__(self, server)
-        self.groupingAngle = 0.0
-        self.numBulletsInShot = 1
-        self.blastWavePrototypeName = ""
-        self.tracerRange = 1
-        self.tracerEffectName = ""
-        self.damageType = 0
+        self.groupingAngle = AnnotatedValue(0.0, "GroupingAngle", group_type=GroupType.SECONDARY,
+                                            saving_type=SavingType.SPECIFIC)
+        self.numBulletsInShot = AnnotatedValue(1, "NumBulletsInShot", group_type=GroupType.SECONDARY)
+        self.blastWavePrototypeName = AnnotatedValue("", "BlastWavePrototype", group_type=GroupType.PRIMARY)
+        self.tracerRange = AnnotatedValue(1, "TracerRange", group_type=GroupType.SECONDARY)
+        self.tracerEffectName = AnnotatedValue("", "TracerEffect", group_type=GroupType.SECONDARY)
+        # damageType save and load implemented in parrent
+        self.damageType = AnnotatedValue(0, "DamageType", group_type=GroupType.PRIMARY,
+                                         saving_type=SavingType.SPECIFIC)
+
+    def LoadFromXML(self, xmlFile, xmlNode):
+        result = GunPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        if result == STATUS_SUCCESS:
+            # groupingAngle implemented partially. Check ai::BulletLauncherPrototypeInfo::LoadFromXML
+            groupingAngle = read_from_xml_node(xmlNode, self.groupingAngle.name, do_not_warn=True)
+            if groupingAngle is not None:
+                self.groupingAngle.value = float(groupingAngle)
+                self.groupingAngle.value = (self.groupingAngle.value * 0.017453292) * 0.5
+
+            numBulletsInShot = read_from_xml_node(xmlNode, self.numBulletsInShot.name, do_not_warn=True)
+            if numBulletsInShot is not None:
+                self.numBulletsInShot.value = int(numBulletsInShot)
+
+            tracerRange = read_from_xml_node(xmlNode, self.tracerRange.name, do_not_warn=True)
+            if tracerRange is not None:
+                self.tracerRange.value = int(tracerRange)
+
+            self.blastWavePrototypeName.value = read_from_xml_node(xmlNode, self.blastWavePrototypeName.name, True)
+            self.tracerEffectName.value = read_from_xml_node(xmlNode, self.tracerEffectName.name, True)
+            return STATUS_SUCCESS
+
+    def get_etree_prototype(self):
+        result = GunPrototypeInfo.get_etree_prototype(self)
+        add_value_to_node(result, self.groupingAngle, lambda x: str((x.value / 0.5) / 0.017453292))
+        return result
 
 
 class CompoundVehiclePartPrototypeInfo(VehiclePartPrototypeInfo):
     def __init__(self, server):
         VehiclePartPrototypeInfo.__init__(self, server)
-        self.partInfo = {}
+        self.partInfo = AnnotatedValue({}, "PartInfo", group_type=GroupType.PRIMARY,
+                                       saving_type=SavingType.SPECIFIC)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = VehiclePartPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -2164,12 +2974,22 @@ class CompoundVehiclePartPrototypeInfo(VehiclePartPrototypeInfo):
                     part_id = safe_check_and_set(new_part.prototypeId, part_node, "id")
                     new_part.prototypeName = safe_check_and_set(new_part.prototypeName, part_node, "Prototype")
                     new_part.index = i
-                    self.partInfo[part_id] = new_part
+                    self.partInfo.value[part_id] = new_part
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
-        for tpart in self.partInfo.values():
+        for tpart in self.partInfo.value.values():
             tpart.prototypeId = prototype_manager.GetPrototypeId(tpart.prototypeName)
+
+    def get_etree_prototype(self):
+        result = VehiclePartPrototypeInfo.get_etree_prototype(self)
+        if should_be_saved(self.partInfo):
+            for key in self.partInfo.value:
+                partElement = etree.Element("Part")
+                partElement.set("id", key)
+                partElement.set("Prototype", self.partInfo.value[key].prototypeName)
+                result.append(partElement)
+        return result
 
     class TPartInfo(object):
         def __init__(self):
@@ -2186,68 +3006,81 @@ class CompoundGunPrototypeInfo(CompoundVehiclePartPrototypeInfo):
 class RocketLauncherPrototypeInfo(GunPrototypeInfo):
     def __init__(self, server):
         GunPrototypeInfo.__init__(self, server)
-        self.withAngleLimit = True
-        self.damageType = 1
-        self.withShellsPoolLimit = True
+        self.withAngleLimit = AnnotatedValue(True, "WithAngleLimit", group_type=GroupType.PRIMARY)
+        # damageType save and load implemented in parrent
+        self.damageType = AnnotatedValue(1, "DamageType", group_type=GroupType.PRIMARY,
+                                         saving_type=SavingType.SPECIFIC)
+        self.withShellsPoolLimit = AnnotatedValue(True, "WithShellsPoolLimit", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = GunPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.withAngleLimit = parse_str_to_bool(read_from_xml_node(xmlNode, "WithAngleLimit", do_not_warn=True))
+            self.withAngleLimit.value = parse_str_to_bool(self.withAngleLimit.default_value,
+                                                          read_from_xml_node(xmlNode,
+                                                                             self.withAngleLimit.name,
+                                                                             do_not_warn=True))
             return STATUS_SUCCESS
 
 
 class RocketVolleyLauncherPrototypeInfo(RocketLauncherPrototypeInfo):
     def __init__(self, server):
         RocketLauncherPrototypeInfo.__init__(self, server)
-        self.actionDist = 0.0
-        # self.withShellsPoolLimit = True
+        self.actionDist = AnnotatedValue(0.0, "ActionDist", group_type=GroupType.PRIMARY)
+        self.withShellsPoolLimit = AnnotatedValue(True, "WithShellsPoolLimit", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = GunPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            actionDist = read_from_xml_node(xmlNode, "ActionDist")
+            actionDist = read_from_xml_node(xmlNode, self.actionDist.name)
             if actionDist is not None:
-                self.actionDist = float(actionDist)
+                self.actionDist.value = float(actionDist)
             return STATUS_SUCCESS
 
 
 class ThunderboltLauncherPrototypeInfo(GunPrototypeInfo):
     def __init__(self, server):
         GunPrototypeInfo.__init__(self, server)
-        self.damageType = 2
-        self.withShellsPoolLimit = True
+        # damageType save and load implemented in parrent
+        self.damageType = AnnotatedValue(2, "DamageType", group_type=GroupType.PRIMARY,
+                                         saving_type=SavingType.SPECIFIC)
+        self.withShellsPoolLimit = AnnotatedValue(True, "WithShellsPoolLimit", group_type=GroupType.PRIMARY)
+        self.actionDist = AnnotatedValue(0.0, "ActionDist", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = GunPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            actionDist = read_from_xml_node(xmlNode, "ActionDist")
+            actionDist = read_from_xml_node(xmlNode, self.actionDist.name)
             if actionDist is not None:
-                self.actionDist = float(actionDist)
+                self.actionDist.value = float(actionDist)
             return STATUS_SUCCESS
 
 
 class PlasmaBunchLauncherPrototypeInfo(GunPrototypeInfo):
     def __init__(self, server):
         GunPrototypeInfo.__init__(self, server)
+        # never used
         self.bunchPrototypeName = ""
-        self.damageType = 2
-        self.withShellsPoolLimit = True
+        # damageType save and load implemented in parrent
+        self.damageType = AnnotatedValue(2, "DamageType", group_type=GroupType.PRIMARY,
+                                         saving_type=SavingType.SPECIFIC)
+        self.withShellsPoolLimit = AnnotatedValue(True, "WithShellsPoolLimit", group_type=GroupType.PRIMARY)
 
 
 class MortarPrototypeInfo(GunPrototypeInfo):
     def __init__(self, server):
         GunPrototypeInfo.__init__(self, server)
-        self.damageType = 1
-        self.withShellsPoolLimit = True
-        self.initialVelocity = 50.0
+        # damageType save and load implemented in parrent
+        self.damageType = AnnotatedValue(1, "DamageType", group_type=GroupType.PRIMARY,
+                                         saving_type=SavingType.SPECIFIC)
+        self.withShellsPoolLimit = AnnotatedValue(True, "WithShellsPoolLimit", group_type=GroupType.PRIMARY)
+        self.initialVelocity = AnnotatedValue(50.0, "InitialVelocity", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = GunPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            initialVelocity = read_from_xml_node(xmlNode, "InitialVelocity")
+            initialVelocity = read_from_xml_node(xmlNode, self.initialVelocity.name)
             if initialVelocity is not None:
-                self.initialVelocity = float(initialVelocity)
+                self.initialVelocity.value = float(initialVelocity)
             return STATUS_SUCCESS
 
 
@@ -2264,25 +3097,27 @@ class LocationPusherPrototypeInfo(GunPrototypeInfo):
 class MinePusherPrototypeInfo(GunPrototypeInfo):
     def __init__(self, server):
         GunPrototypeInfo.__init__(self, server)
-        self.damageType = 1
+        # damageType save and load implemented in parrent
+        self.damageType = AnnotatedValue(1, "DamageType", group_type=GroupType.PRIMARY,
+                                         saving_type=SavingType.SPECIFIC)
 
 
 class TurboAccelerationPusherPrototypeInfo(GunPrototypeInfo):
     def __init__(self, server):
         GunPrototypeInfo.__init__(self, server)
-        self.accelerationValue = 1.0
-        self.accelerationTime = 0.0
+        self.accelerationValue = AnnotatedValue(1.0, "AccelerationValue", group_type=GroupType.PRIMARY)
+        self.accelerationTime = AnnotatedValue(0.0, "AccelerationTime", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = GunPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            accelerationValue = read_from_xml_node(xmlNode, "AccelerationValue")
+            accelerationValue = read_from_xml_node(xmlNode, self.accelerationValue.name)
             if accelerationValue is not None:
-                self.accelerationValue = float(accelerationValue)
+                self.accelerationValue.value = float(accelerationValue)
 
-            accelerationTime = read_from_xml_node(xmlNode, "AccelerationTime")
+            accelerationTime = read_from_xml_node(xmlNode, self.accelerationTime.name)
             if accelerationTime is not None:
-                self.accelerationTime = float(accelerationTime)
+                self.accelerationTime.value = float(accelerationTime)
             return STATUS_SUCCESS
 
 
@@ -2294,71 +3129,81 @@ class ShellPrototypeInfo(SimplePhysicObjPrototypeInfo):
 class RocketPrototypeInfo(ShellPrototypeInfo):
     def __init__(self, server):
         ShellPrototypeInfo.__init__(self, server)
-        self.velocity = 1.0
-        self.acceleration = 1.0
-        self.minTurningRadius = 1.0
-        self.flyTime = 1.0
+        self.velocity = AnnotatedValue(1.0, "Velocity", group_type=GroupType.PRIMARY)
+        self.acceleration = AnnotatedValue(1.0, "Acceleration", group_type=GroupType.PRIMARY)
+        self.minTurningRadius = AnnotatedValue(1.0, "MinTurningRadius", group_type=GroupType.PRIMARY)
+        self.flyTime = AnnotatedValue(1.0, "FlyTime", group_type=GroupType.PRIMARY)
         self.blastWavePrototypeId = -1
-        self.blastWavePrototypeName = ""
+        self.blastWavePrototypeName = AnnotatedValue("", "BlastWavePrototype", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = ShellPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        self.SetGeomType("BOX")
         if result == STATUS_SUCCESS:
-            velocity = read_from_xml_node(xmlNode, "Velocity")
+            velocity = read_from_xml_node(xmlNode, self.velocity.name)
             if velocity is not None:
-                self.velocity = float(velocity)
+                self.velocity.value = float(velocity)
 
-            acceleration = read_from_xml_node(xmlNode, "Acceleration")
+            acceleration = read_from_xml_node(xmlNode, self.acceleration.name)
             if acceleration is not None:
-                self.acceleration = float(acceleration)
+                self.acceleration.value = float(acceleration)
 
-            minTurningRadius = read_from_xml_node(xmlNode, "MinTurningRadius")
+            minTurningRadius = read_from_xml_node(xmlNode, self.minTurningRadius.name)
             if minTurningRadius is not None:
-                self.minTurningRadius = float(minTurningRadius)
+                self.minTurningRadius.value = float(minTurningRadius)
 
-            flyTime = read_from_xml_node(xmlNode, "FlyTime")
+            flyTime = read_from_xml_node(xmlNode, self.flyTime.name)
             if flyTime is not None:
-                self.flyTime = float(flyTime)
+                self.flyTime.value = float(flyTime)
 
-            self.blastWavePrototypeName = safe_check_and_set(self.blastWavePrototypeName, xmlNode, "BlastWavePrototype")
+            self.blastWavePrototypeName.value = safe_check_and_set(self.blastWavePrototypeName.default_value,
+                                                                   xmlNode,
+                                                                   self.blastWavePrototypeName.name)
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
-        if self.blastWavePrototypeName:
-            self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName)
+        if self.blastWavePrototypeName.value:
+            self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName.value)
             if self.blastWavePrototypeId == -1:
-                logger.error(f"Unknown blast wave prototype name: '{self.blastWavePrototypeName}' "
-                             f"for rocket prototype: '{self.prototypeName}'")
+                logger.error(f"Unknown blast wave prototype name: '{self.blastWavePrototypeName.value}' "
+                             f"for rocket prototype: '{self.prototypeName.value}'")
 
 
 class PlasmaBunchPrototypeInfo(ShellPrototypeInfo):
     def __init__(self, server):
         ShellPrototypeInfo.__init__(self, server)
-        self.velocity = 1.0
-        self.acceleration = 1.0
-        self.flyTime = 1.0
-        self.blastWavePrototypeName = ""
+        self.velocity = AnnotatedValue(1.0, "Velocity", group_type=GroupType.PRIMARY)
+        self.acceleration = AnnotatedValue(1.0, "Acceleration", group_type=GroupType.PRIMARY)
+        self.flyTime = AnnotatedValue(1.0, "FlyTime", group_type=GroupType.PRIMARY)
+        self.blastWavePrototypeName = AnnotatedValue("", "BlastWavePrototype", group_type=GroupType.PRIMARY)
         self.blastWavePrototypeId = -1
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = ShellPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            velocity = read_from_xml_node(xmlNode, "Velocity")
+            velocity = read_from_xml_node(xmlNode, self.velocity.name)
             if velocity is not None:
-                self.velocity = float(velocity)
+                self.velocity.value = float(velocity)
 
-            acceleration = read_from_xml_node(xmlNode, "Acceleration")
+            acceleration = read_from_xml_node(xmlNode, self.acceleration.name)
             if acceleration is not None:
-                self.acceleration = float(acceleration)
+                self.acceleration.value = float(acceleration)
 
-            flyTime = read_from_xml_node(xmlNode, "FlyTime")
+            flyTime = read_from_xml_node(xmlNode, self.flyTime.name)
             if flyTime is not None:
-                self.flyTime = float(flyTime)
-            self.blastWavePrototypeName = safe_check_and_set(self.blastWavePrototypeName, xmlNode, "BlastWavePrototype")
+                self.flyTime.value = float(flyTime)
+
+            self.blastWavePrototypeName.value = safe_check_and_set(self.blastWavePrototypeName.default_value,
+                                                                   xmlNode,
+                                                                   self.blastWavePrototypeName.name)
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
-        self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName)
+        if self.blastWavePrototypeName.value:
+            self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName.value)
+            if self.blastWavePrototypeId == -1:
+                logger.error(f"Unknown blast wave prototype name: '{self.blastWavePrototypeName.value}' "
+                             f"for plasma prototype: '{self.prototypeName.value}'")
 
 
 class MortarShellPrototypeInfo(ShellPrototypeInfo):
@@ -2366,73 +3211,78 @@ class MortarShellPrototypeInfo(ShellPrototypeInfo):
         ShellPrototypeInfo.__init__(self, server)
         self.velocity = 1.0
         self.acceleration = 1.0
-        self.flyTime = 1.0
+        self.flyTime = AnnotatedValue(1.0, "FlyTime", group_type=GroupType.PRIMARY)
+        self.blastWavePrototypeName = AnnotatedValue("", "BlastWavePrototype", group_type=GroupType.PRIMARY)
         self.blastWavePrototypeId = -1
-        self.blastWavePrototypeName = ""
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = ShellPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            flyTime = read_from_xml_node(xmlNode, "FlyTime")
+            flyTime = read_from_xml_node(xmlNode, self.flyTime.name)
             if flyTime is not None:
-                self.flyTime = float(flyTime)
-            self.blastWavePrototypeName = safe_check_and_set(self.blastWavePrototypeName, xmlNode, "BlastWavePrototype")
+                self.flyTime.value = float(flyTime)
+
+            self.blastWavePrototypeName.value = safe_check_and_set(self.blastWavePrototypeName.default_value,
+                                                                   xmlNode,
+                                                                   self.blastWavePrototypeName.name)
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
-        self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName)
-        if self.blastWavePrototypeId == -1 and self.blastWavePrototypeName:
-            logger.error(f"Unknown blast wave prototype name: {self.prototypeName}")
+        if self.blastWavePrototypeName.value:
+            self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName.value)
+            if self.blastWavePrototypeId == -1:
+                logger.error(f"Unknown blast wave prototype name: '{self.blastWavePrototypeName.value}' "
+                             f"for Mortar prototype: '{self.prototypeName.value}'")
 
 
 class MinePrototypeInfo(RocketPrototypeInfo):
     def __init__(self, server):
         RocketPrototypeInfo.__init__(self, server)
-        self.TTL = 100.0
-        self.timeForActivation = 0.0
+        self.TTL = AnnotatedValue(100.0, "TTL", group_type=GroupType.SECONDARY)
+        self.timeForActivation = AnnotatedValue(0.0, "TimeForActivation", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = RocketPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            TTL = read_from_xml_node(xmlNode, "TTL")
+            TTL = read_from_xml_node(xmlNode, self.TTL.name)
             if TTL is not None:
-                self.TTL = float(TTL)
+                self.TTL.value = float(TTL)
 
-            timeForActivation = read_from_xml_node(xmlNode, "TimeForActivation")
+            timeForActivation = read_from_xml_node(xmlNode, self.timeForActivation.name)
             if timeForActivation is not None:
-                self.timeForActivation = float(timeForActivation)
+                self.timeForActivation.value = float(timeForActivation)
             return STATUS_SUCCESS
 
 
 class ThunderboltPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.flyTime = 1.0
-        self.damage = 0.0
-        self.averageSegmentLength = 0.1
-        self.effectName = ""
+        self.flyTime = AnnotatedValue(1.0, "FlyTime", group_type=GroupType.SECONDARY)
+        self.damage = AnnotatedValue(0.0, "Damage", group_type=GroupType.SECONDARY)
+        self.averageSegmentLength = AnnotatedValue(0.1, "AverageSegmentLength", group_type=GroupType.SECONDARY)
+        self.effectName = AnnotatedValue("", "Effect", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            flyTime = read_from_xml_node(xmlNode, "FlyTime")
+            flyTime = read_from_xml_node(xmlNode, self.flyTime.name)
             if flyTime is not None:
-                self.flyTime = float(flyTime)
+                self.flyTime.value = float(flyTime)
 
-            damage = read_from_xml_node(xmlNode, "Damage", do_not_warn=True)
+            damage = read_from_xml_node(xmlNode, self.damage.name, do_not_warn=True)
             if damage is not None:
-                self.damage = float(damage)
+                self.damage.value = float(damage)
 
-            averageSegmentLength = read_from_xml_node(xmlNode, "AverageSegmentLength")
+            averageSegmentLength = read_from_xml_node(xmlNode, self.averageSegmentLength.name)
             if averageSegmentLength is not None:
-                self.averageSegmentLength = float(averageSegmentLength)
+                self.averageSegmentLength.value = float(averageSegmentLength)
 
-            self.effectName = read_from_xml_node(xmlNode, "Effect")
+            self.effectName.value = read_from_xml_node(xmlNode, self.effectName.name)
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
-        if self.averageSegmentLength < 0.01:
-            self.averageSegmentLength = 0.01
+        if self.averageSegmentLength.value < 0.01:
+            self.averageSegmentLength.value = 0.01
 
 
 class BulletPrototypeInfo(ShellPrototypeInfo):
@@ -2449,22 +3299,22 @@ class BulletPrototypeInfo(ShellPrototypeInfo):
 class TemporaryLocationPrototypeInfo(LocationPrototypeInfo):
     def __init__(self, server):
         LocationPrototypeInfo.__init__(self, server)
-        self.TTL = 0.0
-        self.timeForActivation = 0.0
-        self.effectName = ""
+        self.TTL = AnnotatedValue(0.0, "TTL", group_type=GroupType.SECONDARY)
+        self.timeForActivation = AnnotatedValue(0.0, "ActivateTime", group_type=GroupType.SECONDARY)
+        self.effectName = AnnotatedValue(False, "Effect", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = LocationPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            TTL = read_from_xml_node(xmlNode, "TTL")
+            TTL = read_from_xml_node(xmlNode, self.TTL.name)
             if TTL is not None:
-                self.TTL = float(TTL)
+                self.TTL.value = float(TTL)
 
-            timeForActivation = read_from_xml_node(xmlNode, "ActivateTime")
+            timeForActivation = read_from_xml_node(xmlNode, self.timeForActivation.name)
             if timeForActivation is not None:
-                self.timeForActivation = float(timeForActivation)
+                self.timeForActivation.value = float(timeForActivation)
 
-            self.effectName = read_from_xml_node(xmlNode, "Effect")
+            self.effectName.value = read_from_xml_node(xmlNode, self.effectName.name)
             return STATUS_SUCCESS
 
 
@@ -2486,59 +3336,79 @@ class EngineOilLocationPrototypeInfo(TemporaryLocationPrototypeInfo):
 class SubmarinePrototypeInfo(DummyObjectPrototypeInfo):
     def __init__(self, server):
         DummyObjectPrototypeInfo.__init__(self, server)
-        self.maxLinearVelocity = 0.0
-        self.linearAcceleration = 0.0
-        self.platformOpenFps = 2
-        self.vehicleMaxSpeed = 72.0
+        self.maxLinearVelocity = AnnotatedValue(0.0 * 0.27777779, "MaxLinearVelocity",
+                                                group_type=GroupType.PRIMARY,
+                                                saving_type=SavingType.SPECIFIC)
+        self.linearAcceleration = AnnotatedValue(0.0, "LinearAcceleration", group_type=GroupType.SECONDARY)
+        self.platformOpenFps = AnnotatedValue(2, "PlatformOpenFps", group_type=GroupType.SECONDARY)
+        self.vehicleMaxSpeed = AnnotatedValue(72.0 * 0.27777779, "VehicleMaxSpeed",
+                                              group_type=GroupType.PRIMARY,
+                                              saving_type=SavingType.SPECIFIC)
         self.vehicleRelativePosition = deepcopy(ZERO_VECTOR)
-        self.isUpdating = True
+        self.isUpdating = AnnotatedValue(True, "IsUpdating", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
-        result = ShellPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        result = DummyObjectPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            maxLinearVelocity = read_from_xml_node(xmlNode, "MaxLinearVelocity")
+            maxLinearVelocity = read_from_xml_node(xmlNode, self.maxLinearVelocity.name)
             if maxLinearVelocity is not None:
-                self.maxLinearVelocity = float(maxLinearVelocity)
+                self.maxLinearVelocity.value = float(maxLinearVelocity)
+                self.maxLinearVelocity.value = self.maxLinearVelocity.value * 0.27777779  # ~5/18 or 50/180
 
-            linearAcceleration = read_from_xml_node(xmlNode, "LinearAcceleration")
+            linearAcceleration = read_from_xml_node(xmlNode, self.linearAcceleration.name)
             if linearAcceleration is not None:
-                self.linearAcceleration = float(linearAcceleration)
+                self.linearAcceleration.value = float(linearAcceleration)
 
-            platformOpenFps = read_from_xml_node(xmlNode, "PlatformOpenFps")
+            platformOpenFps = read_from_xml_node(xmlNode, self.platformOpenFps.name)
             if platformOpenFps is not None:
-                self.platformOpenFps = int(platformOpenFps)
+                self.platformOpenFps.value = int(platformOpenFps)
 
-            vehicleMaxSpeed = read_from_xml_node(xmlNode, "VehicleMaxSpeed", do_not_warn=True)
+            vehicleMaxSpeed = read_from_xml_node(xmlNode, self.vehicleMaxSpeed.name, do_not_warn=True)
             if vehicleMaxSpeed is not None:
-                self.vehicleMaxSpeed = float(vehicleMaxSpeed)
-
-            self.maxLinearVelocity *= 0.27777779  # ~5/18 or 50/180
-            self.vehicleMaxSpeed *= 0.27777779
+                self.vehicleMaxSpeed.value = float(vehicleMaxSpeed)
+                self.vehicleMaxSpeed.value = self.vehicleMaxSpeed.value * 0.27777779  # ~5/18 or 50/180
             return STATUS_SUCCESS
+
+    def get_etree_prototype(self):
+        result = DummyObjectPrototypeInfo.get_etree_prototype(self)
+        add_value_to_node(result, self.maxLinearVelocity, lambda x: str(x.value / 0.27777779))
+        add_value_to_node(result, self.vehicleMaxSpeed, lambda x: str(x.value / 0.27777779))
+        return result
 
 
 class BuildingPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.buildingType = 5
+        self.buildingType = AnnotatedValue(5, "BuildingType", group_type=GroupType.SECONDARY,
+                                           saving_type=SavingType.REQUIRED_SPECIFIC)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            buildingTypeName = safe_check_and_set("", xmlNode, "BuildingType")
-            self.buildingType = Building.GetBuildingTypeByName(buildingTypeName)
+            buildingTypeName = safe_check_and_set("", xmlNode, self.buildingType.name)
+            self.buildingType.value = Building.GetBuildingTypeByName(buildingTypeName)
             return STATUS_SUCCESS
+
+    def get_etree_prototype(self):
+        result = PrototypeInfo.get_etree_prototype(self)
+        if self.buildingType.value is not None:
+            add_value_to_node(result, self.buildingType, lambda x: Building.GetBuildingTypeNameByNum(x.value))
+        return result
 
 
 class BarPrototypeInfo(BuildingPrototypeInfo):
     def __init__(self, server):
         BuildingPrototypeInfo.__init__(self, server)
-        self.withBarman = True
+        self.withBarman = AnnotatedValue(True, "WithBarman", group_type=GroupType.SECONDARY,
+                                         saving_type=SavingType.REQUIRED)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = BuildingPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.withBarman = read_from_xml_node(xmlNode, "WithBarman")
+            self.withBarman.value = parse_str_to_bool(self.withBarman.default_value,
+                                                      read_from_xml_node(xmlNode,
+                                                                         self.withBarman.name,
+                                                                         do_not_warn=True))
             return STATUS_SUCCESS
 
     def InternalCopyFrom(self, prot_to_copy_from):
@@ -2553,93 +3423,99 @@ class WorkshopPrototypeInfo(BuildingPrototypeInfo):
 class WarePrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.maxDurability = 1.0
-        self.maxItems = 1
-        self.priceDispersion = 0.0
-        self.modelName = ""
-        self.minCount = 0
-        self.maxCount = 50
+        self.maxItems = AnnotatedValue(1, "MaxItems", group_type=GroupType.SECONDARY)
+        self.maxDurability = AnnotatedValue(1.0, "Durability", group_type=GroupType.SECONDARY)
+        self.priceDispersion = AnnotatedValue(0.0, "PriceDispersion", group_type=GroupType.SECONDARY)
+        self.modelName = AnnotatedValue("", "ModelFile", group_type=GroupType.SECONDARY)
+        self.minCount = AnnotatedValue(0, "MinCount", group_type=GroupType.SECONDARY)
+        self.maxCount = AnnotatedValue(50, "MaxCount", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
-        result = BuildingPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
+        result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            maxItems = read_from_xml_node(xmlNode, "MaxItems", do_not_warn=True)
+            maxItems = read_from_xml_node(xmlNode, self.maxItems.name, do_not_warn=True)
             if maxItems is not None:
                 maxItems = int(maxItems)
                 if maxItems >= 0:
-                    self.maxItems = maxItems
+                    self.maxItems.value = maxItems
 
-            maxDurability = read_from_xml_node(xmlNode, "Durability", do_not_warn=True)
+            maxDurability = read_from_xml_node(xmlNode, self.maxDurability.name, do_not_warn=True)
             if maxDurability is not None:
-                self.maxDurability = float(maxDurability)
+                self.maxDurability.value = float(maxDurability)
 
-            priceDispersion = read_from_xml_node(xmlNode, "PriceDispersion", do_not_warn=True)
+            priceDispersion = read_from_xml_node(xmlNode, self.priceDispersion.name, do_not_warn=True)
             if priceDispersion is not None:
-                self.priceDispersion = float(priceDispersion)
+                self.priceDispersion.value = float(priceDispersion)
 
-            if self.priceDispersion < 0.0 or self.priceDispersion > 100.0:
-                logger(f"Price dispersion can't be outside 0.0-100.0 range: see {self.prototypeName}")
+            if self.priceDispersion.value < 0.0 or self.priceDispersion.value > 100.0:
+                logger(f"Price dispersion can't be outside 0.0-100.0 range: see {self.prototypeName.value}")
 
-            self.modelName = safe_check_and_set(self.modelName, xmlNode, "ModelName")
+            self.modelName.value = safe_check_and_set(self.modelName.default_value, xmlNode, self.modelName.name)
 
-            minCount = read_from_xml_node(xmlNode, "MinCount", do_not_warn=True)
+            minCount = read_from_xml_node(xmlNode, self.minCount.name, do_not_warn=True)
             if minCount is not None:
-                self.minCount = int(minCount)
+                self.minCount.value = int(minCount)
 
-            maxCount = read_from_xml_node(xmlNode, "MaxCount", do_not_warn=True)
+            maxCount = read_from_xml_node(xmlNode, self.maxCount.name, do_not_warn=True)
             if maxCount is not None:
-                self.maxCount = int(maxCount)
+                self.maxCount.value = int(maxCount)
             return STATUS_SUCCESS
 
 
 class QuestItemPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.modelName = ""
+        self.modelName = AnnotatedValue("", "ModelFile", group_type=GroupType.VISUAL)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.modelName = safe_check_and_set(self.modelName, xmlNode, "ModelName")
+            self.modelName.value = safe_check_and_set(self.modelName.value, xmlNode, "ModelFile")
             return STATUS_SUCCESS
 
 
 class BreakableObjectPrototypeInfo(SimplePhysicObjPrototypeInfo):
     def __init__(self, server):
         SimplePhysicObjPrototypeInfo.__init__(self, server)
-        self.destroyable = 0
-        self.effectType = "WOOD"
-        self.destroyEffectType = "BLOW"
-        self.brokenModelName = "brokenTest"
-        self.destroyedModelName = "brokenTest"
-        self.breakEffect = ""
+        self.destroyable = AnnotatedValue(0, "Destroyable", group_type=GroupType.SECONDARY,
+                                          saving_type=SavingType.REQUIRED)
+        self.criticalHitEnergy = AnnotatedValue(None, "CriticalHitEnergy", group_type=GroupType.SECONDARY)
+        self.effectType = AnnotatedValue("WOOD", "EffectType", group_type=GroupType.SECONDARY)
+        self.destroyEffectType = AnnotatedValue("BLOW", "DestroyEffectType", group_type=GroupType.SECONDARY)
+        self.brokenModelName = AnnotatedValue("brokenTest", "BrokenModel", group_type=GroupType.SECONDARY)
+        self.destroyedModelName = AnnotatedValue("brokenTest", "DestroyedModel", group_type=GroupType.SECONDARY)
+        self.breakEffect = AnnotatedValue("", "BreakEffect", group_type=GroupType.SECONDARY)
         self.blastWavePrototypeId = -1
-        self.blastWavePrototypeName = ""
-        self.isUpdating = False
+        self.blastWavePrototypeName = AnnotatedValue("", "BlastWave", group_type=GroupType.SECONDARY)
+        self.isUpdating = AnnotatedValue(False, "IsUpdating", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             self.SetGeomType("BOX")
-            destroyable = read_from_xml_node(xmlNode, "Destroyable")
+            destroyable = read_from_xml_node(xmlNode, self.destroyable.name)
             if destroyable is not None:
-                self.destroyable = int(destroyable)
+                self.destroyable.value = int(destroyable)
 
-            criticalHitEnergy = read_from_xml_node(xmlNode, "CriticalHitEnergy")
+            criticalHitEnergy = read_from_xml_node(xmlNode, self.criticalHitEnergy.name)
             if criticalHitEnergy is not None:
-                self.criticalHitEnergy = float(criticalHitEnergy)
+                self.criticalHitEnergy.value = float(criticalHitEnergy)
 
-            self.effectType = safe_check_and_set(self.effectType, xmlNode, "EffectType")
-            self.destroyEffectType = safe_check_and_set(self.destroyEffectType, xmlNode, "DestroyEffectType")
-            self.brokenModelName = safe_check_and_set(self.brokenModelName, xmlNode, "BrokenModel")
-            self.destroyedModelName = safe_check_and_set(self.destroyedModelName, xmlNode, "DestroyedModel")
-            self.breakEffect = safe_check_and_set(self.breakEffect, xmlNode, "BreakEffect")
-            self.blastWavePrototypeName = safe_check_and_set(self.blastWavePrototypeName, xmlNode, "BlastWave")
+            self.effectType.value = safe_check_and_set(self.effectType.default_value, xmlNode, self.effectType.name)
+            self.destroyEffectType.value = safe_check_and_set(self.destroyEffectType.default_value, xmlNode,
+                                                              self.destroyEffectType.name)
+            self.brokenModelName.value = safe_check_and_set(self.brokenModelName.default_value, xmlNode,
+                                                            self.brokenModelName.name)
+            self.destroyedModelName.value = safe_check_and_set(self.destroyedModelName.default_value, xmlNode,
+                                                               self.destroyedModelName.name)
+            self.breakEffect.value = safe_check_and_set(self.breakEffect.default_value, xmlNode, self.breakEffect.name)
+            self.blastWavePrototypeName.value = safe_check_and_set(self.blastWavePrototypeName.default_value, xmlNode,
+                                                                   self.blastWavePrototypeName.name)
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
-        if self.blastWavePrototypeName:
-            self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName)
+        if self.blastWavePrototypeName.value:
+            self.blastWavePrototypeId = prototype_manager.GetPrototypeId(self.blastWavePrototypeName.value)
 
 
 class ParticleSplinterPrototypeInfo(DummyObjectPrototypeInfo):
@@ -2655,25 +3531,25 @@ class VehicleSplinterPrototypeInfo(DummyObjectPrototypeInfo):
 class PhysicUnitPrototypeInfo(SimplePhysicObjPrototypeInfo):
     def __init__(self, server):
         SimplePhysicObjPrototypeInfo.__init__(self, server)
-        self.walkSpeed = 1.0
-        self.turnSpeed = 1.0
-        self.maxStandTime = 1.0
+        self.walkSpeed = AnnotatedValue(1.0, "WalkSpeed", group_type=GroupType.SECONDARY)
+        self.turnSpeed = AnnotatedValue(1.0, "MaxStandTime", group_type=GroupType.SECONDARY)
+        self.maxStandTime = AnnotatedValue(1.0, "TurnSpeed", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             self.SetGeomType("FROM_MODEL")
-            walkSpeed = read_from_xml_node(xmlNode, "WalkSpeed", do_not_warn=True)
+            walkSpeed = read_from_xml_node(xmlNode, self.walkSpeed.name, do_not_warn=True)
             if walkSpeed is not None:
-                self.walkSpeed = float(walkSpeed)
+                self.walkSpeed.value = float(walkSpeed)
 
-            maxStandTime = read_from_xml_node(xmlNode, "MaxStandTime", do_not_warn=True)
+            maxStandTime = read_from_xml_node(xmlNode, self.maxStandTime.name, do_not_warn=True)
             if maxStandTime is not None:
-                self.maxStandTime = float(maxStandTime)
+                self.maxStandTime.value = float(maxStandTime)
 
-            turnSpeed = read_from_xml_node(xmlNode, "TurnSpeed", do_not_warn=True)
+            turnSpeed = read_from_xml_node(xmlNode, self.turnSpeed.name, do_not_warn=True)
             if turnSpeed is not None:
-                self.turnSpeed = float(turnSpeed)
+                self.turnSpeed.value = float(turnSpeed)
             return STATUS_SUCCESS
 
 
@@ -2695,22 +3571,22 @@ class GeomObjPrototypeInfo(PhysicObjPrototypeInfo):
 class RopeObjPrototypeInfo(SimplePhysicObjPrototypeInfo):
     def __init__(self, server):
         SimplePhysicObjPrototypeInfo.__init__(self, server)
-        self.brokenModel = ""
-        self.isUpdating = False
+        self.brokenModel = AnnotatedValue("", "BrokenModel", group_type=GroupType.PRIMARY)
+        self.isUpdating = AnnotatedValue(False, "IsUpdating", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             self.SetGeomType("BOX")
-            self.brokenModel = read_from_xml_node(xmlNode, "BrokenModel")
+            self.brokenModel.value = read_from_xml_node(xmlNode, "BrokenModel")
             return STATUS_SUCCESS
 
 
 class ObjPrefabPrototypeInfo(SimplePhysicObjPrototypeInfo):
     def __init__(self, server):
         SimplePhysicObjPrototypeInfo.__init__(self, server)
-        self.objInfos = []
-        self.isUpdating = False
+        self.objInfos = AnnotatedValue([], "ObjInfos", group_type=GroupType.SECONDARY, saving_type=SavingType.SPECIFIC)
+        self.isUpdating = AnnotatedValue(False, "IsUpdating", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -2732,16 +3608,27 @@ class ObjPrefabPrototypeInfo(SimplePhysicObjPrototypeInfo):
                         if scale is not None:
                             obj_info.scale = float(scale)
                     else:
-                        logger.error(f"Invalid object info in {SimplePhysicObjPrototypeInfo.prototypeName}")
-                    self.objInfos.append(obj_info)
+                        logger.error(f"Invalid object info in {SimplePhysicObjPrototypeInfo.prototypeName.value}")
+                    self.objInfos.value.append(obj_info)
             else:
-                logger.error(f"Missing ObjectsInfo in {SimplePhysicObjPrototypeInfo.prototypeName}")
+                logger.error(f"Missing ObjectsInfo in {SimplePhysicObjPrototypeInfo.prototypeName.value}")
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
-        if self.objInfos:
-            for objInfo in self.objInfos:
+        if self.objInfos.value:
+            for objInfo in self.objInfos.value:
                 objInfo.prototypeId = prototype_manager.GetPrototypeId(objInfo.prototypeName)
+
+    def get_etree_prototype(self):
+        result = SimplePhysicObjPrototypeInfo.get_etree_prototype(self)
+
+        def prepare_objInfosElement(objInfos):
+            objInfosElement = etree.Element(objInfos.name)
+            for objInfoItem in objInfos.value:
+                objInfosElement.append(self.ObjInfo.get_etree_prototype(objInfoItem))
+            return objInfosElement
+        add_value_to_node_as_child(result, self.objInfos, lambda x: prepare_objInfosElement(x))
+        return result
 
     class ObjInfo(object):
         def __init__(self):
@@ -2756,19 +3643,28 @@ class ObjPrefabPrototypeInfo(SimplePhysicObjPrototypeInfo):
             self.prototypeId = prototype_manager.GetPrototypeId(self.prototypeName)
             logger.warning("This is not a fucking useless function after all!")
 
+        def get_etree_prototype(self):
+            objInfo_node = etree.Element("ObjInfo")
+            objInfo_node.set("Prototype", str(self.prototypeName))
+            objInfo_node.set("RelPos", vector_to_string(self.relPos))
+            objInfo_node.set("RelRot", vector_long_to_string(self.relRot))
+            objInfo_node.set("ModelName", str(self.modelName))
+            objInfo_node.set("Scale", str(self.scale))
+            return objInfo_node
+
 
 class BarricadePrototypeInfo(ObjPrefabPrototypeInfo):
     def __init__(self, server):
         ObjPrefabPrototypeInfo.__init__(self, server)
-        self.objInfos = []
-        self.probability = 1.0
+        self.objInfos = AnnotatedValue([], "ObjInfos", group_type=GroupType.PRIMARY, saving_type=SavingType.SPECIFIC)
+        self.probability = AnnotatedValue(1.0, "Probability", group_type=GroupType.PRIMARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = ObjPrefabPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             probability = read_from_xml_node(xmlNode, "Probability")
             if probability is not None:
-                self.probability = float(probability)
+                self.probability.value = float(probability)
             return STATUS_SUCCESS
 
     def InternalCopyFrom(self, prot_to_copy_from):
@@ -2778,13 +3674,14 @@ class BarricadePrototypeInfo(ObjPrefabPrototypeInfo):
 class NpcPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.isUpdating = False
+        self.isUpdating = AnnotatedValue(False, "IsUpdating", group_type=GroupType.SECONDARY)
 
 
 class RepositoryObjectsGeneratorPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.objectDescriptions = []
+        self.objectDescriptions = AnnotatedValue([], "Objects", group_type=GroupType.SECONDARY,
+                                                 saving_type=SavingType.SPECIFIC)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
@@ -2792,23 +3689,35 @@ class RepositoryObjectsGeneratorPrototypeInfo(PrototypeInfo):
             objects = child_from_xml_node(xmlNode, "Object")
             for object_node in objects:
                 newDescription = self.ObjectDescription()
-                newDescription.prototypeName = safe_check_and_set("", xmlNode, "PrototypeName")
+                newDescription.prototypeName = safe_check_and_set("", object_node, "PrototypeName")
                 newDescription.prototypeId = -1
-                self.objectDescriptions.append(newDescription)
+                self.objectDescriptions.value.append(newDescription)
             return STATUS_SUCCESS
 
     def PostLoad(self, prototype_manager):
-        if self.objectDescriptions:
-            for obj_description in self.objectDescriptions:
+        if self.objectDescriptions.value:
+            for obj_description in self.objectDescriptions.value:
                 obj_description.prototypeId = prototype_manager.GetPrototypeId(obj_description.prototypeName)
                 if obj_description.prototypeId == -1:
-                    logger.error(f"Unknown Object prototype: '{obj_description.prototypeName}' "
-                                 f"for RepositoryObjectsGenerator: '{self.prototypeName}'")
+                    logger.error(f"Unknown Object prototype: '{obj_description.prototypeName.value}' "
+                                 f"for RepositoryObjectsGenerator: '{self.prototypeName.value}'")
+
+    def get_etree_prototype(self):
+        result = PrototypeInfo.get_etree_prototype(self)
+        if should_be_saved(self.objectDescriptions):
+            for objectItem in self.objectDescriptions.value:
+                result.append(self.ObjectDescription.get_etree_prototype(objectItem))
+        return result
 
     class ObjectDescription(object):
         def __init__(self):
             self.prototypeName = ""
             self.prototypeId = -1
+
+        def get_etree_prototype(self):
+            object_node = etree.Element("Object")
+            object_node.set("PrototypeName", str(self.prototypeName))
+            return object_node
 
 
 # dict mapping Object Classes to PrototypeInfo Classes

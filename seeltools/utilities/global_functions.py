@@ -32,7 +32,15 @@ def GetActionByName(actionName):
     if action_id is not None:
         return action_id
     else:
-        return 0
+        return -1
+
+
+def GetActionByNum(num):
+    actionName = list(ACTION_TYPE.keys())[list(ACTION_TYPE.values()).index(num)]
+    if actionName is not None:
+        return actionName
+    else:
+        return ""
 
 
 class AIParam(object):

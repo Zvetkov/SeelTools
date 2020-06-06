@@ -1,12 +1,13 @@
 from math import sqrt, cos, pi
 from copy import deepcopy
+from lxml import etree
 
 from seeltools.utilities.log import logger
 
 from seeltools.utilities.id_manager import theIdManager
 
 from seeltools.utilities.parse import safe_check_and_set, parse_str_to_bool, read_from_xml_node, child_from_xml_node
-from seeltools.utilities.constants import (STATUS_SUCCESS, ZERO_VECTOR, INITIAL_OBJECTS_DIRECTION, BUILDING_TYPE,
+from seeltools.utilities.constants import (STATUS_SUCCESS, ZERO_VECTOR, INITIAL_OBJECTS_DIRECTION, BuildingType,
                                            IDENTITY_QUATERNION)
 from seeltools.utilities.global_functions import MassSetBoxTotal
 
@@ -1100,7 +1101,10 @@ class Building(Obj):
         self.npcs = []
 
     def GetBuildingTypeByName(name):
-        return BUILDING_TYPE.get(name)
+        return BuildingType[name].value
+
+    def GetBuildingTypeNameByNum(num):
+        return BuildingType(num).name
 
 
 class Bar(Building):
@@ -1343,8 +1347,8 @@ class Article(object):
                                                            "ExternalPriceCoefficient", "float")
         self.randomPriceCoefficient = safe_check_and_set(self.randomPriceCoefficient, xmlNode,
                                                          "RandomPriceCoefficient", "float")
-        self.sellable = parse_str_to_bool(read_from_xml_node(xmlNode, "Export"))
-        self.buyable = parse_str_to_bool(read_from_xml_node(xmlNode, "Import"))
+        self.sellable = parse_str_to_bool(self.sellable, read_from_xml_node(xmlNode, "Export"))
+        self.buyable = parse_str_to_bool(self.buyable, read_from_xml_node(xmlNode, "Import"))
         amount = safe_check_and_set(self.amount, xmlNode, "Amount", "int")
         if amount >= 0:
             self.amount = amount
@@ -1400,8 +1404,21 @@ class Article(object):
             dispersion_percentage = self.dispersion * 0.01
             self.randomPriceCoefficient = f"Randomized value based on dispersion: {dispersion_percentage}"
         if self.sellable or self.buyable:
-            self.priceDynamic = True
-            self.amountDynamic = True
+            self.priceDynamic = 1
+            self.amountDynamic = 1
+
+    def get_etree_prototype(self):
+        article_node = etree.Element("Article")
+        article_node.set("Prototype", str(self.prototypeName))
+        article_node.set("Amount", str(self.amount))
+        article_node.set("ExternalPriceCoefficient", str(self.externalPriceCoefficient))
+        article_node.set("Import", str(self.buyable))
+        article_node.set("Export", str(self.sellable))
+        article_node.set("PriceDynamic", str(self.priceDynamic))
+        article_node.set("MinCount", str(self.minCount))
+        article_node.set("MaxCount", str(self.maxCount))
+        article_node.set("RegenerationPeriod", str(self.regenerationPeriod))
+        return article_node
 
 
 class Town(Settlement):

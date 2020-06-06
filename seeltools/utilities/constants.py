@@ -1,4 +1,5 @@
 import os
+from enum import Enum
 
 FALLBACK_WORKING_DIRECTORY = "D:/Steam/steamapps/common/Hard Truck Apocalypse 2"
 
@@ -226,14 +227,6 @@ TOLLERANCE = {"RS_ENEMY": 0x1,
               "RS_OWN": 0x4,
               "RS_MAX": 0x5}
 
-BUILDING_TYPE = {"ADMINISTRATION": 0x0,
-                 "BAR": 0x1,
-                 "SHOP": 0x2,
-                 "WORKSHOP": 0x3,
-                 "GARAGE": 0x4,
-                 "NUM_BUILDINGTYPES": 0x5,
-                 "INVALID_BUILDINGTYPE": 0x5}
-
 ITEM_TYPE = {"GADGET": 0x0,
              "VEHICLE_PART_CABIN": 0x1,
              "VEHICLE_PART_BASKET": 0x2,
@@ -313,43 +306,47 @@ NPC_TYPE = {"NPC_BARMAN": 0x0,
 TEAM_DEFAULT_FORMATION_PROTOTYPE = "caravanFormation"
 INITIAL_OBJECTS_DIRECTION = [0.0, 0.0, 1.0]
 
-ACTION_TYPE = {"AT_STAND1": 0x0,
-               "AT_STAND2": 0x1,
-               "AT_MOVE1": 0x2,
-               "AT_MOVE2": 0x3,
-               "AT_ATTACK1": 0x4,
-               "AT_ATTACK2": 0x5,
-               "AT_PAIN1": 0x6,
-               "AT_PAIN2": 0x7,
-               "AT_DEATH1": 0x8,
-               "AT_DEATH2": 0x9,
-               "AT_BLOCK1": 0xA,
-               "AT_BLOCK2": 0xB,
-               "AT_RESERVED1": 0xC,
-               "AT_RESERVED2": 0xD,
-               "AT_RESERVED3": 0xE,
-               "AT_RESERVED4": 0xF,
-               "AT_SND_SELECT": 0x10,
-               "AT_SND_SELECT2": 0x11,
-               "AT_SND_SELECT3": 0x12,
-               "AT_SND_SELECT4": 0x13,
-               "AT_SND_ATTACK": 0x14,
-               "AT_SND_ATTACK2": 0x15,
-               "AT_SND_ATTACK3": 0x16,
-               "AT_SND_ATTACK4": 0x17,
-               "AT_SND_WALK": 0x18,
-               "AT_SND_WALK2": 0x19,
-               "AT_SND_WALK3": 0x1A,
-               "AT_SND_WALK4": 0x1B,
-               "AT_SND_MOVE1A": 0x1C,
-               "AT_SND_MOVE2A": 0x1D,
-               "AT_SND_UNREACH": 0x1E,
-               "AT_ALL_FRAMES": 0x1F,
-               "AT_NUMTYPES": 0x20}
+ACTION_TYPE = {"STAND1": 0x0,
+               "STAND2": 0x1,
+               "MOVE1": 0x2,
+               "MOVE2": 0x3,
+               "ATTACK1": 0x4,
+               "ATTACK2": 0x5,
+               "PAIN1": 0x6,
+               "PAIN2": 0x7,
+               "DEATH1": 0x8,
+               "DEATH2": 0x9,
+               "BLOCK1": 0xA,
+               "BLOCK2": 0xB,
+               "RESERVED1": 0xC,
+               "RESERVED2": 0xD,
+               "RESERVED3": 0xE,
+               "RESERVED4": 0xF,
+               "SND_SELECT": 0x10,
+               "SND_SELECT2": 0x11,
+               "SND_SELECT3": 0x12,
+               "SND_SELECT4": 0x13,
+               "SND_ATTACK": 0x14,
+               "SND_ATTACK2": 0x15,
+               "SND_ATTACK3": 0x16,
+               "SND_ATTACK4": 0x17,
+               "SND_WALK": 0x18,
+               "SND_WALK2": 0x19,
+               "SND_WALK3": 0x1A,
+               "SND_WALK4": 0x1B,
+               "SND_MOVE1A": 0x1C,
+               "SND_MOVE2A": 0x1D,
+               "SND_UNREACH": 0x1E,
+               "ALL_FRAMES": 0x1F,
+               "NUMTYPES": 0x20}
 
 ZERO_VECTOR = {"x": 0.0,
                "y": 0.0,
                "z": 0.0}
+
+ONE_VECTOR = {"x": 1.0,
+              "y": 1.0,
+              "z": 1.0}
 
 INITIAL_OBJECTS_DIRECTION = {"x": 0.0,
                              "y": 0.0,
@@ -368,3 +365,20 @@ DESTROY_EFFECT_NAMES = ["DestroyEffectPiercing",
                         "DestroyEffectBlast",
                         "DestroyEffectEnergy",
                         "DestroyEffectWater"]
+
+
+class VehicleGamStruct(Enum):
+    GROUP_HEALTH_HEADER = b'\x00\x00\x00\x4D\x61\x69\x6E\x00'
+    GROUP_HEALTH_HEADER_URAL_CARGO = b'\xC3\x38\x67\x40\xD1'
+    GROUP_HEALTH_DIV = b'\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00'
+    BREAKABLE_BSTR = b'\x42\x72\x65\x61\x6B\x61\x62\x6C\x65'
+
+
+class BuildingType(Enum):
+    Administration = 0x0,
+    Bar = 0x1
+    Shop = 0x2
+    Workshop = 0x3
+    Garage = 0x4
+    NUM_BUILDINGTYPES = 0x5
+    INVALID_BUILDINGTYPE = 0x5
