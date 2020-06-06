@@ -266,6 +266,9 @@ class MainWindow(QtWidgets.QMainWindow):
         selection_model = self.tree_prot_explorer.selectionModel()
         selection_model.selectionChanged.connect(self.prototype_explorer_item_selected)
 
+        self.editor_windows = []
+        self.tree_prot_explorer.doubleClicked.connect(self.prototype_explorer_item_doubleclicked)
+
         proxy_layout = QtWidgets.QGridLayout()
         proxy_layout.addWidget(self.tree_prot_explorer, 0, 0, 1, 3)
         proxy_layout.addWidget(self.filter_pattern_label, 1, 0)
@@ -337,6 +340,12 @@ class MainWindow(QtWidgets.QMainWindow):
         # else:
         #     self.prototype_name.resize(text_width + 10, 20)
 
+    def prototype_explorer_item_doubleclicked(self, prototypeName):
+        item_name, item_class = self.get_selected_item_name_and_class()
+
+        if item_class is not None:
+            self.load_prot_to_editor(item_name)
+
     def get_selected_item_name_and_class(self):
         indexes = self.tree_prot_explorer.selectedIndexes()
         logger.debug(f"Indexes: {indexes}")
@@ -372,6 +381,15 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.prot_grid.addWidget(attrib_value)
         spacer = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         self.prot_grid.addItem(spacer)
+
+    def load_prot_to_editor(self, prot_name):
+        wid = QtWidgets.QWidget()
+        wid.resize(250, 150)
+        wid.setWindowTitle(f'{prot_name} Editor')
+
+        # ??? this is probably a memory leak, need to remove windows from the list when closed
+        self.editor_windows.append(wid)
+        wid.show()
 
 
 def clear_layout(layout):
