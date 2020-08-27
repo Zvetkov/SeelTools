@@ -7,7 +7,7 @@ from PySide2 import QtCore
 from PySide2 import QtGui
 from PySide2 import QtWidgets
 
-sys.path.append('..')  # temp workaround to allow running application from this entry point instead on __maim__.py
+sys.path.append("..")  # temp workaround to allow running application from this entry point instead on __maim__.py
 
 from seeltools.qtmodern import styles, windows
 from seeltools.server import server_init
@@ -25,8 +25,11 @@ def main():
     app = QtWidgets.QApplication(sys.argv)
     window = MainWindow(app)
     mw = windows.ModernWindow(window)
-    mw.show()
+    
     mw.resize(1024, 720)
+    mw.move(QtWidgets.QDesktopWidget().availableGeometry().center() - mw.rect().center())
+
+    mw.show()
     app.exec_()
 
 
@@ -50,11 +53,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.setupToolBar()
 
-        self.setupDockWindows()
+        self.setupQuickLook()
+
+        self.setupPrototypeEditor()
 
         self.setupStatusBar()
 
-        self.setWindowTitle('{} v{}'.format(APP_NAME, APP_VERSION))
+        self.setWindowTitle("{} v{}".format(APP_NAME, APP_VERSION))
 
     def setupTopMenu(self):
         self.fileMenu = QtWidgets.QMenu("&File", self)
@@ -83,27 +88,27 @@ class MainWindow(QtWidgets.QMainWindow):
         self.menuBar().addMenu(self.aboutMenu)
 
     def createActions(self):
-        self.openGameFolderAction = QtWidgets.QAction(QtGui.QIcon.fromTheme('folder-open', self.fileDirIconLight),
+        self.openGameFolderAction = QtWidgets.QAction(QtGui.QIcon.fromTheme("folder-open", self.fileDirIconLight),
                                                       "&Open Game Folder...", self, shortcut="Ctrl+O",
                                                       statusTip="Open folder where Ex Machina is installed",
                                                       triggered=self.openGameFolder)
 
-        self.saveAction = QtWidgets.QAction(QtGui.QIcon.fromTheme('document-save', self.saveIconLight), "&Save...",
+        self.saveAction = QtWidgets.QAction(QtGui.QIcon.fromTheme("document-save", self.saveIconLight), "&Save...",
                                             self, shortcut=QtGui.QKeySequence.Save,
                                             statusTip="Save all changes", triggered=self.save)
 
         self.quitAction = QtWidgets.QAction("&Quit", self, shortcut="Ctrl+Q", statusTip="Quit the application",
                                             triggered=self.closeApplication)
 
-        self.undoAction = QtWidgets.QAction(QtGui.QIcon.fromTheme('edit-undo', self.undoIconLight), "&Undo", self,
+        self.undoAction = QtWidgets.QAction(QtGui.QIcon.fromTheme("edit-undo", self.undoIconLight), "&Undo", self,
                                             shortcut=QtGui.QKeySequence.Undo, statusTip="Undo the last editing action",
                                             triggered=self.undo)
 
-        self.redoAction = QtWidgets.QAction(QtGui.QIcon.fromTheme('edit-redo', self.redoIconLight), "&Redo", self,
+        self.redoAction = QtWidgets.QAction(QtGui.QIcon.fromTheme("edit-redo", self.redoIconLight), "&Redo", self,
                                             shortcut=QtGui.QKeySequence.Redo, statusTip="Redo the last editing action",
                                             triggered=self.redo)
 
-        self.propertiesAction = QtWidgets.QAction(QtGui.QIcon.fromTheme('application-properties', self.gearIconLight),
+        self.propertiesAction = QtWidgets.QAction(QtGui.QIcon.fromTheme("application-properties", self.gearIconLight),
                                                   "&Properties", self, shortcut="Ctrl+P",
                                                   statusTip="Application properties", triggered=self.properties)
 
@@ -156,8 +161,8 @@ class MainWindow(QtWidgets.QMainWindow):
     def setupStatusBar(self):
         self.statusBar().showMessage("Ready")
 
-    def setupDockWindows(self):
-        self.objectViewDock = QtWidgets.QDockWidget("QuickLook")
+    def setupQuickLook(self):
+        self.objectViewDock = QtWidgets.QDockWidget(get_locale_string("QuickLook"))
         self.objectViewDock.setMinimumSize(205, 210)
         self.objectViewDock.setAllowedAreas(QtCore.Qt.LeftDockWidgetArea | QtCore.Qt.RightDockWidgetArea)
         self.prot_grid = QtWidgets.QVBoxLayout()
@@ -180,19 +185,27 @@ class MainWindow(QtWidgets.QMainWindow):
         self.addDockWidget(QtCore.Qt.RightDockWidgetArea, self.objectViewDock)
         self.viewMenu.addAction(self.objectViewDock.toggleViewAction())
 
+    def setupPrototypeEditor(self):
+        self.prototypeEditorDock = QtWidgets.QDockWidget(get_locale_string("PrototypeEditor"))
+        self.prototypeEditorDock.setMinimumSize(205, 210)
+        self.prototypeEditorDock.setAllowedAreas(QtCore.Qt.LeftDockWidgetArea | QtCore.Qt.RightDockWidgetArea)
+
+        self.addDockWidget(QtCore.Qt.RightDockWidgetArea, self.prototypeEditorDock)
+        self.viewMenu.addAction(self.prototypeEditorDock.toggleViewAction())
+
     def createIcons(self):
         module_path = Path(os.path.abspath(__file__))
-        ui_path = os.path.join(module_path.parent, 'ui')
-        self.fileDirIconLight = QtGui.QIcon(os.path.join(ui_path, 'icons/filedir_white.svg'))
-        self.fileDirIconDark = QtGui.QIcon(os.path.join(ui_path, 'icons/filedir.svg'))
-        self.gearIconLight = QtGui.QIcon(os.path.join(ui_path, 'icons/gear_white.svg'))
-        self.gearIconDark = QtGui.QIcon(os.path.join(ui_path, 'icons/gear.svg'))
-        self.undoIconLight = QtGui.QIcon(os.path.join(ui_path, 'icons/undo_white.svg'))
-        self.undoIconDark = QtGui.QIcon(os.path.join(ui_path, 'icons/undo.svg'))
-        self.redoIconLight = QtGui.QIcon(os.path.join(ui_path, 'icons/redo_white.svg'))
-        self.redoIconDark = QtGui.QIcon(os.path.join(ui_path, 'icons/redo.svg'))
-        self.saveIconLight = QtGui.QIcon(os.path.join(ui_path, 'icons/save_white.svg'))
-        self.saveIconDark = QtGui.QIcon(os.path.join(ui_path, 'icons/save.svg'))
+        ui_path = os.path.join(module_path.parent, "ui")
+        self.fileDirIconLight = QtGui.QIcon(os.path.join(ui_path, "icons/filedir_white.svg"))
+        self.fileDirIconDark = QtGui.QIcon(os.path.join(ui_path, "icons/filedir.svg"))
+        self.gearIconLight = QtGui.QIcon(os.path.join(ui_path, "icons/gear_white.svg"))
+        self.gearIconDark = QtGui.QIcon(os.path.join(ui_path, "icons/gear.svg"))
+        self.undoIconLight = QtGui.QIcon(os.path.join(ui_path, "icons/undo_white.svg"))
+        self.undoIconDark = QtGui.QIcon(os.path.join(ui_path, "icons/undo.svg"))
+        self.redoIconLight = QtGui.QIcon(os.path.join(ui_path, "icons/redo_white.svg"))
+        self.redoIconDark = QtGui.QIcon(os.path.join(ui_path, "icons/redo.svg"))
+        self.saveIconLight = QtGui.QIcon(os.path.join(ui_path, "icons/save_white.svg"))
+        self.saveIconDark = QtGui.QIcon(os.path.join(ui_path, "icons/save.svg"))
 
     def toggleDarkMode(self):
         if self.useDarkMode.isChecked():
@@ -266,7 +279,7 @@ class MainWindow(QtWidgets.QMainWindow):
         selection_model = self.tree_prot_explorer.selectionModel()
         selection_model.selectionChanged.connect(self.prototype_explorer_item_selected)
 
-        self.editor_windows = []
+        self.prot_editor = PrototypeEditor()
         self.tree_prot_explorer.doubleClicked.connect(self.prototype_explorer_item_doubleclicked)
 
         proxy_layout = QtWidgets.QGridLayout()
@@ -383,13 +396,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.prot_grid.addItem(spacer)
 
     def load_prot_to_editor(self, prot_name):
-        wid = QtWidgets.QWidget()
-        wid.resize(250, 150)
-        wid.setWindowTitle(f'{prot_name} Editor')
+        self.prot_editor.add_tab(prot_name)
+        # mw = windows.ModernWindow(wid)
+        # self.editor_windows.append(mw)
+        # mw.setWindowTitle(f"{prot_name} Editor")
+        # mw.resize(250, 150)
+        # mw.show()
 
         # ??? this is probably a memory leak, need to remove windows from the list when closed
-        self.editor_windows.append(wid)
-        wid.show()
 
 
 def clear_layout(layout):
@@ -438,7 +452,7 @@ def add_prototype_folder(window, model, folder_name, child_prototypes):
     folder_item.setEditable(False)
     for child in child_prototypes:
         prot_name = child.prototypeName.value
-        if hasattr(child, 'parent'):
+        if hasattr(child, "parent"):
             parent_prot = f"{child.parent.className.value}: {child.parent.prototypeName.value}"
         else:
             parent_prot = ""
@@ -454,6 +468,85 @@ def add_prototype(window, parent_item: QtGui.QStandardItemModel, prot_name, prot
     prototype_parent = QtGui.QStandardItem(parent_name)
     prototype_parent.setEditable(False)
     parent_item.appendRow([prototype_name, prototype_class, prototype_parent])
+
+
+class PrototypeEditor(QtWidgets.QWidget):
+    def __init__(self):
+        QtWidgets.QWidget.__init__(self)
+        self.mw = windows.ModernWindow(self)
+        self.grid_layout = QtWidgets.QVBoxLayout()
+        self.mw.setWindowTitle("Prototype Editor")
+
+        self.setLayout(self.grid_layout)
+        self.tab_widget = QtWidgets.QTabWidget()
+        self.tab_widget.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
+        self.grid_layout.addWidget(self.tab_widget)
+        self.tab_widget.setMovable(True)
+        self.tab_widget.setTabsClosable(True)
+        self.tab_widget.tabCloseRequested.connect(lambda index: self.close_tab(index))
+
+        # prot_editor_layout.addWidget(self.filter_pattern_label, 1, 0)
+        # prot_editor_layout.addWidget(self.filter_pattern_line_edit, 1, 1, 1, 2)
+
+        self.opened_prots = {}
+
+    def show(self):
+        if not self.mw.isVisible():
+            self.mw.show()
+            self.resize(250, 150)
+            self.move(QtWidgets.QDesktopWidget().availableGeometry().center() - self.rect().center())
+        else:
+            logger.debug("Already visible")
+
+    def add_tab(self, prototype_name):
+        logger.info("Adding tab")
+        if prototype_name not in self.opened_prots.keys():
+            self.show()
+            prot_tab_widget = QtWidgets.QWidget()
+            prot_tab_layout = QtWidgets.QGridLayout()
+            prot_tab_widget.setLayout(prot_tab_layout)
+
+            self.opened_prots[prototype_name] = prot_tab_widget
+            self.tab_widget.addTab(prot_tab_widget, prototype_name)
+            self.populate_tab(prototype_name)
+            tab_index = self.tab_widget.indexOf(prot_tab_widget)
+            self.tab_widget.setCurrentIndex(tab_index)
+
+        else:
+            logger.info("Prototype already opened")
+            prot_tab_widget = self.opened_prots[prototype_name]
+            tab_index = self.tab_widget.indexOf(prot_tab_widget)
+            self.tab_widget.setCurrentIndex(tab_index)
+
+    def populate_tab(self, prototype_name):
+        working_widget = self.opened_prots[prototype_name]
+        working_layout = working_widget.layout()
+        server = server_init.theServer
+        prototype_manager = server.thePrototypeManager
+        prot = prototype_manager.InternalGetPrototypeInfo(prototype_name)
+        prot_attribs = vars(prot)
+        for attrib in prot_attribs.values():
+            if isinstance(attrib, AnnotatedValue):
+                attrib_label = QtWidgets.QLabel(get_display_name(prot, attrib))
+                attrib_value = QtWidgets.QLineEdit()
+                attrib_value.setText(str(attrib.value))
+                attrib_value.setFixedHeight(20)
+                if attrib.value == attrib.default_value:
+                    palette = QtGui.QPalette()
+                    palette.setColor(QtGui.QPalette.Text, QtGui.QColor(253, 174, 37))
+                    attrib_value.setPalette(palette)
+                attrib_value.setToolTip(get_description(prot, attrib))
+                attrib_label.setBuddy(attrib_value)
+                attrib_label.setFixedHeight(20)
+                working_layout.addWidget(attrib_label)
+                working_layout.addWidget(attrib_value)
+        spacer = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        working_layout.addItem(spacer)
+
+    def close_tab(self, index):
+        prot_name = self.tab_widget.tabText(index)
+        self.opened_prots.pop(prot_name)
+        self.tab_widget.removeTab(index)
 
 
 class FlowLayout(QtWidgets.QLayout):
