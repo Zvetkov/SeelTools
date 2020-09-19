@@ -13,6 +13,8 @@ class DisplayType(Enum):
     WARES_LIST = 7
 
 
+
+
 class GroupType(Enum):
     INTERNAL = 0  # prototype ids and other internal info that is not useful for direct editing, ex prototype id
     GENERAL = 1

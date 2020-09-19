@@ -11,9 +11,13 @@ sys.path.append("..")  # temp workaround to allow running application from this 
 
 from seeltools.qtmodern import styles, windows
 from seeltools.server import server_init
+
 from seeltools.utilities.log import logger
-from seeltools.utilities.value_classes import AnnotatedValue
+from seeltools.utilities.value_classes import AnnotatedValue, DisplayType
 from seeltools.utilities.game_path import WORKING_DIRECTORY
+from seeltools.utilities.ui_data_sources import DisplayTypeDataSource
+
+from seeltools.gameobjects.prototype_info import thePrototypeInfoClassDict
 
 APP_NAME = "SeelTools"
 APP_VERSION = 0.02
@@ -25,7 +29,7 @@ def main():
     app = QtWidgets.QApplication(sys.argv)
     window = MainWindow(app)
     mw = windows.ModernWindow(window)
-    
+
     mw.resize(1024, 720)
     mw.move(QtGui.QGuiApplication.primaryScreen().availableGeometry().center() - mw.rect().center())
 
@@ -526,9 +530,24 @@ class PrototypeEditor(QtWidgets.QWidget):
         for attrib in prot_attribs.values():
             if isinstance(attrib, AnnotatedValue):
                 attrib_label = QtWidgets.QLabel(get_display_name(prot, attrib))
-                attrib_value = QtWidgets.QLineEdit()
-                attrib_value.setText(str(attrib.value))
-                attrib_value.setFixedHeight(20)
+
+                # display_type_mapping = {DisplayType.CLASS_NAME: QtWidgets.QComboBox,
+                #                         DisplayType.RESOURCE_ID: QtWidgets.QComboBox,
+                #                         DisplayType.SKIN_NUM: QtWidgets.QComboBox,
+                #                         DisplayType.MODIFICATION_INFO: QtWidgets.QLineEdit,
+                #                         DisplayType.VEHICLE_DESCRIPTION: QtWidgets.QLineEdit,
+                #                         DisplayType.AFFIX_LIST: QtWidgets.QLineEdit,
+                #                         DisplayType.WARES_LIST: QtWidgets.QLineEdit}
+
+                # if display_type_mapping[attrib.display_type] == QtWidgets.QComboBox:
+                if attrib.display_type == DisplayType.CLASS_NAME:
+                    attrib_value = QtWidgets.QComboBox()
+                    attrib_value.addItems(DisplayTypeDataSource[attrib.display_type])
+                    attrib_value.setCurrentIndex(attrib_value.findText(attrib.value))
+                else:
+                    attrib_value = QtWidgets.QLineEdit()
+                    attrib_value.setText(str(attrib.value))
+                    attrib_value.setFixedHeight(20)
                 if attrib.value == attrib.default_value:
                     palette = QtGui.QPalette()
                     palette.setColor(QtGui.QPalette.Text, QtGui.QColor(253, 174, 37))
@@ -557,7 +576,6 @@ class PrototypeEditor(QtWidgets.QWidget):
             event.accept()
         else:
             event.ignore()
-        # self.mw.setVisible(False)
 
 
 class FlowLayout(QtWidgets.QLayout):
