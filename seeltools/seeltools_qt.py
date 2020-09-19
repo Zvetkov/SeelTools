@@ -27,7 +27,7 @@ def main():
     mw = windows.ModernWindow(window)
     
     mw.resize(1024, 720)
-    mw.move(QtWidgets.QDesktopWidget().availableGeometry().center() - mw.rect().center())
+    mw.move(QtGui.QGuiApplication.primaryScreen().availableGeometry().center() - mw.rect().center())
 
     mw.show()
     app.exec_()
@@ -397,13 +397,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def load_prot_to_editor(self, prot_name):
         self.prot_editor.add_tab(prot_name)
-        # mw = windows.ModernWindow(wid)
-        # self.editor_windows.append(mw)
-        # mw.setWindowTitle(f"{prot_name} Editor")
-        # mw.resize(250, 150)
-        # mw.show()
-
-        # ??? this is probably a memory leak, need to remove windows from the list when closed
 
 
 def clear_layout(layout):
@@ -476,10 +469,12 @@ class PrototypeEditor(QtWidgets.QWidget):
         self.mw = windows.ModernWindow(self)
         self.grid_layout = QtWidgets.QVBoxLayout()
         self.mw.setWindowTitle("Prototype Editor")
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose, False)
 
         self.setLayout(self.grid_layout)
-        self.tab_widget = QtWidgets.QTabWidget()
+        self.tab_widget = QtWidgets.QTabWidget(self)
         self.tab_widget.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
+        self.tab_widget.setAttribute(QtCore.Qt.WA_DeleteOnClose, False)
         self.grid_layout.addWidget(self.tab_widget)
         self.tab_widget.setMovable(True)
         self.tab_widget.setTabsClosable(True)
@@ -491,17 +486,20 @@ class PrototypeEditor(QtWidgets.QWidget):
         self.opened_prots = {}
 
     def show(self):
-        if not self.mw.isVisible():
+        if not self.isVisible():
             self.mw.show()
+            self.setVisible(True)
+            self.tab_widget.setVisible(True)
             self.resize(250, 150)
-            self.move(QtWidgets.QDesktopWidget().availableGeometry().center() - self.rect().center())
+            self.move(QtGui.QGuiApplication.primaryScreen().availableGeometry().center()
+                      - self.rect().center())
         else:
             logger.debug("Already visible")
 
     def add_tab(self, prototype_name):
         logger.info("Adding tab")
+        self.show()
         if prototype_name not in self.opened_prots.keys():
-            self.show()
             prot_tab_widget = QtWidgets.QWidget()
             prot_tab_layout = QtWidgets.QGridLayout()
             prot_tab_widget.setLayout(prot_tab_layout)
@@ -547,6 +545,19 @@ class PrototypeEditor(QtWidgets.QWidget):
         prot_name = self.tab_widget.tabText(index)
         self.opened_prots.pop(prot_name)
         self.tab_widget.removeTab(index)
+
+    def closeEvent(self, event):
+        close_dialog = QtWidgets.QMessageBox()
+        reply = close_dialog.question(self,
+                                      get_locale_string("close_window_warning_title"),
+                                      get_locale_string("close_window_warning_text"))
+        if reply == QtWidgets.QMessageBox.Yes:
+            for tab_index in reversed(range(self.tab_widget.count())):
+                self.close_tab(tab_index)
+            event.accept()
+        else:
+            event.ignore()
+        # self.mw.setVisible(False)
 
 
 class FlowLayout(QtWidgets.QLayout):
