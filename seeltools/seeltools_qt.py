@@ -529,6 +529,13 @@ class PrototypeEditor(QtWidgets.QWidget):
         prot_attribs = vars(prot)
         for attrib in prot_attribs.values():
             if isinstance(attrib, AnnotatedValue):
+                attrib_grid = QtWidgets.QWidget()
+                attrib_layout = QtWidgets.QGridLayout()
+                attrib_grid.setLayout(attrib_layout)
+
+                # attrib_spacer = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+                # attrib_layout.addItem(attrib_spacer)
+
                 attrib_label = QtWidgets.QLabel(get_display_name(prot, attrib))
 
                 # display_type_mapping = {DisplayType.CLASS_NAME: QtWidgets.QComboBox,
@@ -544,19 +551,43 @@ class PrototypeEditor(QtWidgets.QWidget):
                     attrib_value = QtWidgets.QComboBox()
                     attrib_value.addItems(DisplayTypeDataSource[attrib.display_type])
                     attrib_value.setCurrentIndex(attrib_value.findText(attrib.value))
+                elif attrib.display_type == DisplayType.RESOURCE_ID:
+                    attrib_value = QtWidgets.QComboBox()
+                    attrib_value.addItems(server.theResourceManager.resourceMap.keys())
+                    attrib_value.setCurrentIndex(attrib_value.findText(
+                                                 server.theResourceManager.GetResourceName(prot.resourceId.value)))
+                # TODO: to implement after skin reading from gam files is complete
+                # elif attrib.display_type == DisplayType.SKIN_NUM:
+                #     attrib_value = QtWidgets.QComboBox()
+                #     attrib_value.addItems(server.theResourceManager.resourceMap.keys())
+                #     attrib_value.setCurrentIndex(attrib_value.findText(
+                #                                  server.theResourceManager.GetResourceName(prot.resourceId.value)))
+                elif isinstance(attrib.value, bool):
+                    attrib_value = QtWidgets.QCheckBox()
+                    if attrib.value:
+                        attrib_value.setChecked(True)
+                    if attrib.read_only:
+                        attrib_value.setDisabled(True)
                 else:
                     attrib_value = QtWidgets.QLineEdit()
                     attrib_value.setText(str(attrib.value))
                     attrib_value.setFixedHeight(20)
+
                 if attrib.value == attrib.default_value:
                     palette = QtGui.QPalette()
                     palette.setColor(QtGui.QPalette.Text, QtGui.QColor(253, 174, 37))
                     attrib_value.setPalette(palette)
+
+                attrib_layout.addWidget(attrib_label, 0, 0, QtCore.Qt.AlignRight)
+                attrib_layout.addWidget(attrib_value, 0, 1, QtCore.Qt.AlignLeft)
+
                 attrib_value.setToolTip(get_description(prot, attrib))
                 attrib_label.setBuddy(attrib_value)
                 attrib_label.setFixedHeight(20)
-                working_layout.addWidget(attrib_label)
-                working_layout.addWidget(attrib_value)
+
+                working_layout.addWidget(attrib_grid)
+                # working_layout.addWidget(attrib_label)
+                # working_layout.addWidget(attrib_value)
         spacer = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         working_layout.addItem(spacer)
 

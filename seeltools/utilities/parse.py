@@ -54,6 +54,7 @@ def parse_model_group_health(relative_path: str):
             breakable_string = breakables_raw[current_index:current_index + chunk_size]
 
             if VehicleGamStruct.BREAKABLE_BSTR.value in breakable_string:
+                # TODO: 1251
                 breakable_name = breakable_string[:11].decode('latin-1').replace('\x00', '')
                 breakable_id = int(breakable_string[11:][21:22].hex(), 16)
                 group_health[breakable_name] = {"id": breakable_id,
