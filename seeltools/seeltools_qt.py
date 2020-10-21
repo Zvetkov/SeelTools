@@ -59,7 +59,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.setupQuickLook()
 
-        self.setupPrototypeEditor()
+        # self.setupPrototypeEditor()
 
         self.setupStatusBar()
 
@@ -189,13 +189,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.addDockWidget(QtCore.Qt.RightDockWidgetArea, self.objectViewDock)
         self.viewMenu.addAction(self.objectViewDock.toggleViewAction())
 
-    def setupPrototypeEditor(self):
-        self.prototypeEditorDock = QtWidgets.QDockWidget(get_locale_string("PrototypeEditor"))
-        self.prototypeEditorDock.setMinimumSize(205, 210)
-        self.prototypeEditorDock.setAllowedAreas(QtCore.Qt.LeftDockWidgetArea | QtCore.Qt.RightDockWidgetArea)
+    # def setupPrototypeEditor(self):
+    #     self.prototypeEditorDock = QtWidgets.QDockWidget(get_locale_string("PrototypeEditor"))
+    #     self.prototypeEditorDock.setMinimumSize(205, 210)
+    #     self.prototypeEditorDock.setAllowedAreas(QtCore.Qt.LeftDockWidgetArea | QtCore.Qt.RightDockWidgetArea)
 
-        self.addDockWidget(QtCore.Qt.RightDockWidgetArea, self.prototypeEditorDock)
-        self.viewMenu.addAction(self.prototypeEditorDock.toggleViewAction())
+    #     self.addDockWidget(QtCore.Qt.RightDockWidgetArea, self.prototypeEditorDock)
+    #     self.viewMenu.addAction(self.prototypeEditorDock.toggleViewAction())
 
     def createIcons(self):
         module_path = Path(os.path.abspath(__file__))
@@ -554,8 +554,11 @@ class PrototypeEditor(QtWidgets.QWidget):
                 elif attrib.display_type == DisplayType.RESOURCE_ID:
                     attrib_value = QtWidgets.QComboBox()
                     attrib_value.addItems(server.theResourceManager.resourceMap.keys())
-                    attrib_value.setCurrentIndex(attrib_value.findText(
-                                                 server.theResourceManager.GetResourceName(prot.resourceId.value)))
+                    if prot.resourceId.value != -1:
+                        attrib_value.setCurrentIndex(attrib_value.findText(
+                                                     server.theResourceManager.GetResourceName(prot.resourceId.value)))
+                    else:
+                        attrib_value.setCurrentIndex(attrib_value.findText("[NO RESOURCE]"))
                 # TODO: to implement after skin reading from gam files is complete
                 # elif attrib.display_type == DisplayType.SKIN_NUM:
                 #     attrib_value = QtWidgets.QComboBox()
