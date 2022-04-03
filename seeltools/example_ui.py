@@ -1,7 +1,7 @@
 import sys
-from PySide2.QtCore import QDateTime, Qt, QTimer
-from PySide2.QtGui import QPalette, QColor
-from PySide2.QtWidgets import (QApplication, QCheckBox, QComboBox, QHBoxLayout,
+from PySide6.QtCore import QDateTime, Qt, QTimer
+from PySide6.QtGui import QPalette, QColor
+from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QHBoxLayout,
                                QDial, QDialog, QGridLayout, QGroupBox, QLabel,
                                QLineEdit, QProgressBar, QSlider, QDateTimeEdit,
                                QPushButton, QRadioButton, QScrollBar, QSpinBox,
@@ -13,7 +13,7 @@ def main():
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
-    app.exec_()
+    app.exec()
 
 
 class MainWindow(QDialog):

@@ -1,6 +1,6 @@
 from os.path import join, dirname, abspath
 
-from PySide2.QtGui import QPalette, QColor
+from PySide6.QtGui import QPalette, QColor
 
 _STYLESHEET = join(dirname(abspath(__file__)), 'resources/style.qss')
 """ str: Main stylesheet. """

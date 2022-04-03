@@ -1,7 +1,7 @@
 from os.path import join, dirname, abspath
 
-from PySide2.QtCore import Qt, QMetaObject, Signal, Slot
-from PySide2.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QToolButton,
+from PySide6.QtCore import Qt, QMetaObject, Signal, Slot
+from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QToolButton,
                                QLabel, QSizePolicy)
 
 

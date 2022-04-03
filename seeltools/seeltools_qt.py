@@ -12,9 +12,9 @@ import sys
 
 from pathlib import Path
 
-from PySide2 import QtCore
-from PySide2 import QtGui
-from PySide2 import QtWidgets
+from PySide6 import QtCore
+from PySide6 import QtGui
+from PySide6 import QtWidgets
 
 sys.path.append("..")  # temp workaround to allow running application from this entry point instead on __maim__.py
 
@@ -34,7 +34,7 @@ def main():
     mw.move(QtGui.QGuiApplication.primaryScreen().availableGeometry().center() - mw.rect().center())
 
     mw.show()
-    app.exec_()
+    app.exec()
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -92,34 +92,34 @@ class MainWindow(QtWidgets.QMainWindow):
         self.menuBar().addMenu(self.aboutMenu)
 
     def createActions(self):
-        self.openGameFolderAction = QtWidgets.QAction(QtGui.QIcon.fromTheme("folder-open", self.fileDirIconLight),
+        self.openGameFolderAction = QtGui.QAction(QtGui.QIcon.fromTheme("folder-open", self.fileDirIconLight),
                                                       "&Open Game Folder...", self, shortcut="Ctrl+O",
                                                       statusTip="Open folder where Ex Machina is installed",
                                                       triggered=self.openGameFolder)
 
-        self.saveAction = QtWidgets.QAction(QtGui.QIcon.fromTheme("document-save", self.saveIconLight), "&Save...",
+        self.saveAction = QtGui.QAction(QtGui.QIcon.fromTheme("document-save", self.saveIconLight), "&Save...",
                                             self, shortcut=QtGui.QKeySequence.Save,
                                             statusTip="Save all changes", triggered=self.save)
 
-        self.quitAction = QtWidgets.QAction("&Quit", self, shortcut="Ctrl+Q", statusTip="Quit the application",
+        self.quitAction = QtGui.QAction("&Quit", self, shortcut="Ctrl+Q", statusTip="Quit the application",
                                             triggered=self.closeApplication)
 
-        self.undoAction = QtWidgets.QAction(QtGui.QIcon.fromTheme("edit-undo", self.undoIconLight), "&Undo", self,
+        self.undoAction = QtGui.QAction(QtGui.QIcon.fromTheme("edit-undo", self.undoIconLight), "&Undo", self,
                                             shortcut=QtGui.QKeySequence.Undo, statusTip="Undo the last editing action",
                                             triggered=self.undo)
 
-        self.redoAction = QtWidgets.QAction(QtGui.QIcon.fromTheme("edit-redo", self.redoIconLight), "&Redo", self,
+        self.redoAction = QtGui.QAction(QtGui.QIcon.fromTheme("edit-redo", self.redoIconLight), "&Redo", self,
                                             shortcut=QtGui.QKeySequence.Redo, statusTip="Redo the last editing action",
                                             triggered=self.redo)
 
-        self.propertiesAction = QtWidgets.QAction(QtGui.QIcon.fromTheme("application-properties", self.gearIconLight),
+        self.propertiesAction = QtGui.QAction(QtGui.QIcon.fromTheme("application-properties", self.gearIconLight),
                                                   "&Properties", self, shortcut="Ctrl+P",
                                                   statusTip="Application properties", triggered=self.properties)
 
-        self.aboutAction = QtWidgets.QAction("&About SeelTools", self, statusTip="Show the SeelTools About box",
+        self.aboutAction = QtGui.QAction("&About SeelTools", self, statusTip="Show the SeelTools About box",
                                              triggered=self.about)
 
-        self.aboutQtAction = QtWidgets.QAction("About &Qt", self, statusTip="Show the Qt library's About box",
+        self.aboutQtAction = QtGui.QAction("About &Qt", self, statusTip="Show the Qt library's About box",
                                                triggered=QtWidgets.QApplication.instance().aboutQt)
 
     def openGameFolder(self):
@@ -157,9 +157,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.optionsToolBar = self.addToolBar("Options")
         self.useDarkMode = QtWidgets.QCheckBox("Use &dark mode")
-        self.useDarkMode.toggled.connect(self.toggleDarkMode)
-        self.useDarkMode.setToolTip("Toggle light and dark interface theme")
         self.useDarkMode.setChecked(True)
+        self.useDarkMode.stateChanged.connect(self.toggleDarkMode)
+        self.useDarkMode.setToolTip("Toggle light and dark interface theme")
         self.optionsToolBar.addWidget(self.useDarkMode)
 
     def setupStatusBar(self):
@@ -214,18 +214,18 @@ class MainWindow(QtWidgets.QMainWindow):
     def toggleDarkMode(self):
         if self.useDarkMode.isChecked():
             styles.dark(self.app.instance())
-            QtWidgets.QAction.setIcon(self.openGameFolderAction, self.fileDirIconLight)
-            QtWidgets.QAction.setIcon(self.undoAction, self.undoIconLight)
-            QtWidgets.QAction.setIcon(self.redoAction, self.redoIconLight)
-            QtWidgets.QAction.setIcon(self.propertiesAction, self.gearIconLight)
-            QtWidgets.QAction.setIcon(self.saveAction, self.saveIconLight)
+            QtGui.QAction.setIcon(self.openGameFolderAction, self.fileDirIconLight)
+            QtGui.QAction.setIcon(self.undoAction, self.undoIconLight)
+            QtGui.QAction.setIcon(self.redoAction, self.redoIconLight)
+            QtGui.QAction.setIcon(self.propertiesAction, self.gearIconLight)
+            QtGui.QAction.setIcon(self.saveAction, self.saveIconLight)
         else:
             styles.light(self.app.instance())
-            QtWidgets.QAction.setIcon(self.openGameFolderAction, self.fileDirIconDark)
-            QtWidgets.QAction.setIcon(self.undoAction, self.undoIconDark)
-            QtWidgets.QAction.setIcon(self.redoAction, self.redoIconDark)
-            QtWidgets.QAction.setIcon(self.propertiesAction, self.gearIconDark)
-            QtWidgets.QAction.setIcon(self.saveAction, self.saveIconDark)
+            QtGui.QAction.setIcon(self.openGameFolderAction, self.fileDirIconDark)
+            QtGui.QAction.setIcon(self.undoAction, self.undoIconDark)
+            QtGui.QAction.setIcon(self.redoAction, self.redoIconDark)
+            QtGui.QAction.setIcon(self.propertiesAction, self.gearIconDark)
+            QtGui.QAction.setIcon(self.saveAction, self.saveIconDark)
 
     def setupMainTabWidget(self):
         self.main_tab_widget = QtWidgets.QTabWidget()
@@ -257,9 +257,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # checkbox to choose search input syntax
         self.filter_syntax_combo_box = QtWidgets.QComboBox()
-        self.filter_syntax_combo_box.addItem("Regular expression", QtCore.QRegExp.RegExp)
-        self.filter_syntax_combo_box.addItem("Wildcard", QtCore.QRegExp.Wildcard)
-        self.filter_syntax_combo_box.addItem("Fixed string", QtCore.QRegExp.FixedString)
+        self.filter_syntax_combo_box.addItem("Regular expression", QtCore.QRegularExpression)
+        self.filter_syntax_combo_box.addItem("Wildcard", QtCore.QRegularExpression.fromWildcard)
+        self.filter_syntax_combo_box.addItem("Fixed string", QtCore.QRegularExpression.escape)
 
         self.filter_syntax_label = QtWidgets.QLabel("Filter &syntax:")
         self.filter_syntax_label.setBuddy(self.filter_syntax_combo_box)

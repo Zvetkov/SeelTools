@@ -1,4 +1,8 @@
 .vscode/
+seeltools/seeltools_qt.build/
+seeltools/seeltools_qt.dist/
+seeltools/seeltools_qt.onefile-build/
+seeltools/build_nuitka.ps1
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
