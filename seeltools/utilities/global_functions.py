@@ -1,4 +1,4 @@
-from seeltools.utilities.constants import ACTION_TYPE
+from utilities.constants import ACTION_TYPE
 
 
 class dMass(object):

@@ -4,23 +4,23 @@ from lxml import objectify, etree
 from enum import Enum
 from math import ceil, log10
 
-from seeltools.utilities.log import logger
+from utilities.log import logger
 
-from seeltools.utilities.parse import (read_from_xml_node, child_from_xml_node, check_mono_xml_node, safe_check_and_set,
-                                       parse_str_to_bool, parse_str_to_quaternion, parse_str_to_vector,
-                                       parse_model_group_health)
+from utilities.parse import (read_from_xml_node, child_from_xml_node, check_mono_xml_node, safe_check_and_set,
+                             parse_str_to_bool, parse_str_to_quaternion, parse_str_to_vector,
+                             parse_model_group_health)
 
-from seeltools.utilities.constants import (STATUS_SUCCESS, DEFAULT_TURNING_SPEED, FiringTypesStruct, DamageTypeStruct,
-                                           DESTROY_EFFECT_NAMES, TEAM_DEFAULT_FORMATION_PROTOTYPE, GEOM_TYPE,
-                                           ZERO_VECTOR, ONE_VECTOR, IDENTITY_QUATERNION)
+from utilities.constants import (STATUS_SUCCESS, DEFAULT_TURNING_SPEED, FiringTypesStruct, DamageTypeStruct,
+                                 DESTROY_EFFECT_NAMES, TEAM_DEFAULT_FORMATION_PROTOTYPE, GEOM_TYPE,
+                                 ZERO_VECTOR, ONE_VECTOR, IDENTITY_QUATERNION)
 
-from seeltools.utilities.global_functions import GetActionByName, GetActionByNum  # , AIParam
+from utilities.global_functions import GetActionByName, GetActionByNum  # , AIParam
 
-from seeltools.utilities.value_classes import AnnotatedValue, DisplayType, GroupType, SavingType
-from seeltools.utilities.helper_functions import (vector_short_to_string, vector_to_string, vector_long_to_string,
-                                                  add_value_to_node, add_value_to_node_as_child, should_be_saved)
+from utilities.value_classes import AnnotatedValue, DisplayType, GroupType, SavingType
+from utilities.helper_functions import (vector_short_to_string, vector_to_string, vector_long_to_string,
+                                        add_value_to_node, add_value_to_node_as_child, should_be_saved)
 
-from seeltools.gameobjects.object_classes import *
+from gameobjects.object_classes import *
 
 
 class PrototypeInfo(object):
@@ -593,7 +593,7 @@ class GadgetPrototypeInfo(PrototypeInfo):
         self.modifications = AnnotatedValue([], "Modifications", group_type=GroupType.PRIMARY,
                                             display_type=DisplayType.MODIFICATION_INFO,
                                             saving_type=SavingType.SPECIFIC)
-        self.modelName = AnnotatedValue("", "ModelFile", group_type=GroupType.VISUAL)
+        self.engineModelName = AnnotatedValue("", "ModelFile", group_type=GroupType.VISUAL)
         self.skinNum = AnnotatedValue(0, "SkinNum", group_type=GroupType.VISUAL, display_type=DisplayType.SKIN_NUM)
         self.isUpdating = AnnotatedValue(False, "IsUpdating", group_type=GroupType.SECONDARY)
 
@@ -604,7 +604,7 @@ class GadgetPrototypeInfo(PrototypeInfo):
             for modification_description in modifications:
                 modification_info = self.ModificationInfo(modification_description, self)
                 self.modifications.value.append(modification_info)
-            self.modelName.value = safe_check_and_set(self.modelName.value, xmlNode, "ModelFile")
+            self.engineModelName.value = safe_check_and_set(self.engineModelName.value, xmlNode, "ModelFile")
             self.skinNum.value = safe_check_and_set(self.skinNum.value, xmlNode, "SkinNum", "int")
             return STATUS_SUCCESS
 
@@ -699,12 +699,12 @@ class GadgetPrototypeInfo(PrototypeInfo):
             GUN = 2
 
         class modification_type_enum(Enum):
-            EMPTY = 0,
+            EMPTY = 0
             PLUS_EQUAL = 1
 
         class value_type_enum(Enum):
-            DEFAULT = 0,
-            PERCENT = 4,
+            DEFAULT = 0
+            PERCENT = 4
             ABSOLUTE = 5
 
 
@@ -2185,7 +2185,7 @@ class LairPrototypeInfo(SettlementPrototypeInfo):
 class PlayerPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.modelName = AnnotatedValue("", "ModelFile", group_type=GroupType.SECONDARY)
+        self.engineModelName = AnnotatedValue("", "ModelFile", group_type=GroupType.SECONDARY)
         self.skinNumber = AnnotatedValue(0, "SkinNum", group_type=GroupType.SECONDARY)
         self.cfgNumber = AnnotatedValue(0, "CfgNum", group_type=GroupType.SECONDARY)
         # ??? some magic with World SceneGraph
@@ -2193,7 +2193,7 @@ class PlayerPrototypeInfo(PrototypeInfo):
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.modelName.value = read_from_xml_node(xmlNode, self.modelName.name)
+            self.engineModelName.value = read_from_xml_node(xmlNode, self.engineModelName.name)
             skinNum = read_from_xml_node(xmlNode, self.skinNumber.name, do_not_warn=True)
             if skinNum is not None:
                 skinNum = int(skinNum)
@@ -3426,7 +3426,7 @@ class WarePrototypeInfo(PrototypeInfo):
         self.maxItems = AnnotatedValue(1, "MaxItems", group_type=GroupType.SECONDARY)
         self.maxDurability = AnnotatedValue(1.0, "Durability", group_type=GroupType.SECONDARY)
         self.priceDispersion = AnnotatedValue(0.0, "PriceDispersion", group_type=GroupType.SECONDARY)
-        self.modelName = AnnotatedValue("", "ModelFile", group_type=GroupType.SECONDARY)
+        self.engineModelName = AnnotatedValue("", "ModelFile", group_type=GroupType.SECONDARY)
         self.minCount = AnnotatedValue(0, "MinCount", group_type=GroupType.SECONDARY)
         self.maxCount = AnnotatedValue(50, "MaxCount", group_type=GroupType.SECONDARY)
 
@@ -3450,7 +3450,7 @@ class WarePrototypeInfo(PrototypeInfo):
             if self.priceDispersion.value < 0.0 or self.priceDispersion.value > 100.0:
                 logger(f"Price dispersion can't be outside 0.0-100.0 range: see {self.prototypeName.value}")
 
-            self.modelName.value = safe_check_and_set(self.modelName.default_value, xmlNode, self.modelName.name)
+            self.engineModelName.value = safe_check_and_set(self.engineModelName.default_value, xmlNode, self.engineModelName.name)
 
             minCount = read_from_xml_node(xmlNode, self.minCount.name, do_not_warn=True)
             if minCount is not None:
@@ -3465,12 +3465,12 @@ class WarePrototypeInfo(PrototypeInfo):
 class QuestItemPrototypeInfo(PrototypeInfo):
     def __init__(self, server):
         PrototypeInfo.__init__(self, server)
-        self.modelName = AnnotatedValue("", "ModelFile", group_type=GroupType.VISUAL)
+        self.engineModelName = AnnotatedValue("", "ModelFile", group_type=GroupType.VISUAL)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = PrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
-            self.modelName.value = safe_check_and_set(self.modelName.value, xmlNode, "ModelFile")
+            self.engineModelName.value = safe_check_and_set(self.engineModelName.value, xmlNode, "ModelFile")
             return STATUS_SUCCESS
 
 
@@ -3571,14 +3571,14 @@ class GeomObjPrototypeInfo(PhysicObjPrototypeInfo):
 class RopeObjPrototypeInfo(SimplePhysicObjPrototypeInfo):
     def __init__(self, server):
         SimplePhysicObjPrototypeInfo.__init__(self, server)
-        self.brokenModel = AnnotatedValue("", "BrokenModel", group_type=GroupType.PRIMARY)
+        self.brokenModelName = AnnotatedValue("", "BrokenModel", group_type=GroupType.PRIMARY)
         self.isUpdating = AnnotatedValue(False, "IsUpdating", group_type=GroupType.SECONDARY)
 
     def LoadFromXML(self, xmlFile, xmlNode):
         result = SimplePhysicObjPrototypeInfo.LoadFromXML(self, xmlFile, xmlNode)
         if result == STATUS_SUCCESS:
             self.SetGeomType("BOX")
-            self.brokenModel.value = read_from_xml_node(xmlNode, "BrokenModel")
+            self.brokenModelName.value = read_from_xml_node(xmlNode, "BrokenModel")
             return STATUS_SUCCESS
 
 

@@ -1,5 +1,5 @@
-from seeltools.utilities.log import logger
-from seeltools.utilities.parse import xml_to_objfy, read_from_xml_node, check_mono_xml_node
+from utilities.log import logger
+from utilities.parse import xml_to_objfy, read_from_xml_node, check_mono_xml_node
 
 
 class Resource(object):

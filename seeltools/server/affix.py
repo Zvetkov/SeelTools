@@ -1,11 +1,11 @@
 from lxml import objectify
 
-from seeltools.utilities.log import logger
-from seeltools.utilities.engine_config import theEngineConfig
-from seeltools.utilities.parse import xml_to_objfy, read_from_xml_node, child_from_xml_node, check_mono_xml_node
+from utilities.log import logger
+from utilities.engine_config import theEngineConfig
+from utilities.parse import xml_to_objfy, read_from_xml_node, child_from_xml_node, check_mono_xml_node
 
-from seeltools.server.resource_manager import ResourceManager
-from seeltools.server.wnd_station import theWndStation
+from server.resource_manager import ResourceManager
+from server.wnd_station import theWndStation
 
 
 class ModificationInfo(object):

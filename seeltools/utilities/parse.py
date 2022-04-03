@@ -3,9 +3,9 @@ from lxml import etree, objectify
 from html import unescape
 from urllib.parse import unquote
 
-from seeltools.utilities.game_path import WORKING_DIRECTORY
-from seeltools.utilities.log import logger
-from seeltools.utilities.constants import VehicleGamStruct
+from utilities.game_path import WORKING_DIRECTORY
+from utilities.log import logger
+from utilities.constants import VehicleGamStruct
 
 ENCODING = 'windows-1251'
 
@@ -145,18 +145,20 @@ def check_mono_xml_node(xml_node: objectify.ObjectifiedElement, expected_child_n
     if len(children) > 0:
         for child in children:
             if child.tag != expected_child_name:
-                if child.tag == "comment" and not ignore_comments:
+                if child.tag == "comment" and ignore_comments:
+                    return
+                elif child.tag == "comment":
                     comment = unescape(str(etree.tostring(child))).strip("b'<!-- ").strip(" -->'")
                     path = unquote(xml_node.base).replace(f'file:/{WORKING_DIRECTORY}', '')
                     logger.debug(f"Comment '{comment}' "
                                  f"in tag: '{xml_node.tag}'' "
-                                 f"in file: {path}.")
+                                 f"in file: '{path}'.")
                 else:
-                    logger.warning(f"Unexpected node with a name {child.tag} found "
-                                   f"in xml node: {xml_node.tag} in {xml_node.base}!")
+                    logger.warning(f"Unexpected node with a name '{child.tag}' found "
+                                   f"in xml node: '{xml_node.tag}' in '{xml_node.base}'!")
     else:
-        logger.error(f"Empty node with a name {xml_node.tag} when expecting to find child "
-                     f"nodes with a name {expected_child_name} in {xml_node.base}")
+        logger.error(f"Empty node with a name '{xml_node.tag}' when expecting to find child "
+                     f"nodes with a name '{expected_child_name}' in '{xml_node.base}'")
 
 
 def log_comment(comment_node: objectify.ObjectifiedElement, parent_node: objectify.ObjectifiedElement):

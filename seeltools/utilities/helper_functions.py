@@ -1,4 +1,4 @@
-from seeltools.utilities.value_classes import AnnotatedValue, SavingType
+from utilities.value_classes import AnnotatedValue, SavingType
 
 
 def vector_short_to_string(value):

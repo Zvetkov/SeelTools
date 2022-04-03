@@ -1,18 +1,20 @@
-import os
 from timeit import default_timer as timer
 
-from seeltools.utilities.log import logger
-from seeltools.utilities.parse import xml_to_objfy
-from seeltools.utilities.engine_config import EngineConfig
-from seeltools.utilities.global_properties import GlobalProperties
+from utilities.log import logger
+from utilities.parse import check_mono_xml_node, child_from_xml_node, read_from_xml_node, xml_to_objfy
+from utilities.engine_config import EngineConfig
+from utilities.global_properties import GlobalProperties
 
-from seeltools.server.affix import AffixManager
-from seeltools.server.relationship import Relationship
-from seeltools.server.resource_manager import ResourceManager
-from seeltools.server.application import Application
+from server.affix import AffixManager
+from server.relationship import Relationship
+from server.resource_manager import ResourceManager
+from server.application import Application
+from server.objcontainer import ObjContainer
 
-from seeltools.gameobjects.prototype_info import thePrototypeInfoClassDict
-from seeltools.gameobjects.prototype_manager import PrototypeManager
+from level.level import Level
+
+from gameobjects.prototype_info import thePrototypeInfoClassDict
+from gameobjects.prototype_manager import PrototypeManager
 
 
 class Kernel(object):
@@ -80,6 +82,13 @@ class Server(object):
             #     level_file_name = self.level.GetFullPathNameA(self.level, allowed_classes, self.level.dsSrvName)
             #     self.theDynamicScene.LoadSceneFromXML(self.pDynamicScene, level_file_name, allowedClasses)
             # logger.info("DynamicScene loaded")
+            logger.info("Skipping loading Triggers")
+            logger.info("Loading Object Names (for level)")  # Section LEVEL -> OBJECTNAMES or object_names.xm
+            DefaultLevel = Level()
+            DefaultLevel.New(512)  # ToDo: 512 is temp, replace
+            self.ObjContainer = ObjContainer()
+            self.ObjContainer.LoadObjectNamesFromXML(DefaultLevel)
+            self.LoadPrototypeNamesFromXML(DefaultLevel.prototypeFullNames)
 
     def LoadGlobalPropertiesFromXML(self, fileName):
         xmlFile = xml_to_objfy(fileName)
@@ -89,8 +98,18 @@ class Server(object):
         else:
             raise NameError("GlobalProperties file should contain root Properties tag")
 
-    def LoadPrototypeNamesFromXML():
-        raise NotImplementedError("LoadPrototypeNamesFromXML not implementet for Server")
+    def LoadPrototypeNamesFromXML(self, fileName):
+        xml_file = xml_to_objfy(fileName)
+        check_mono_xml_node(xml_file, "Item", ignore_comments=True)
+        prot_name_items = child_from_xml_node(xml_file, "Item")
+        for prot_name_item in prot_name_items:
+            prot_name = read_from_xml_node(prot_name_item, "id")
+            prot_name_full = read_from_xml_node(prot_name_item, "value")
+            if self.thePrototypeManager.prototypeFullNames.get(prot_name) is not None:
+                logger.warning(f"FullName for Prototype with name '{prot_name}' already specified!")
+            self.thePrototypeManager.prototypeFullNames[prot_name] = prot_name_full
+
+        # raise NotImplementedError("LoadPrototypeNamesFromXML not implemented for Server")
 
     def CreatePrototypeInfoByClassName(self, className: str):
         class_refference = thePrototypeInfoClassDict.get(className)

@@ -1,3 +1,12 @@
+from qtmodern import styles, windows
+from server import server_init
+
+from utilities.log import logger
+from utilities.value_classes import AnnotatedValue, DisplayType
+from utilities.ui_data_sources import DisplayTypeDataSource
+
+# from gameobjects.prototype_info import thePrototypeInfoClassDict
+
 import os
 import sys
 
@@ -9,15 +18,6 @@ from PySide2 import QtWidgets
 
 sys.path.append("..")  # temp workaround to allow running application from this entry point instead on __maim__.py
 
-from seeltools.qtmodern import styles, windows
-from seeltools.server import server_init
-
-from seeltools.utilities.log import logger
-from seeltools.utilities.value_classes import AnnotatedValue, DisplayType
-from seeltools.utilities.game_path import WORKING_DIRECTORY
-from seeltools.utilities.ui_data_sources import DisplayTypeDataSource
-
-from seeltools.gameobjects.prototype_info import thePrototypeInfoClassDict
 
 APP_NAME = "SeelTools"
 APP_VERSION = 0.02
@@ -527,6 +527,40 @@ class PrototypeEditor(QtWidgets.QWidget):
         prototype_manager = server.thePrototypeManager
         prot = prototype_manager.InternalGetPrototypeInfo(prototype_name)
         prot_attribs = vars(prot)
+
+        mock1_widget = QtWidgets.QWidget()
+        mock1_layout = QtWidgets.QGridLayout()
+        mock1_widget.setLayout(mock1_layout)
+
+        mock1_label = QtWidgets.QLabel("Display Name")
+        mock1_label.setFixedHeight(20)
+        mock1_value = QtWidgets.QLineEdit()
+        prot_full_name = server.thePrototypeManager.prototypeFullNames.get(prototype_name)
+        if prot_full_name is not None:
+            mock1_value.setText(prot_full_name)
+        else:
+            palette = QtGui.QPalette()
+            palette.setColor(QtGui.QPalette.Text, QtGui.QColor(253, 174, 37))
+            mock1_value.setPalette(palette)
+            mock1_value.setText("NO_NAME")
+
+        mock1_layout.addWidget(mock1_label, 0, 0, QtCore.Qt.AlignRight)
+        mock1_layout.addWidget(mock1_value, 0, 1, QtCore.Qt.AlignLeft)
+
+        mock2_widget = QtWidgets.QWidget()
+        mock2_layout = QtWidgets.QGridLayout()
+        mock2_widget.setLayout(mock2_layout)
+
+        mock2_label = QtWidgets.QLabel("Description")
+        mock2_value = QtWidgets.QTextEdit()
+        mock2_value.setText("DescriptionPlaceholder")
+
+        mock2_layout.addWidget(mock2_label, 0, 0, QtCore.Qt.AlignRight)
+        mock2_layout.addWidget(mock2_value, 0, 1, QtCore.Qt.AlignLeft)
+
+        working_layout.addWidget(mock1_widget)
+        working_layout.addWidget(mock2_widget)
+
         for attrib in prot_attribs.values():
             if isinstance(attrib, AnnotatedValue):
                 attrib_grid = QtWidgets.QWidget()
@@ -565,6 +599,40 @@ class PrototypeEditor(QtWidgets.QWidget):
                 #     attrib_value.addItems(server.theResourceManager.resourceMap.keys())
                 #     attrib_value.setCurrentIndex(attrib_value.findText(
                 #                                  server.theResourceManager.GetResourceName(prot.resourceId.value)))
+                elif attrib.display_type == DisplayType.MODIFICATION_INFO:
+                    # attrib_value = QtWidgets.QWidget()
+                    # attrib_value_layout = QtWidgets.QHBoxLayout()
+                    # for mod in attrib.value:
+                    #     mod_label = QtWidgets.QLabel(mod.propertyName)
+                    #     mod_info = QtWidgets.QLineEdit()
+                    #     mod_info.setText(mod.value)
+                    #     mod_info.setFixedHeight(20)
+                    #     attrib_value_layout.addWidget(mod_label)
+                    #     attrib_value_layout.addWidget(mod_info)
+                    # attrib_value.setLayout(attrib_value_layout)
+                    attrib_value = QtWidgets.QWidget()
+                    attrib_value_layout = QtWidgets.QVBoxLayout()
+
+                    for mod_info in attrib.value:
+                        mod_info_widget = QtWidgets.QWidget()
+                        mod_info_layout = QtWidgets.QHBoxLayout()
+                        mod_info_widget.setLayout(mod_info_layout)
+
+                        mod_info_label = QtWidgets.QLabel(mod_info.propertyName)
+                        mod_info_value = QtWidgets.QLineEdit()
+                        mod_info_value.setText(str(mod_info.value))
+
+                        mod_info_layout.addWidget(mod_info_label)
+                        mod_info_layout.addWidget(mod_info_value)
+
+                        attrib_value_layout.addWidget(mod_info_widget)
+                        # TODO: create new window for ModificationManager,
+                        # it's too complicated to deal with inside PrototypeEditor
+                        # See ModificationInfo in prototype_info
+
+                    attrib_value.setLayout(attrib_value_layout)
+
+
                 elif isinstance(attrib.value, bool):
                     attrib_value = QtWidgets.QCheckBox()
                     if attrib.value:

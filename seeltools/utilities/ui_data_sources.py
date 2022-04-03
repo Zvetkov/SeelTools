@@ -1,5 +1,5 @@
-from seeltools.utilities.value_classes import AnnotatedValue, DisplayType
-from seeltools.gameobjects.prototype_info import thePrototypeInfoClassDict
+from utilities.value_classes import AnnotatedValue, DisplayType
+from gameobjects.prototype_info import thePrototypeInfoClassDict
 
 DisplayTypeDataSource = \
     {DisplayType.CLASS_NAME: thePrototypeInfoClassDict.keys(),

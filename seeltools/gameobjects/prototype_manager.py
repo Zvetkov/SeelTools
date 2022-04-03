@@ -1,15 +1,15 @@
 from lxml import objectify
 from os import path
 
-from seeltools.utilities.log import logger
+from utilities.log import logger
 
-from seeltools.utilities.parse import xml_to_objfy, read_from_xml_node, log_comment
-from seeltools.utilities.constants import STATUS_SUCCESS
-from seeltools.gameobjects.prototype_info import PrototypeInfo, thePrototypeInfoClassDict
+from utilities.parse import xml_to_objfy, read_from_xml_node, log_comment
+from utilities.constants import STATUS_SUCCESS
+from gameobjects.prototype_info import PrototypeInfo, thePrototypeInfoClassDict
 
 
-from seeltools.utilities.game_path import WORKING_DIRECTORY
-from seeltools.utilities.file_ops import save_to_file
+from utilities.game_path import WORKING_DIRECTORY
+from utilities.file_ops import save_to_file
 from lxml import etree
 
 
