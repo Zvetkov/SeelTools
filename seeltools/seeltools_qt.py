@@ -1,4 +1,4 @@
-from qtmodern import styles, windows
+from qtmodern import styles, windows, resources
 from server import server_init
 
 from utilities.log import logger

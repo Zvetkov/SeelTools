@@ -1,57 +1,64 @@
 #windowFrame {
-  border-radius: 5px 5px 5px 5px;
+  border-radius: 3px 3px 3px 3px;
   background-color: palette(Window);
 }
 
 #titleBar {
   border: 0px none palette(base);
-  border-top-left-radius: 5px;
-  border-top-right-radius: 5px;
+  border-top-left-radius: 3px;
+  border-top-right-radius: 3px;
   background-color: palette(Window);
   height: 24px;
 }
 
 #btnClose, #btnRestore, #btnMaximize, #btnMinimize {
-  min-width: 14px;
+  min-width: 34px;
   min-height: 14px;
-  max-width: 14px;
+  max-width: 34px;
   max-height: 14px;
-  border-radius: 7px;
-  margin: 4px;
+  border-radius: 0px;
+  background-color: transparent;
+  margin: 0px;
 }
 
-#btnRestore, #btnMaximize {
-  background-color: hsv(123, 204, 198);
+#btnMaximize {
+  image: url(:/icons/chrome-maximize-white.svg);
+}
+
+#btnRestore {
+  image: url(:/icons/chrome-restore-white.svg);
 }
 
 #btnRestore::hover, #btnMaximize::hover {
-  background-color: hsv(123, 204, 148);
+  background-color: rgb(70, 70, 70);
 }
 
 #btnRestore::pressed, #btnMaximize::pressed {
-  background-color: hsv(123, 204, 98);
+  background-color: rgb(90, 90, 90);
 }
 
 #btnMinimize {
-  background-color: hsv(38, 218, 253);
+  image: url(:/icons/chrome-minimize-white.svg);
 }
 
 #btnMinimize::hover {
-  background-color: hsv(38, 218, 203);
+  background-color: rgb(70, 70, 70);
 }
 
 #btnMinimize::pressed {
-  background-color: hsv(38, 218, 153);
+  background-color: rgb(90, 90, 90);
 }
 
 #btnClose {
-  background-color: hsv(0, 182, 252);
+  image: url(:/icons/chrome-close-white.svg);
 }
 
 #btnClose::hover {
-  background-color: hsv(0, 182, 202);
+  background-color: rgb(212, 18, 35);
+  border-top-right-radius: 3px;
 }
 
 #btnClose::pressed {
-  background-color: hsv(0, 182, 152);
+  background-color: rgb(139, 10, 20);
+  border-top-right-radius: 3px;
 }
