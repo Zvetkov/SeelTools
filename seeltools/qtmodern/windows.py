@@ -175,6 +175,7 @@ class ModernWindow(QWidget):
         self.btnRestore.setVisible(False)
         self.btnMaximize.setVisible(True)
 
+        self.layout().setContentsMargins(50, 50, 50, 50)
         self.setWindowState(Qt.WindowNoState)
 
     @Slot()
@@ -182,6 +183,7 @@ class ModernWindow(QWidget):
         self.btnRestore.setVisible(True)
         self.btnMaximize.setVisible(False)
 
+        self.layout().setContentsMargins(0, 0, 0, 0)
         self.setWindowState(Qt.WindowMaximized)
 
     @Slot()
