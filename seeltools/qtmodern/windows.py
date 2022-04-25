@@ -1,8 +1,9 @@
 from os.path import join, dirname, abspath
 
 from PySide6.QtCore import Qt, QMetaObject, Signal, Slot
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QToolButton,
-                               QLabel, QSizePolicy)
+                               QLabel, QSizePolicy, QGraphicsDropShadowEffect)
 
 
 _FL_STYLESHEET = join(dirname(abspath(__file__)), 'resources', 'frameless.qss')
@@ -127,9 +128,15 @@ class ModernWindow(QWidget):
 
         # set window flags
         self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint
-                            | Qt.WindowSystemMenuHint)
+                            | Qt.WindowSystemMenuHint | Qt.NoDropShadowWindowHint)
 
-        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
+        self.layout().setContentsMargins(50, 50, 50, 50)
+        shadow = QGraphicsDropShadowEffect(self)
+        shadow.setBlurRadius(25)
+        shadow.setOffset(0)
+        shadow.setColor(QColor(0, 0, 0, 80))
+        self.setGraphicsEffect(shadow)
 
         # set stylesheet
         with open(_FL_STYLESHEET) as stylesheet:
