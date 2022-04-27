@@ -1,12 +1,16 @@
-from os.path import join, dirname, abspath
+from ctypes.wintypes import MSG
+from ctypes import c_int32, byref
 
-from PySide6.QtCore import Qt, QMetaObject, Signal, Slot
-from PySide6.QtGui import QColor
+from win32con import WM_NCHITTEST, \
+    HTTOPLEFT, HTBOTTOMRIGHT, HTTOPRIGHT, HTBOTTOMLEFT, \
+    HTTOP, HTBOTTOM, HTLEFT, HTRIGHT
+
+from PySide6.QtCore import Qt, QMetaObject, Signal, Slot, QPoint
+from PySide6.QtGui import QColor, QCursor
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QToolButton,
                                QLabel, QSizePolicy, QGraphicsDropShadowEffect)
 
-
-_FL_STYLESHEET = join(dirname(abspath(__file__)), 'resources', 'frameless.qss')
+# _FL_STYLESHEET = join(dirname(abspath(__file__)), 'resources', 'style.qss')
 """ str: Frameless window stylesheet. """
 
 
@@ -25,6 +29,8 @@ class WindowDragger(QWidget):
 
         self._window = window
         self._mousePressed = False
+        self._windowPos = self._window.pos()
+        self._mousePos = QCursor.pos()
 
     def mousePressEvent(self, event):
         self._mousePressed = True
@@ -32,9 +38,19 @@ class WindowDragger(QWidget):
         self._windowPos = self._window.pos()
 
     def mouseMoveEvent(self, event):
-        if self._mousePressed:
-            self._window.move(self._windowPos + (event.globalPos()
-                                                 - self._mousePos))
+        if self._window.isMaximized():
+            if self._window.btnMaximize.isVisible():
+                self._window.on_btnMaximize_clicked()
+            else:
+                self._window.on_btnRestore_clicked()
+
+        # print(f"self._windowPos{self._windowPos}")
+
+        if self._windowPos == QPoint(0, 0):
+            # recenter window if it's being dragged from maximised state
+            self._windowPos = self._mousePos - QPoint(self._window.width() / 2, 0)
+        self._window.move(self._windowPos + (event.globalPos()
+                                             - self._mousePos))
 
     def mouseReleaseEvent(self, event):
         self._mousePressed = False
@@ -50,12 +66,33 @@ class ModernWindow(QWidget):
             w (QWidget): Main widget.
             parent (QWidget, optional): Parent widget.
     """
+    BORDER_WIDTH = 5
 
-    def __init__(self, w, parent=None):
-        QWidget.__init__(self, parent)
+    def __init__(self, w):
+        QWidget.__init__(self)
 
         self._w = w
         self._w.ModernWindow = self
+        # dwmapi = WinDLL("dwmapi")
+
+        # set window flags
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.BypassWindowManagerHint)
+
+        # self.hwnd = self.winId().__int__()
+        # print(f"hwnd{self.hwnd}")
+        # window_style = win32gui.GetWindowLong(self.hwnd, GWL_STYLE)
+        # win32gui.SetWindowLong(self.hwnd, GWL_STYLE, window_style)
+        # win32gui.SetWindowLong(self.hwnd, GWL_STYLE, window_style | WS_POPUP | WS_THICKFRAME | WS_CAPTION | WS_SYSMENU
+        #                                                           | WS_MAXIMIZEBOX | WS_MINIMIZEBOX)
+
+        # self.setAutoFillBackground(True)
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
+        # self.setAttribute(Qt.BypassWindowManagerHint, True)
+        # if self.IsCompositionEnabled(dwmapi):
+        #     dwmapi.DwmExtendFrameIntoClientArea(self.hwnd, byref(RECT(-1, -1, -1, -1)))
+        # else:
+        #     dwmapi.DwmExtendFrameIntoClientArea(self.hwnd, byref(RECT(0, 0, 0, 0)))
+
         self.setupUi()
 
         contentLayout = QHBoxLayout()
@@ -70,6 +107,12 @@ class ModernWindow(QWidget):
         # Adding attribute to clean up the parent window when the child is closed
         self._w.setAttribute(Qt.WA_DeleteOnClose, True)
         self._w.destroyed.connect(self.__child_was_closed)
+
+    def IsCompositionEnabled(self, dwm):
+        '''To check if WDM is allowing composition.'''
+        enabled = c_int32(0)
+        dwm.DwmIsCompositionEnabled(byref(enabled))
+        return bool(enabled)
 
     def setupUi(self):
         # create title bar, content
@@ -126,24 +169,85 @@ class ModernWindow(QWidget):
 
         self.vboxWindow.addWidget(self.windowFrame)
 
-        # set window flags
-        self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint
-                            | Qt.WindowSystemMenuHint | Qt.NoDropShadowWindowHint)
-
-        self.setAttribute(Qt.WA_TranslucentBackground, True)
-        self.layout().setContentsMargins(50, 50, 50, 50)
+        self.layout().setContentsMargins(5, 5, 5, 5)
         shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(25)
+        shadow.setBlurRadius(10)
         shadow.setOffset(0)
         shadow.setColor(QColor(0, 0, 0, 80))
         self.setGraphicsEffect(shadow)
 
         # set stylesheet
-        with open(_FL_STYLESHEET) as stylesheet:
-            self.setStyleSheet(stylesheet.read())
+        # with open(_FL_STYLESHEET) as stylesheet:
+        #    self.setStyleSheet(stylesheet.read())
 
         # automatically connect slots
         QMetaObject.connectSlotsByName(self)
+
+    # def changeEvent(self, event):
+    #     if event.type() == event.WindowStateChange:
+    #         if self.windowState() & Qt.WindowMaximized:
+    #             margin = abs(self.mapToGlobal(self.rect().topLeft()).y())
+    #             print(margin)
+    #             margin = 5
+    #             self.layout().setContentsMargins(margin, margin, margin, margin)
+    #         else:
+    #             self.layout().setContentsMargins(0, 0, 0, 0)
+
+    #     return super(ModernWindow, self).changeEvent(event)
+
+    def nativeEvent(self, event, message):
+        return_value, result = super().nativeEvent(event, message)
+        # if you use Windows OS
+        if event == b'windows_generic_MSG':
+            msg = MSG.from_address(message.__int__())
+            point = self.mapFromGlobal(QCursor.pos())
+            x = point.x()
+            y = point.y()
+
+            # Determine whether there are other controls(i.e. widgets etc.) at the mouse position.
+            if self.childAt(x, y) is not None and self.childAt(x, y) is not self.findChild(QWidget, "lblTitle"):
+                if self.width() - self.BORDER_WIDTH > x > self.BORDER_WIDTH and y < self.height() - self.BORDER_WIDTH:
+                    # print(f"found other element: {self.childAt(x, y)}")
+                    return return_value, result
+
+            # if msg.message == WM_NCCALCSIZE:
+                # Remove system title
+                # return True, 0
+
+            if msg.message == WM_NCHITTEST:
+                w, h = self.width(), self.height()
+                lx = x < self.BORDER_WIDTH and not self.isMaximized()
+                rx = x > w - self.BORDER_WIDTH and not self.isMaximized()
+                ty = y < self.BORDER_WIDTH and not self.isMaximized()
+                by = y > h - self.BORDER_WIDTH and not self.isMaximized()
+                if lx and ty:
+                    # In the upper-left corner of a window border (to resize the window diagonally).
+                    return True, HTTOPLEFT
+                if rx and by:
+                    # In the lower-right corner of a border of a resizable window (to resize the window diagonally).
+                    return True, HTBOTTOMRIGHT
+                if rx and ty:
+                    # In the upper-right corner of a window border  (to resize the window diagonally).
+                    return True, HTTOPRIGHT
+                if lx and by:
+                    # In the lower-left corner of a border of a resizable window (to resize the window diagonally).
+                    return True, HTBOTTOMLEFT
+                if ty:
+                    # In the upper-horizontal border of a window (to resize the window vertically).
+                    return True, HTTOP
+                if by:
+                    # In the lower-horizontal border of a resizable window (to resize the window vertically).
+                    return True, HTBOTTOM
+                if lx:
+                    # In the left border of a resizable window (to resize the window horizontally).
+                    return True, HTLEFT
+                if rx:
+                    # In the right border of a resizable window (to resize the window horizontally).
+                    return True, HTRIGHT
+                # In a title bar.
+                # return True, HTCAPTION
+
+        return QWidget.nativeEvent(self, event, message)
 
     def __child_was_closed(self):
         self._w = None  # The child was deleted, remove the reference to it and close the parent window
@@ -175,7 +279,7 @@ class ModernWindow(QWidget):
         self.btnRestore.setVisible(False)
         self.btnMaximize.setVisible(True)
 
-        self.layout().setContentsMargins(50, 50, 50, 50)
+        self.layout().setContentsMargins(5, 5, 5, 5)
         self.setWindowState(Qt.WindowNoState)
 
     @Slot()

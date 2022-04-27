@@ -24,7 +24,6 @@ APP_VERSION = 0.02
 
 
 def main():
-    QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
     QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
     app = QtWidgets.QApplication(sys.argv)
     window = MainWindow(app)
@@ -43,6 +42,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # setting up application skin and display properties
         self.app = app
+        styles._apply_base_theme(self.app.instance())
         styles.dark(self.app.instance())
         self.createIcons()
 
@@ -93,34 +93,34 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def createActions(self):
         self.openGameFolderAction = QtGui.QAction(QtGui.QIcon.fromTheme("folder-open", self.fileDirIconLight),
-                                                      "&Open Game Folder...", self, shortcut="Ctrl+O",
-                                                      statusTip="Open folder where Ex Machina is installed",
-                                                      triggered=self.openGameFolder)
+                                                  "&Open Game Folder...", self, shortcut="Ctrl+O",
+                                                  statusTip="Open folder where Ex Machina is installed",
+                                                  triggered=self.openGameFolder)
 
         self.saveAction = QtGui.QAction(QtGui.QIcon.fromTheme("document-save", self.saveIconLight), "&Save...",
-                                            self, shortcut=QtGui.QKeySequence.Save,
-                                            statusTip="Save all changes", triggered=self.save)
+                                        self, shortcut=QtGui.QKeySequence.Save,
+                                        statusTip="Save all changes", triggered=self.save)
 
         self.quitAction = QtGui.QAction("&Quit", self, shortcut="Ctrl+Q", statusTip="Quit the application",
-                                            triggered=self.closeApplication)
+                                        triggered=self.closeApplication)
 
         self.undoAction = QtGui.QAction(QtGui.QIcon.fromTheme("edit-undo", self.undoIconLight), "&Undo", self,
-                                            shortcut=QtGui.QKeySequence.Undo, statusTip="Undo the last editing action",
-                                            triggered=self.undo)
+                                        shortcut=QtGui.QKeySequence.Undo, statusTip="Undo the last editing action",
+                                        triggered=self.undo)
 
         self.redoAction = QtGui.QAction(QtGui.QIcon.fromTheme("edit-redo", self.redoIconLight), "&Redo", self,
-                                            shortcut=QtGui.QKeySequence.Redo, statusTip="Redo the last editing action",
-                                            triggered=self.redo)
+                                        shortcut=QtGui.QKeySequence.Redo, statusTip="Redo the last editing action",
+                                        triggered=self.redo)
 
         self.propertiesAction = QtGui.QAction(QtGui.QIcon.fromTheme("application-properties", self.gearIconLight),
-                                                  "&Properties", self, shortcut="Ctrl+P",
-                                                  statusTip="Application properties", triggered=self.properties)
+                                              "&Properties", self, shortcut="Ctrl+P",
+                                              statusTip="Application properties", triggered=self.properties)
 
         self.aboutAction = QtGui.QAction("&About SeelTools", self, statusTip="Show the SeelTools About box",
-                                             triggered=self.about)
+                                         triggered=self.about)
 
         self.aboutQtAction = QtGui.QAction("About &Qt", self, statusTip="Show the Qt library's About box",
-                                               triggered=QtWidgets.QApplication.instance().aboutQt)
+                                           triggered=QtWidgets.QApplication.instance().aboutQt)
 
     def openGameFolder(self):
         pass
@@ -567,7 +567,8 @@ class PrototypeEditor(QtWidgets.QWidget):
                 attrib_layout = QtWidgets.QGridLayout()
                 attrib_grid.setLayout(attrib_layout)
 
-                # attrib_spacer = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+                # attrib_spacer = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Expanding,
+                #                                       QtWidgets.QSizePolicy.Expanding)
                 # attrib_layout.addItem(attrib_spacer)
 
                 attrib_label = QtWidgets.QLabel(get_display_name(prot, attrib))
@@ -631,7 +632,6 @@ class PrototypeEditor(QtWidgets.QWidget):
                         # See ModificationInfo in prototype_info
 
                     attrib_value.setLayout(attrib_value_layout)
-
 
                 elif isinstance(attrib.value, bool):
                     attrib_value = QtWidgets.QCheckBox()

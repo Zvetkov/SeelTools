@@ -1,6 +1,71 @@
 /*
  * QGroupBox
  */
+#windowFrame {
+  border-radius: 3px 3px 3px 3px;
+  background-color: palette(Window);
+}
+
+#titleBar {
+  border: 0px none palette(base);
+  border-top-left-radius: 3px;
+  border-top-right-radius: 3px;
+  background-color: palette(Window);
+  height: 24px;
+}
+
+#btnClose, #btnRestore, #btnMaximize, #btnMinimize {
+  min-width: 34px;
+  min-height: 14px;
+  max-width: 34px;
+  max-height: 14px;
+  border-radius: 0px;
+  background-color: transparent;
+  margin: 0px;
+}
+
+#btnMaximize {
+  image: url(:/icons/chrome-maximize-white.svg);
+}
+
+#btnRestore {
+  image: url(:/icons/chrome-restore-white.svg);
+}
+
+#btnRestore::hover, #btnMaximize::hover {
+  background-color: rgb(70, 70, 70);
+}
+
+#btnRestore::pressed, #btnMaximize::pressed {
+  background-color: rgb(90, 90, 90);
+}
+
+#btnMinimize {
+  image: url(:/icons/chrome-minimize-white.svg);
+}
+
+#btnMinimize::hover {
+  background-color: rgb(70, 70, 70);
+}
+
+#btnMinimize::pressed {
+  background-color: rgb(90, 90, 90);
+}
+
+#btnClose {
+  image: url(:/icons/chrome-close-white.svg);
+}
+
+#btnClose::hover {
+  background-color: rgb(212, 18, 35);
+  border-top-right-radius: 3px;
+}
+
+#btnClose::pressed {
+  background-color: rgb(139, 10, 20);
+  border-top-right-radius: 3px;
+}
+
 
 QGroupBox {
   background-color: palette(alternate-base);
