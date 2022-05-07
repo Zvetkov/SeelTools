@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QHBoxLayout,
                                QLineEdit, QProgressBar, QSlider, QDateTimeEdit,
                                QPushButton, QRadioButton, QScrollBar, QSpinBox,
                                QSizePolicy, QStyleFactory, QWidget, QTextEdit,
-                               QTabWidget, QTableWidget, QVBoxLayout, QToolTip)
+                               QTabWidget, QTableWidget, QVBoxLayout)
 
 
 def main():
@@ -90,8 +90,8 @@ class MainWindow(QDialog):
             dark_palette.setColor(QPalette.Highlight, QColor(255, 165, 0))
             dark_palette.setColor(QPalette.HighlightedText, Qt.black)
             QApplication.setPalette(dark_palette)
-            # styleSheet = "QToolTip { color: #ffffff; background-color: #2a82da; border: 1px solid white; }"
-            # QApplication.setStyleSheet(styleSheet)
+            styleSheet = "QToolTip { color: #ffffff; background-color: #2a82da; border: 1px solid white; }"
+            QApplication.setStyleSheet(styleSheet)
         else:
             QApplication.setPalette(QApplication.style().standardPalette())
 
