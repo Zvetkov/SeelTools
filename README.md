@@ -1,8 +1,12 @@
 # SeelTools
 
-Work in progress GUI toolkit for Ex Machina / Hard Truck Apocalypse, currently at the POC stage.
+Work in progress GUI toolkit for Ex Machina / Hard Truck Apocalypse, POC stage, mostly abandoned at this point.
+Only reading, inspecting and writing structured data back is implemented!
+**Editing data is not possible from GUI!**
 
-Core developers: 
+This was a reverse engineering project to study the game's stucture, as such it can be used to research what properties are supported by any of the many Prototype classes (describe all the game entities in the game - cars, guns, towns, quests etc.)
+
+Developers: 
 
 [Aleksandr Parfenenkov](mailto:work.zvetkov@gmail.com)
 
@@ -26,11 +30,7 @@ Displays all loaded prototype from game files as a tree in GUI.
 ### Prerequisites
 
 * Python 3, tested on `3.8.2`
-
-Additional libs:
-* lxml
-* PySide2
-
+* requirements.txt
 
 ### Installation and execution:
 
@@ -46,9 +46,9 @@ Install required modules using `pip`:
 pip install -r requirements.txt
 ```
 
-Run entry point script `seeltools_qt.py` or run as module from repository root:
+Run entry point script `seeltools_qt.py`:
 ```bash
-python -m seeltools
+py .\seeltools_qt.py
 ```
 
 ### Code style:
