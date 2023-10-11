@@ -1,10 +1,13 @@
 # SeelTools
 
 Work in progress GUI toolkit for Ex Machina / Hard Truck Apocalypse, POC stage, mostly abandoned at this point.
+
 Only reading, inspecting and writing structured data back is implemented!
+
 **Editing data is not possible from GUI!**
 
-This was a reverse engineering project to study the game's stucture, as such it can be used to research what properties are supported by any of the many Prototype classes (describe all the game entities in the game - cars, guns, towns, quests etc.)
+
+This was a reverse engineering project to study the game's stucture, as such it can be used to research what properties are supported by any of the many Prototype classes (these describe all the entities in the game - cars, guns, towns, quests etc.)
 
 Developers: 
 
