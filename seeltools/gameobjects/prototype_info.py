@@ -229,17 +229,18 @@ class VehiclePartPrototypeInfo(PhysicBodyPrototypeInfo):
             #              "variants": None}
             model_path = self.theServer.theAnimatedModelsServer.GetItemByName(self.engineModelName.value).file_name
             model_group_health = parse_model_group_health(model_path)
-            for group_health in model_group_health:
-                if group_health_node is not None:
-                    read_value = read_from_xml_node(group_health_node, group_health, do_not_warn=True)
-                else:
-                    read_value = None
-                if read_value is None:
-                    model_group_health[group_health]["health"] = 0.0
-                    self.groupHealth.value[group_health] = model_group_health[group_health]
-                else:
-                    model_group_health[group_health]["health"] = float(read_value)
-                    self.groupHealth.value[group_health] = model_group_health[group_health]
+            if model_group_health is not None:
+                for group_health in model_group_health:
+                    if group_health_node is not None:
+                        read_value = read_from_xml_node(group_health_node, group_health, do_not_warn=True)
+                    else:
+                        read_value = None
+                    if read_value is None:
+                        model_group_health[group_health]["health"] = 0.0
+                        self.groupHealth.value[group_health] = model_group_health[group_health]
+                    else:
+                        model_group_health[group_health]["health"] = float(read_value)
+                        self.groupHealth.value[group_health] = model_group_health[group_health]
 
             size = read_from_xml_node(xmlNode, "Size", do_not_warn=True)
             if size is not None:

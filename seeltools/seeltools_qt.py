@@ -30,7 +30,8 @@ def main():
     mw = windows.ModernWindow(window)
 
     mw.resize(1024, 720)
-    mw.move(QtGui.QGuiApplication.primaryScreen().availableGeometry().center() - mw.rect().center())
+    mw.move(QtGui.QGuiApplication.primaryScreen().availableGeometry().center()
+            - mw.rect().center())
 
     mw.show()
     app.exec()
@@ -494,8 +495,8 @@ class PrototypeEditor(QtWidgets.QWidget):
             self.mw.show()
             self.setVisible(True)
             self.tab_widget.setVisible(True)
-            self.resize(250, 150)
-            self.move(QtGui.QGuiApplication.primaryScreen().availableGeometry().center()
+            self.mw.resize(250, 150)
+            self.mw.move(QtGui.QGuiApplication.primaryScreen().availableGeometry().center()
                       - self.rect().center())
         else:
             logger.debug("Already visible")
