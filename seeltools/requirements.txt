@@ -1,6 +1,6 @@
 entrypoints==0.3
 flake8==3.7.9
-lxml==4.5.0
+lxml==4.9.1
 mccabe==0.6.1
 Nuitka==0.7.7
 pycodestyle==2.5.0
