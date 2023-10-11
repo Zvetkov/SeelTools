@@ -1,12 +1,13 @@
 from os.path import join, dirname, abspath
 
-from PySide2.QtGui import QPalette, QColor
+from PySide6.QtGui import QPalette, QColor
+from PySide6.QtWidgets import QApplication
 
 _STYLESHEET = join(dirname(abspath(__file__)), 'resources/style.qss')
 """ str: Main stylesheet. """
 
 
-def _apply_base_theme(app):
+def _apply_base_theme(app: QApplication):
     """ Apply base theme to the application.
 
         Args:
@@ -17,7 +18,7 @@ def _apply_base_theme(app):
         app.setStyleSheet(stylesheet.read())
 
 
-def dark(app):
+def dark(app: QApplication):
     """ Apply Dark Theme to the Qt application instance.
 
         Args:
@@ -60,9 +61,11 @@ def dark(app):
     app.setPalette(darkPalette)
 
     _apply_base_theme(app)
+    # map(lambda x: x.redraw(), app.topLevelWidgets())
+    map(lambda x: x.update(), app.topLevelWindows())
 
 
-def light(app):
+def light(app: QApplication):
     """ Apply Light Theme to the Qt application instance.
 
         Args:
@@ -105,3 +108,5 @@ def light(app):
     app.setPalette(lightPalette)
 
     _apply_base_theme(app)
+    # map(lambda x: x.redraw(), app.topLevelWidgets())
+    map(lambda x: x.update(), app.topLevelWindows())

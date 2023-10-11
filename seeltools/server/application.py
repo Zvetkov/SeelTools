@@ -2,11 +2,11 @@ import os
 from urllib.parse import unquote
 # from copy import deepcopy
 
-from seeltools.server.wnd_station import theWndStation
-from seeltools.utilities.log import logger
-from seeltools.utilities.parse import (xml_to_objfy, check_mono_xml_node,
-                                       safe_check_and_set)
-from seeltools.utilities.game_path import WORKING_DIRECTORY
+from server.wnd_station import theWndStation
+from utilities.log import logger
+from utilities.parse import (xml_to_objfy, check_mono_xml_node,
+                             safe_check_and_set)
+from utilities.game_path import WORKING_DIRECTORY
 # from seeltools.utilities.constants import ZERO_VECTOR
 
 

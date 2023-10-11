@@ -1,5 +1,5 @@
-from seeltools.utilities.log import logger
-from seeltools.utilities.parse import read_from_xml_node, xml_to_objfy
+from utilities.log import logger
+from utilities.parse import read_from_xml_node, xml_to_objfy
 
 
 class Relationship(object):

@@ -1,10 +1,13 @@
 import os
 import winreg
-from seeltools.utilities.log import logger
-from seeltools.utilities.constants import FALLBACK_WORKING_DIRECTORY
+from utilities.log import logger
+from utilities.constants import FALLBACK_WORKING_DIRECTORY
 
 
-def get_game_path():
+def get_game_path(use_fallback=False):
+    if use_fallback:
+        return FALLBACK_WORKING_DIRECTORY
+
     steam_install_reg_path = r"SOFTWARE\WOW6432Node\Valve\Steam"
     hklm = winreg.ConnectRegistry(None, winreg.HKEY_LOCAL_MACHINE)
     try:
@@ -43,5 +46,5 @@ def get_game_path():
     return FALLBACK_WORKING_DIRECTORY
 
 
-WORKING_DIRECTORY = get_game_path()
+WORKING_DIRECTORY = get_game_path(use_fallback=True)
 logger.info(f"'{WORKING_DIRECTORY}': choosen as game working directory")

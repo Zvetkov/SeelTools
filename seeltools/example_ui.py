@@ -1,19 +1,19 @@
 import sys
-from PySide2.QtCore import QDateTime, Qt, QTimer
-from PySide2.QtGui import QPalette, QColor
-from PySide2.QtWidgets import (QApplication, QCheckBox, QComboBox, QHBoxLayout,
+from PySide6.QtCore import QDateTime, Qt, QTimer
+from PySide6.QtGui import QPalette, QColor
+from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QHBoxLayout,
                                QDial, QDialog, QGridLayout, QGroupBox, QLabel,
                                QLineEdit, QProgressBar, QSlider, QDateTimeEdit,
                                QPushButton, QRadioButton, QScrollBar, QSpinBox,
                                QSizePolicy, QStyleFactory, QWidget, QTextEdit,
-                               QTabWidget, QTableWidget, QVBoxLayout, QToolTip)
+                               QTabWidget, QTableWidget, QVBoxLayout)
 
 
 def main():
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
-    app.exec_()
+    app.exec()
 
 
 class MainWindow(QDialog):
@@ -90,8 +90,8 @@ class MainWindow(QDialog):
             dark_palette.setColor(QPalette.Highlight, QColor(255, 165, 0))
             dark_palette.setColor(QPalette.HighlightedText, Qt.black)
             QApplication.setPalette(dark_palette)
-            # styleSheet = "QToolTip { color: #ffffff; background-color: #2a82da; border: 1px solid white; }"
-            # QApplication.setStyleSheet(styleSheet)
+            styleSheet = "QToolTip { color: #ffffff; background-color: #2a82da; border: 1px solid white; }"
+            QApplication.setStyleSheet(styleSheet)
         else:
             QApplication.setPalette(QApplication.style().standardPalette())
 

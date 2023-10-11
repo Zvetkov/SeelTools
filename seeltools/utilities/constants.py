@@ -1,7 +1,7 @@
 import os
 from enum import Enum
 
-FALLBACK_WORKING_DIRECTORY = "D:/Steam/steamapps/common/Hard Truck Apocalypse 2"
+FALLBACK_WORKING_DIRECTORY = "S:\\SteamLibrary\\steamapps\\common\\Hard Truck Apocalypse Cleanest"
 
 # MAP_NAME = "r1m3"
 

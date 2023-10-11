@@ -1,5 +1,5 @@
-from seeltools.utilities.log import logger
-from seeltools.utilities.parse import read_from_xml_node, parse_str_to_bool
+from utilities.log import logger
+from utilities.parse import read_from_xml_node, parse_str_to_bool
 
 
 class GlobalProperties(object):

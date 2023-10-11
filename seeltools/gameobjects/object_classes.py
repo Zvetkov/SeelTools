@@ -2,14 +2,14 @@ from math import sqrt, cos, pi
 from copy import deepcopy
 from lxml import etree
 
-from seeltools.utilities.log import logger
+from utilities.log import logger
 
-from seeltools.utilities.id_manager import theIdManager
+from utilities.id_manager import theIdManager
 
-from seeltools.utilities.parse import safe_check_and_set, parse_str_to_bool, read_from_xml_node, child_from_xml_node
-from seeltools.utilities.constants import (STATUS_SUCCESS, ZERO_VECTOR, INITIAL_OBJECTS_DIRECTION, BuildingType,
-                                           IDENTITY_QUATERNION)
-from seeltools.utilities.global_functions import MassSetBoxTotal
+from utilities.parse import safe_check_and_set, parse_str_to_bool, read_from_xml_node, child_from_xml_node
+from utilities.constants import (STATUS_SUCCESS, ZERO_VECTOR, INITIAL_OBJECTS_DIRECTION, BuildingType,
+                                 IDENTITY_QUATERNION)
+from utilities.global_functions import MassSetBoxTotal
 
 
 class Object(object):
